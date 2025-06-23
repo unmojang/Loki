@@ -9,6 +9,11 @@ repositories {
 
 dependencies {
 	implementation 'net.bytebuddy:byte-buddy:1.17.5'
+
+	implementation 'com.google.code.gson:gson:2.11.0'
+	implementation 'org.apache.httpcomponents:httpclient:4.5.14'
+	implementation 'org.apache.httpcomponents:httpcore:4.4.16'
+	implementation 'commons-logging:commons-logging:1.2'
 }
 
 version = '1.0';
@@ -27,14 +32,20 @@ jar {
 shadowJar {
 	archiveClassifier.set(null)
 
-	minimize()
+	minimize {
+		exclude(dependency('commons-logging:commons-logging')) // necessary
+	}
 
 	exclude 'win32-x86/**'
 	exclude 'win32-x86-64/**'
 	exclude 'META-INF/**'
+	exclude 'mozilla/**'
+	exclude 'properties.dtd'
+	exclude 'PropertyList-1.0.dtd'
 
 	relocate 'net.bytebuddy', 'org.unmojang.loki.internal.net.bytebuddy'
-	
+	relocate 'com.google', 'org.unmojang.loki.internal.com.google'
+	relocate 'org.apache', 'org.unmojang.loki.internal.org.apache'
 }
 
 tasks.withType(JavaCompile) {
