@@ -1,0 +1,48 @@
+plugins {
+	id 'com.github.johnrengelman.shadow' version '8.1.1'
+	id 'java'
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	implementation 'net.bytebuddy:byte-buddy:1.17.5'
+}
+
+version = '1.0';
+
+jar {
+	manifest {
+		attributes (
+			'Premain-Class': 'org.unmojang.loki.Loki',
+			'Agent-Class': 'org.unmojang.loki.Loki',
+			'Can-Retransform-Classes': true,
+			'Can-Redefine-Classes': true
+		)
+	}
+}
+
+shadowJar {
+	archiveClassifier.set(null)
+
+	minimize()
+
+	exclude 'win32-x86/**'
+	exclude 'win32-x86-64/**'
+	exclude 'META-INF/**'
+
+	relocate 'net.bytebuddy', 'org.unmojang.loki.internal.net.bytebuddy'
+	
+}
+
+tasks.withType(JavaCompile) {
+	options.encoding = 'UTF-8'
+}
+
+tasks.assemble {
+	dependsOn shadowJar
+}
+
+defaultTasks 'clean', 'assemble'
