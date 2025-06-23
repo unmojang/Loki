@@ -1,0 +1,31 @@
+package org.unmojang.loki;
+
+import static org.unmojang.loki.Loki.*;
+import static org.unmojang.loki.LokiHTTP.getAuthlibInjectorApiLocation;
+import static org.unmojang.loki.LokiHTTP.getAuthlibInjectorConfig;
+
+public class LokiUtil {
+    public static void InitAuthlibInjectorAPI(String agentArgs) {
+        if (agentArgs != null && (agentArgs.startsWith("http://") || agentArgs.startsWith("https://"))) {
+            String authlibInjectorApiLocation = getAuthlibInjectorApiLocation(agentArgs);
+            if (authlibInjectorApiLocation == null) return;
+            authlibInjectorConfig = getAuthlibInjectorConfig(authlibInjectorApiLocation);
+            if (authlibInjectorConfig == null) return;
+            System.out.println("[Loki] Using authlib-injector API, secure-profile and domain whitelisting will be available");
+
+            // 1.16+, have authlib handle it for us
+            System.setProperty("minecraft.api.env", "custom");
+            System.setProperty("minecraft.api.account.host", authlibInjectorApiLocation + "/api");
+            System.setProperty("minecraft.api.auth.host", authlibInjectorApiLocation + "/authserver");
+            System.setProperty("minecraft.api.session.host", authlibInjectorApiLocation + "/sessionserver");
+            System.setProperty("minecraft.api.services.host", authlibInjectorApiLocation + "/minecraftservices");
+
+            accountHost = authlibInjectorApiLocation + "/api";
+            authHost = authlibInjectorApiLocation + "/authserver";
+            sessionHost = authlibInjectorApiLocation + "/sessionserver";
+            servicesHost = authlibInjectorApiLocation + "/minecraftservices";
+
+            usingAuthlibInjectorAPI = true;
+        }
+    }
+}

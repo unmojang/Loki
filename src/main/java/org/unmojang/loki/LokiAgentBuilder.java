@@ -9,7 +9,7 @@ import java.net.URL;
 import java.lang.instrument.Instrumentation;
 
 public class LokiAgentBuilder {
-    public static void buildTextureAgents(Instrumentation inst) {
+    public static void buildUnsignedTextureAgents(Instrumentation inst) {
         AgentBuilder agentBuilder = new AgentBuilder.Default();
         // Signatures
         // 1.7.2+ (deprecated 1.19)
@@ -40,7 +40,7 @@ public class LokiAgentBuilder {
         agentBuilder.installOn(inst);
     }
 
-    public static void buildHostAgents(Instrumentation inst) {
+    public static void buildAuthAgents(Instrumentation inst) {
         AgentBuilder agentBuilder = new AgentBuilder.Default();
 
         // Patch static initializers (auth, session, account servers)
