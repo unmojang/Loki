@@ -26,6 +26,7 @@ public class Loki {
 		} else {
 			LokiAgentBuilder.buildSignedTextureAgents(inst);
 		}
-		LokiAgentBuilder.buildAuthAgents(inst); // for <1.16, no harm in applying it to newer versions though
+        LokiAgentBuilder.buildPatchyAgent(inst);
+        LokiAgentBuilder.buildAuthAgents(inst); // for <1.16, no harm in applying it to newer versions though
 	}
 }

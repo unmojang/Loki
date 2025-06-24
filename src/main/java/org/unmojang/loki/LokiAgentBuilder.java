@@ -40,6 +40,16 @@ public class LokiAgentBuilder {
         agentBuilder.installOn(inst);
     }
 
+    public static void buildPatchyAgent(Instrumentation inst) {
+        new AgentBuilder.Default()
+                .type(ElementMatchers.named("com.mojang.patchy.MojangBlockListSupplier"))
+                .transform((builder, typeDescription, classLoader, javaModule, foobar) -> builder
+                        .method(ElementMatchers.named("createBlockList"))
+                        .intercept(Advice.to(PatchyInterceptor.class))
+                )
+                .installOn(inst);
+    }
+
     public static void buildSignedTextureAgents(Instrumentation inst) {
         AgentBuilder agentBuilder = new AgentBuilder.Default();
         // Texture signatures (possibly unnecessary?)

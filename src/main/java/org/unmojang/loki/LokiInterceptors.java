@@ -6,6 +6,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.net.URLConnection;
 import java.security.KeyFactory;
 import java.security.PublicKey;
 import java.security.spec.X509EncodedKeySpec;
@@ -134,6 +135,16 @@ public class LokiInterceptors {
             } catch (MalformedURLException e) {
                 throw new IllegalArgumentException("Could not concatenate given URL with GET arguments!", e);
             }
+        }
+    }
+
+    public static class PatchyInterceptor {
+        @Advice.OnMethodEnter(skipOn = Advice.OnNonDefaultValue.class)
+        static URLConnection onEnter() throws Exception {
+            String blockedServersURL = System.getProperty("minecraft.api.session.host") + "/blockedservers";
+            URLConnection connection = new URL(blockedServersURL).openConnection();
+            System.out.println("[Loki] Intercepted patchy blockedservers list");
+            return connection;
         }
     }
 }
