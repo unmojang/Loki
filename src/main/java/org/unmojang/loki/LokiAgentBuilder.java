@@ -11,8 +11,8 @@ import java.lang.instrument.Instrumentation;
 public class LokiAgentBuilder {
     public static void buildUnsignedTextureAgents(Instrumentation inst) {
         AgentBuilder agentBuilder = new AgentBuilder.Default();
-        // Signatures
-        // 1.7.2+ (deprecated 1.19)
+        // Texture signatures (possibly unnecessary?)
+        // 1.7.2-1.18.2 (deprecated in 1.19)
         agentBuilder = installTransform(agentBuilder,
                 "com.mojang.authlib.properties.Property",
                 "isSignatureValid",
@@ -42,12 +42,12 @@ public class LokiAgentBuilder {
 
     public static void buildSignedTextureAgents(Instrumentation inst) {
         AgentBuilder agentBuilder = new AgentBuilder.Default();
-        // Signatures
-        // 1.7.2+ (deprecated 1.19)
-        agentBuilder = installTransform(agentBuilder,
-                "com.mojang.authlib.properties.Property",
-                "isSignatureValid",
-                ReturnTrueInterceptor.class);
+        // Texture signatures (possibly unnecessary?)
+        // 1.7.2-1.18.2 (deprecated in 1.19)
+        agentBuilder = agentBuilder.type(ElementMatchers.named("com.mojang.authlib.yggdrasil.YggdrasilMinecraftSessionService"))
+                .transform((builder, typeDescription, classLoader, javaModule, foobar) -> builder
+                        .constructor(ElementMatchers.any())
+                        .intercept(Advice.to(PublicKeyInterceptor.class)));
 
         // Textures
         // 1.7.6-1.16.5 (1.7.2-1.7.5 use hardcoded http://skins.minecraft.net in game jar)

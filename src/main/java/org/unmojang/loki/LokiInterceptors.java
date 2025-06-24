@@ -6,6 +6,10 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.security.KeyFactory;
+import java.security.PublicKey;
+import java.security.spec.X509EncodedKeySpec;
+import java.util.Base64;
 
 import static org.unmojang.loki.Loki.*;
 
@@ -40,6 +44,25 @@ public class LokiInterceptors {
         }
     }
 
+    public static class PublicKeyInterceptor {
+        @Advice.OnMethodExit
+        static void onExit(@Advice.This Object instance) {
+            try {
+                String pem = System.getProperty("loki.internal.publicKey");
+                byte[] encoded = Base64.getDecoder().decode(pem);
+                X509EncodedKeySpec spec = new X509EncodedKeySpec(encoded);
+                PublicKey customKey = KeyFactory.getInstance("RSA").generatePublic(spec);
+
+                Field pubKeyField = instance.getClass().getDeclaredField("publicKey");
+                pubKeyField.setAccessible(true);
+                pubKeyField.set(instance, customKey);
+                System.out.println("[Loki] Replaced yggdrasil public key.");
+            } catch (Exception e) {
+                // probably just due to newer version, can be ignored
+            }
+        }
+    }
+
     public static class StaticFinalStringInterceptor {
         @Advice.OnMethodExit
         public static void onExit() {
@@ -57,9 +80,9 @@ public class LokiInterceptors {
                 System.out.println("[Loki] Intercepted URL constants");
             } catch (ClassNotFoundException e) {
                 // this happens on early 1.7 because there's no YggdrasilGameProfileRepository.
-                // probably some stuff missing on newer versions too? doesn't matter though.
-            }
-            catch (Exception e) {
+            } catch (NoSuchFieldException e) {
+                // newer versions will probably trigger this
+            } catch (Exception e) {
                 e.printStackTrace();
             }
         }
@@ -79,21 +102,20 @@ public class LokiInterceptors {
         @Advice.OnMethodExit
         public static void onExit(@Advice.Argument(0) String urlString,
                                   @Advice.Return(readOnly = false) URL returned) {
-            if (urlString.contains(".mojang.com")) { // hacky fix to avoid issues with 1.16+
-                try {
-                    String replaced = urlString
-                            .replace("https://sessionserver.mojang.com", sessionHost)
-                            .replace("https://authserver.mojang.com", authHost)
-                            .replace("https://api.mojang.com", accountHost);
+            try {
+                String replaced = urlString
+                        .replace("https://api.mojang.com", System.getProperty("minecraft.api.account.host"))
+                        .replace("https://authserver.mojang.com", System.getProperty("minecraft.api.auth.host"))
+                        .replace("https://sessionserver.mojang.com", System.getProperty("minecraft.api.session.host"))
+                        .replace("https://api.minecraftservices.com", System.getProperty("minecraft.api.services.host"));
 
-                    if (!replaced.equals(urlString)) {
-                        System.out.println("[Loki] URL intercepted: " + urlString);
-                    }
-
-                    returned = new URL(replaced);
-                } catch (Exception e) {
-                    e.printStackTrace();
+                if (!replaced.equals(urlString)) {
+                    System.out.println("[Loki] URL intercepted: " + urlString);
                 }
+
+                returned = new URL(replaced);
+            } catch (Exception e) {
+                e.printStackTrace();
             }
         }
     }

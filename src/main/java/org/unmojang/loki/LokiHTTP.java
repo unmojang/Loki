@@ -47,6 +47,8 @@ public class LokiHTTP {
             }
 
             return client.execute(request);
+        } catch(Exception e) {
+            return null;
         }
     }
 
@@ -56,7 +58,6 @@ public class LokiHTTP {
                     .getFirstHeader("X-Authlib-Injector-Api-Location");
             return AuthlibInjectorApiLocation != null ? AuthlibInjectorApiLocation.getValue() : null;
         } catch (Exception e) {
-            e.printStackTrace();
             return null;
         }
     }
@@ -77,7 +78,11 @@ public class LokiHTTP {
             String implementationVersion = objMeta.get("implementationVersion").getAsString();
             String serverName = objMeta.get("serverName").getAsString();
 
-            String signaturePublicKey = obj.get("signaturePublickey").getAsString();
+            String publicKey = obj.get("signaturePublickey")
+                    .getAsString().replace("-----BEGIN PUBLIC KEY-----", "")
+                    .replace("-----END PUBLIC KEY-----", "")
+                    .replaceAll("\\s+", "");
+
             JsonArray skinDomainsJsonArray = obj.get("skinDomains").getAsJsonArray();
             String[] skinDomains = new String[skinDomainsJsonArray.size()];
             for (int i = 0; i < skinDomainsJsonArray.size(); i++) {
@@ -88,7 +93,7 @@ public class LokiHTTP {
             result.put("implementationName", implementationName);
             result.put("implementationVersion", implementationVersion);
             result.put("serverName", serverName);
-            result.put("signaturePublicKey", signaturePublicKey);
+            result.put("publicKey", publicKey);
             result.put("skinDomains", skinDomains);
             return result;
 
