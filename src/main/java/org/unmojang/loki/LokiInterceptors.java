@@ -26,12 +26,13 @@ public class LokiInterceptors {
     public static class TextureWhitelistInterceptor {
         @Advice.OnMethodEnter
         static void onEnter(@Advice.Origin("#m") String method) {
-            System.out.println("[Loki] Intercepted " + method);
+            System.out.println("[Loki] Intercepted " + method + " to use correct texture whitelist");
         }
 
         @Advice.OnMethodExit
         static void onExit(@Advice.Argument(0) String url, @Advice.Return(readOnly = false) boolean returnValue) {
-            for (String domain : (String[]) authlibInjectorConfig.get("skinDomains")) {
+            String[] skinDomains = System.getProperty("loki.internal.skinDomains").split(",");
+            for (String domain : skinDomains) {
                 if (url.startsWith("http://" + domain) || url.startsWith("https://" + domain)) {
                     returnValue = true;
                 }

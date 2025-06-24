@@ -25,6 +25,10 @@ public class LokiUtil {
             sessionHost = authlibInjectorApiLocation + "/sessionserver";
             servicesHost = authlibInjectorApiLocation + "/minecraftservices";
 
+            // System property smuggling
+            System.setProperty("loki.internal.skinDomains", String.join(",",
+                    (String[]) authlibInjectorConfig.get("skinDomains")));
+
             usingAuthlibInjectorAPI = true;
         }
     }
