@@ -8,10 +8,10 @@ public class LokiUtil {
     public static void InitAuthlibInjectorAPI(String agentArgs) {
         if (agentArgs != null && (agentArgs.startsWith("http://") || agentArgs.startsWith("https://"))) {
             String authlibInjectorApiLocation = getAuthlibInjectorApiLocation(agentArgs);
-            if (authlibInjectorApiLocation == null) return;
+            if (authlibInjectorApiLocation == null) authlibInjectorApiLocation = agentArgs;
             authlibInjectorConfig = getAuthlibInjectorConfig(authlibInjectorApiLocation);
             if (authlibInjectorConfig == null) return;
-            System.out.println("[Loki] Using authlib-injector API, secure-profile and domain whitelisting will be available");
+            System.out.println("[Loki] Using authlib-injector API");
 
             // 1.16+, have authlib handle it for us
             System.setProperty("minecraft.api.env", "custom");

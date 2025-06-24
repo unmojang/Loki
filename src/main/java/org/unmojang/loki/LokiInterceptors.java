@@ -23,6 +23,22 @@ public class LokiInterceptors {
         }
     }
 
+    public static class TextureWhitelistInterceptor {
+        @Advice.OnMethodEnter
+        static void onEnter(@Advice.Origin("#m") String method) {
+            System.out.println("[Loki] Intercepted " + method);
+        }
+
+        @Advice.OnMethodExit
+        static void onExit(@Advice.Argument(0) String url, @Advice.Return(readOnly = false) boolean returnValue) {
+            for (String domain : (String[]) authlibInjectorConfig.get("skinDomains")) {
+                if (url.startsWith("http://" + domain) || url.startsWith("https://" + domain)) {
+                    returnValue = true;
+                }
+            }
+        }
+    }
+
     public static class StaticFinalStringInterceptor {
         @Advice.OnMethodExit
         public static void onExit() {
@@ -48,7 +64,6 @@ public class LokiInterceptors {
         }
 
 
-        // modify strings with reflection
         public static void overwriteStringConstant(Class<?> clazz, String fieldName, String newValue) throws Exception {
             Field field = clazz.getDeclaredField(fieldName);
             field.setAccessible(true);

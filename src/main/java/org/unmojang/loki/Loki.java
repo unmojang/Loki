@@ -21,11 +21,11 @@ public class Loki {
 				accountHost, authHost, sessionHost, servicesHost
 		);
 
-		if(!usingAuthlibInjectorAPI) {
-			//LokiAgentBuilder.buildSignedTextureAgents(inst); // only used when running without authlib-injector API
-		} else {
+		//if(!usingAuthlibInjectorAPI) {
 			LokiAgentBuilder.buildUnsignedTextureAgents(inst); // only used when running without authlib-injector API
-		}
+		/*} else {
+			LokiAgentBuilder.buildSignedTextureAgents(inst);
+		}*/
 		LokiAgentBuilder.buildAuthAgents(inst); // for <1.16, no harm in applying it to newer versions though
 	}
 }

@@ -31,11 +31,42 @@ public class LokiAgentBuilder {
                 "isAllowedTextureDomain",
                 ReturnTrueInterceptor.class);
 
-        // 1.20+
+        // 1.19.3+
         agentBuilder = installTransform(agentBuilder,
                 "com.mojang.authlib.yggdrasil.TextureUrlChecker",
                 "isAllowedTextureDomain",
                 ReturnTrueInterceptor.class);
+
+        agentBuilder.installOn(inst);
+    }
+
+    public static void buildSignedTextureAgents(Instrumentation inst) {
+        AgentBuilder agentBuilder = new AgentBuilder.Default();
+        // Signatures
+        // 1.7.2+ (deprecated 1.19)
+        agentBuilder = installTransform(agentBuilder,
+                "com.mojang.authlib.properties.Property",
+                "isSignatureValid",
+                ReturnTrueInterceptor.class);
+
+        // Textures
+        // 1.7.6-1.16.5 (1.7.2-1.7.5 use hardcoded http://skins.minecraft.net in game jar)
+        agentBuilder = installTransform(agentBuilder,
+                "com.mojang.authlib.yggdrasil.YggdrasilMinecraftSessionService",
+                "isWhitelistedDomain",
+                TextureWhitelistInterceptor.class);
+
+        // 1.17-1.19.2
+        agentBuilder = installTransform(agentBuilder,
+                "com.mojang.authlib.yggdrasil.YggdrasilMinecraftSessionService",
+                "isAllowedTextureDomain",
+                TextureWhitelistInterceptor.class);
+
+        // 1.19.3+
+        agentBuilder = installTransform(agentBuilder,
+                "com.mojang.authlib.yggdrasil.TextureUrlChecker",
+                "isAllowedTextureDomain",
+                TextureWhitelistInterceptor.class);
 
         agentBuilder.installOn(inst);
     }
