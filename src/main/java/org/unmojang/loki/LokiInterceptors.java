@@ -16,7 +16,7 @@ public class LokiInterceptors {
     public static class ReturnTrueInterceptor {
         @Advice.OnMethodEnter
         static void onEnter(@Advice.Origin("#m") String method) {
-            System.out.println("[Loki] Intercepted " + method + " to return true");
+            System.out.println("[loki] Intercepted " + method + " to return true");
         }
 
         @Advice.OnMethodExit
@@ -28,7 +28,7 @@ public class LokiInterceptors {
     public static class TextureWhitelistInterceptor {
         @Advice.OnMethodEnter
         static void onEnter(@Advice.Origin("#m") String method) {
-            System.out.println("[Loki] Intercepted " + method + " to use correct texture whitelist");
+            System.out.println("[loki] Intercepted " + method + " to use correct texture whitelist");
         }
 
         @Advice.OnMethodExit
@@ -54,7 +54,7 @@ public class LokiInterceptors {
                 Field pubKeyField = instance.getClass().getDeclaredField("publicKey");
                 pubKeyField.setAccessible(true);
                 pubKeyField.set(instance, customKey);
-                System.out.println("[Loki] Replaced yggdrasil public key.");
+                System.out.println("[loki] Replaced yggdrasil public key.");
             } catch (Exception e) {
                 // probably just due to newer version, can be ignored
             }
@@ -90,7 +90,7 @@ public class LokiInterceptors {
                 modField.setInt(f4, f4.getModifiers() & ~java.lang.reflect.Modifier.FINAL);
                 f4.set(null, System.getProperty("minecraft.api.account.host") + "/profiles/");
 
-                System.out.println("[Loki] Intercepted URL constants");
+                System.out.println("[loki] Intercepted URL constants");
             } catch (ClassNotFoundException e) {
                 // this happens on early 1.7 because there's no YggdrasilGameProfileRepository.
             } catch (NoSuchFieldException e) {
@@ -113,7 +113,7 @@ public class LokiInterceptors {
                         .replace("https://api.minecraftservices.com", System.getProperty("minecraft.api.services.host"));
 
                 if (!replaced.equals(urlString)) {
-                    System.out.println("[Loki] URL intercepted: " + urlString);
+                    System.out.println("[loki] URL intercepted: " + urlString);
                 }
 
                 returned = new URL(replaced);
@@ -145,7 +145,7 @@ public class LokiInterceptors {
         static URLConnection onEnter() throws Exception {
             String blockedServersURL = System.getProperty("minecraft.api.session.host") + "/blockedservers";
             URLConnection connection = new URL(blockedServersURL).openConnection();
-            System.out.println("[Loki] Intercepted patchy blockedservers list");
+            System.out.println("[loki] Intercepted patchy blockedservers list");
             return connection;
         }
     }

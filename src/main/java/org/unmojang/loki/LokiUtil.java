@@ -11,7 +11,7 @@ public class LokiUtil {
             if (authlibInjectorApiLocation == null) authlibInjectorApiLocation = agentArgs;
             authlibInjectorConfig = getAuthlibInjectorConfig(authlibInjectorApiLocation);
             if (authlibInjectorConfig == null) return;
-            System.out.println("[Loki] Using authlib-injector API");
+            System.out.println("[loki] Using authlib-injector API");
 
             // 1.16+, have authlib handle it for us
             // used on <1.16 for system property smuggling

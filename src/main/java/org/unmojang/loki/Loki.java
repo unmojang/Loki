@@ -10,10 +10,10 @@ public class Loki {
 	public static void premain(String agentArgs, Instrumentation inst) {
 		LokiUtil.InitAuthlibInjectorAPI(agentArgs);
 		System.out.printf(
-				"[Loki]  accountHost: %s\n" +
-				"[Loki]     authHost: %s\n" +
-				"[Loki]  sessionHost: %s\n" +
-				"[Loki] servicesHost: %s\n",
+				"[loki]  accountHost: %s\n" +
+				"[loki]     authHost: %s\n" +
+				"[loki]  sessionHost: %s\n" +
+				"[loki] servicesHost: %s\n",
                 System.getProperty("minecraft.api.account.host"), System.getProperty("minecraft.api.auth.host"),
                 System.getProperty("minecraft.api.session.host"), System.getProperty("minecraft.api.services.host")
 		);
