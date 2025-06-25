@@ -4,10 +4,6 @@ import java.lang.instrument.Instrumentation;
 import java.util.Map;
 
 public class Loki {
-	public static String accountHost  = System.getProperty("minecraft.api.account.host",  "https://api.mojang.com");
-	public static String authHost     = System.getProperty("minecraft.api.auth.host",     "https://authserver.mojang.com");
-	public static String sessionHost  = System.getProperty("minecraft.api.session.host",  "https://sessionserver.mojang.com");
-	public static String servicesHost = System.getProperty("minecraft.api.services.host", "https://api.minecraftservices.com");
 	public static boolean usingAuthlibInjectorAPI = false;
 	public static Map<String, Object> authlibInjectorConfig;
 
@@ -18,7 +14,8 @@ public class Loki {
 				"[Loki]     authHost: %s\n" +
 				"[Loki]  sessionHost: %s\n" +
 				"[Loki] servicesHost: %s\n",
-				accountHost, authHost, sessionHost, servicesHost
+                System.getProperty("minecraft.api.account.host"), System.getProperty("minecraft.api.auth.host"),
+                System.getProperty("minecraft.api.session.host"), System.getProperty("minecraft.api.services.host")
 		);
 
 		if(!usingAuthlibInjectorAPI) {

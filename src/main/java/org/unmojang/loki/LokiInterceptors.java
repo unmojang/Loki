@@ -3,7 +3,6 @@ package org.unmojang.loki;
 import net.bytebuddy.asm.Advice;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
@@ -11,8 +10,6 @@ import java.security.KeyFactory;
 import java.security.PublicKey;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
-
-import static org.unmojang.loki.Loki.*;
 
 public class LokiInterceptors {
     // generic false -> true interceptor, for lots of things
@@ -69,14 +66,29 @@ public class LokiInterceptors {
         public static void onExit() {
             try {
                 Class<?> clazz = Class.forName("com.mojang.authlib.yggdrasil.YggdrasilUserAuthentication");
-                overwriteStringConstant(clazz, "BASE_URL", authHost + "/");
+                Field f1 = clazz.getDeclaredField("BASE_URL");
+                f1.setAccessible(true);
+                Field modField = Field.class.getDeclaredField("modifiers");
+                modField.setAccessible(true);
+                modField.setInt(f1, f1.getModifiers() & ~java.lang.reflect.Modifier.FINAL);
+                f1.set(null, System.getProperty("minecraft.api.auth.host") + "/");
 
                 Class<?> clazb = Class.forName("com.mojang.authlib.yggdrasil.YggdrasilMinecraftSessionService");
-                overwriteStringConstant(clazb, "BASE_URL", sessionHost + "/session/minecraft/");
+                Field f2 = clazb.getDeclaredField("BASE_URL");
+                f2.setAccessible(true);
+                modField.setInt(f2, f2.getModifiers() & ~java.lang.reflect.Modifier.FINAL);
+                f2.set(null, System.getProperty("minecraft.api.session.host") + "/session/minecraft/");
 
                 Class<?> clazc = Class.forName("com.mojang.authlib.yggdrasil.YggdrasilGameProfileRepository");
-                overwriteStringConstant(clazc, "BASE_URL", accountHost + "/");
-                overwriteStringConstant(clazc, "SEARCH_PAGE_URL", accountHost + "/profiles/");
+                Field f3 = clazc.getDeclaredField("BASE_URL");
+                f3.setAccessible(true);
+                modField.setInt(f3, f3.getModifiers() & ~java.lang.reflect.Modifier.FINAL);
+                f3.set(null, System.getProperty("minecraft.api.account.host") + "/");
+
+                Field f4 = clazc.getDeclaredField("SEARCH_PAGE_URL");
+                f4.setAccessible(true);
+                modField.setInt(f4, f4.getModifiers() & ~java.lang.reflect.Modifier.FINAL);
+                f4.set(null, System.getProperty("minecraft.api.account.host") + "/profiles/");
 
                 System.out.println("[Loki] Intercepted URL constants");
             } catch (ClassNotFoundException e) {
@@ -86,16 +98,6 @@ public class LokiInterceptors {
             } catch (Exception e) {
                 e.printStackTrace();
             }
-        }
-
-
-        public static void overwriteStringConstant(Class<?> clazz, String fieldName, String newValue) throws Exception {
-            Field field = clazz.getDeclaredField(fieldName);
-            field.setAccessible(true);
-            Field modifiersField = Field.class.getDeclaredField("modifiers");
-            modifiersField.setAccessible(true);
-            modifiersField.setInt(field, field.getModifiers() & ~Modifier.FINAL);
-            field.set(null, newValue);
         }
     }
 

@@ -14,16 +14,12 @@ public class LokiUtil {
             System.out.println("[Loki] Using authlib-injector API");
 
             // 1.16+, have authlib handle it for us
+            // used on <1.16 for system property smuggling
             System.setProperty("minecraft.api.env", "custom");
             System.setProperty("minecraft.api.account.host", authlibInjectorApiLocation + "/api");
             System.setProperty("minecraft.api.auth.host", authlibInjectorApiLocation + "/authserver");
             System.setProperty("minecraft.api.session.host", authlibInjectorApiLocation + "/sessionserver");
             System.setProperty("minecraft.api.services.host", authlibInjectorApiLocation + "/minecraftservices");
-
-            accountHost = authlibInjectorApiLocation + "/api";
-            authHost = authlibInjectorApiLocation + "/authserver";
-            sessionHost = authlibInjectorApiLocation + "/sessionserver";
-            servicesHost = authlibInjectorApiLocation + "/minecraftservices";
 
             // System property smuggling
             System.setProperty("loki.internal.skinDomains", String.join(",",
