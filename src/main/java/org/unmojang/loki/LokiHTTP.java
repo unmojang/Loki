@@ -18,14 +18,13 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 public class LokiHTTP {
-    public static HttpResponse request(String method, String url, String body, String contentType) throws Exception {
-        SystemDefaultRoutePlanner routePlanner = new SystemDefaultRoutePlanner(ProxySelector.getDefault());
+    private static final CloseableHttpClient client = HttpClients.custom()
+            .setRoutePlanner(new SystemDefaultRoutePlanner(ProxySelector.getDefault()))
+            .build();
 
-        try (CloseableHttpClient client = HttpClients.custom()
-                .setRoutePlanner(routePlanner)
-                .build()) {
+    public static HttpResponse request(String method, String url, String body, String contentType) {
+        try {
             HttpRequestBase request;
-
             switch (method.toUpperCase()) {
                 case "POST":
                     HttpPost post = new HttpPost(url);
@@ -54,6 +53,7 @@ public class LokiHTTP {
 
             return client.execute(request);
         } catch (Exception e) {
+            e.printStackTrace();
             return null;
         }
     }
@@ -64,6 +64,7 @@ public class LokiHTTP {
                     .getFirstHeader("X-Authlib-Injector-Api-Location");
             return AuthlibInjectorApiLocation != null ? AuthlibInjectorApiLocation.getValue() : null;
         } catch (Exception e) {
+            e.printStackTrace();
             return null;
         }
     }
@@ -104,6 +105,7 @@ public class LokiHTTP {
             return result;
 
         } catch (Exception e) {
+            e.printStackTrace();
             return null;
         }
     }
