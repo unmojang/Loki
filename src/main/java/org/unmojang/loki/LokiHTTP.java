@@ -8,16 +8,22 @@ import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.*;
 import org.apache.http.entity.*;
 import org.apache.http.impl.client.*;
+import org.apache.http.impl.conn.SystemDefaultRoutePlanner;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.net.ProxySelector;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 public class LokiHTTP {
     public static HttpResponse request(String method, String url, String body, String contentType) throws Exception {
-        try (CloseableHttpClient client = HttpClients.createDefault()) {
+        SystemDefaultRoutePlanner routePlanner = new SystemDefaultRoutePlanner(ProxySelector.getDefault());
+
+        try (CloseableHttpClient client = HttpClients.custom()
+                .setRoutePlanner(routePlanner)
+                .build()) {
             HttpRequestBase request;
 
             switch (method.toUpperCase()) {
@@ -47,7 +53,7 @@ public class LokiHTTP {
             }
 
             return client.execute(request);
-        } catch(Exception e) {
+        } catch (Exception e) {
             return null;
         }
     }
@@ -70,7 +76,7 @@ public class LokiHTTP {
             JsonObject obj = JsonParser.parseString(content).getAsJsonObject();
             JsonObject objMeta = obj.getAsJsonObject("meta");
 
-            if(!objMeta.get("feature.enable_profile_key").getAsBoolean()) {
+            if (!objMeta.get("feature.enable_profile_key").getAsBoolean()) {
                 return null;
             }
 

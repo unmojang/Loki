@@ -7,14 +7,6 @@ import static org.unmojang.loki.LokiHTTP.getAuthlibInjectorConfig;
 public class LokiUtil {
     public static void InitAuthlibInjectorAPI(String agentArgs) {
         if (agentArgs != null && (agentArgs.startsWith("http://") || agentArgs.startsWith("https://"))) {
-            // If getting config fails, assuming that these aren't set already, we'll fall back to mojang
-            // to avoid catastrophic failure where these variables are being used in the codebase
-            System.setProperty("minecraft.api.env", "custom");
-            System.setProperty("minecraft.api.account.host", "https://api.mojang.com");
-            System.setProperty("minecraft.api.auth.host", "https://authserver.mojang.com");
-            System.setProperty("minecraft.api.session.host", "https://sessionserver.mojang.com");
-            System.setProperty("minecraft.api.services.host", "https://api.minecraftservices.com");
-
             String authlibInjectorApiLocation = getAuthlibInjectorApiLocation(agentArgs);
             if (authlibInjectorApiLocation == null) authlibInjectorApiLocation = agentArgs;
             authlibInjectorConfig = getAuthlibInjectorConfig(authlibInjectorApiLocation);
