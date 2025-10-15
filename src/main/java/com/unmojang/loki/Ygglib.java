@@ -2,7 +2,6 @@ package com.unmojang.loki;
 
 import nilloader.api.lib.nanojson.JsonObject;
 import nilloader.api.lib.nanojson.JsonParser;
-import nilloader.api.lib.nanojson.JsonParserException;
 
 import javax.imageio.ImageIO;
 import java.awt.*;

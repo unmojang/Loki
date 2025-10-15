@@ -1,14 +1,9 @@
 package com.unmojang.loki;
 
-import nilloader.api.lib.nanojson.JsonObject;
-import nilloader.api.lib.nanojson.JsonParser;
-
 import java.io.*;
 import java.lang.reflect.Field;
 import java.net.*;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.stream.Collectors;
 
 import static com.unmojang.loki.Ygglib.getYggdrasilUrl;
 
@@ -26,8 +21,7 @@ public class Factories {
                 "betacraft.uk"
         )));
         BLACKLISTED_PATHS = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
-                "/MinecraftResources",
-                "/baz"
+                "/MinecraftResources"
         )));
         Map<String, String> tmp = new HashMap<>();
         tmp.put("authserver.mojang.com", System.getProperty("minecraft.api.auth.host", "authserver.mojang.com"));
