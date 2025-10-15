@@ -72,30 +72,7 @@ public class Factories {
                 }
             }
 
-            final URLStreamHandlerFactory delegateFactory = existingFactory;
-            URLStreamHandlerFactory wrapper = new URLStreamHandlerFactory() {
-                @Override
-                public URLStreamHandler createURLStreamHandler(final String protocol) {
-                    try {
-                        // Ask the existing factory first (if present)
-                        URLStreamHandler handler = null;
-                        if (delegateFactory != null) {
-                            try {
-                                handler = delegateFactory.createURLStreamHandler(protocol);
-                            } catch (Throwable t) {
-                                Premain.log.info("existing factory threw for protocol " + protocol, t);
-                            }
-                        }
-                        // If existing factory returned null, try system default
-                        if (handler == null) handler = getDefaultHandler(protocol);
-                        if (handler == null) return null;
-                        return wrapHandler(handler);
-                    } catch (Throwable t) {
-                        Premain.log.warn("Failed to create wrapped handler for: " + protocol, t);
-                        return null;
-                    }
-                }
-            };
+            URLStreamHandlerFactory wrapper = getWrappedHandlerFactory(existingFactory);
 
             // Replace the private factory field with our wrapper (dangerous but necessary if factory already set).
             factoryField.set(null, wrapper);
@@ -104,6 +81,31 @@ public class Factories {
         } catch (Throwable t) {
             Premain.log.error("Failed to wrap existing URL.factory reflectively", t);
         }
+    }
+
+    private static URLStreamHandlerFactory getWrappedHandlerFactory(URLStreamHandlerFactory existingFactory) {
+        final URLStreamHandlerFactory delegateFactory = existingFactory;
+        URLStreamHandlerFactory wrapper = protocol -> {
+            try {
+                // Ask the existing factory first (if present)
+                URLStreamHandler handler = null;
+                if (delegateFactory != null) {
+                    try {
+                        handler = delegateFactory.createURLStreamHandler(protocol);
+                    } catch (Throwable t) {
+                        Premain.log.info("existing factory threw for protocol " + protocol, t);
+                    }
+                }
+                // If existing factory returned null, try system default
+                if (handler == null) handler = getDefaultHandler(protocol);
+                if (handler == null) return null;
+                return wrapHandler(handler);
+            } catch (Throwable t) {
+                Premain.log.warn("Failed to create wrapped handler for: " + protocol, t);
+                return null;
+            }
+        };
+        return wrapper;
     }
 
     private static URLStreamHandler wrapHandler(final URLStreamHandler delegate) {
