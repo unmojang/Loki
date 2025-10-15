@@ -183,15 +183,27 @@ public class Factories {
                 return originalConn;
             }
         } else if (ALLOWED_DOMAINS.contains(host) && BLACKLISTED_PATHS.stream().noneMatch(path::startsWith)) {
-            Premain.log.info("Intercepting texture: " + originalUrl);
+            // Authentication
+            if (path.equals("/game/joinserver.jsp")) {
+                Premain.log.info("Intercepting joinServer: " + originalUrl);
+                return Ygglib.joinServer(originalUrl);
+            } else if (path.equals("/game/checkserver.jsp")) {
+                Premain.log.info("Intercepting checkServer: " + originalUrl);
+                return Ygglib.checkServer(originalUrl);
+            }
+
+            // Textures
             if (path.startsWith("/MinecraftSkins") || path.startsWith("/skin")) {
+                Premain.log.info("Intercepting skin texture: " + originalUrl);
                 String username = Ygglib.getUsernameFromPath(path);
                 return Ygglib.getTexture(username, "SKIN");
             } else if (path.startsWith("/MinecraftCloaks")) {
+                Premain.log.info("Intercepting cape texture: " + originalUrl);
                 String username = Ygglib.getUsernameFromPath(path);
                 return Ygglib.getTexture(username, "CAPE");
             } else if (path.equals("/cloak/get.jsp")) {
-                String username = query.substring(query.lastIndexOf('=') + 1);
+                Premain.log.info("Intercepting cape texture: " + originalUrl);
+                String username = Ygglib.queryStringParser(query).get("user");
                 return Ygglib.getTexture(username, "CAPE");
             }
         }

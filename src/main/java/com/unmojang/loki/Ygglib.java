@@ -10,6 +10,8 @@ import java.io.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import static com.unmojang.loki.Factories.YGGDRASIL_MAP;
@@ -17,6 +19,18 @@ import static com.unmojang.loki.Factories.YGGDRASIL_MAP;
 public class Ygglib {
     public static String getUsernameFromPath(String path) {
         return path.substring(path.lastIndexOf('/') + 1).replaceFirst("\\.png$", "");
+    }
+
+    public static Map<String, String> queryStringParser(String query) {
+        Map<String, String> params = new HashMap<>();
+        String[] entries = query.split("&");
+        for (String entry : entries) {
+            String[] pair = entry.split("=");
+            if (pair.length == 2) {
+                params.put(pair[0], pair[1]);
+            }
+        }
+        return params;
     }
 
     public static String getUUID(String username) {
@@ -58,6 +72,8 @@ public class Ygglib {
         }
     }
 
+    // Credit: Prism Launcher legacy fixes
+    // https://github.com/PrismLauncher/PrismLauncher/blob/develop/libraries/launcher/legacy/org/prismlauncher/legacy/fix/online/SkinFix.java
     public static HttpURLConnection getTexture(String username, String type) {
         try {
             String uuid = Ygglib.getUUID(username);
@@ -121,6 +137,105 @@ public class Ygglib {
             return null;
         }
         return null;
+    }
+
+    // Credit: Fjord Launcher legacy fixes
+    // https://github.com/unmojang/FjordLauncher/blob/develop/libraries/launcher/legacy/org/prismlauncher/legacy/fix/online/OnlineModeFix.java
+    public static HttpURLConnection joinServer(URL originalUrl) {
+        try {
+            Map<String, String> params = queryStringParser(originalUrl.getQuery());
+            String user = params.get("user");
+            if (user == null) {
+                throw new AssertionError("missing user");
+            }
+            String serverId = params.get("serverId");
+            if (serverId == null) {
+                throw new AssertionError("missing serverId");
+            }
+            String sessionId = params.get("sessionId");
+            if (sessionId == null) {
+                throw new AssertionError("missing sessionId");
+            }
+
+            // sessionId has the form:
+            // token:<accessToken>:<player UUID>
+            // or, as of Minecraft release 1.3.1, it may be URL encoded:
+            // token%3A<accessToken>%3A<player UUID>
+            String accessToken;
+            if (sessionId.contains(":")) {
+                accessToken = sessionId.split(":")[1];
+            } else if (sessionId.contains("%3A")) {
+                accessToken = sessionId.split("%3A")[1];
+            } else {
+                throw new AssertionError("invalid sessionId");
+            }
+
+            String uuid;
+            uuid = getUUID(user);
+            if (uuid == null) {
+                return new FakeURLConnection(originalUrl, ("Couldn't find UUID of " + user).getBytes(StandardCharsets.UTF_8));
+            }
+
+            URL url = new URL( "https://sessionserver.mojang.com/session/minecraft/join");
+            url = getYggdrasilUrl(url, url.getHost());
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setDoOutput(true);
+            connection.setRequestMethod("POST");
+            connection.setRequestProperty("Content-Type", "application/json");
+            connection.setRequestProperty("Accept", "application/json");
+            try (OutputStream os = connection.getOutputStream()) {
+                String payload = "{"
+                        + "\"accessToken\": \"" + accessToken + "\","
+                        + "\"selectedProfile\": \"" + uuid + "\","
+                        + "\"serverId\": \"" + serverId + "\""
+                        + "}";
+                os.write(payload.getBytes(StandardCharsets.UTF_8));
+            }
+            int responseCode = connection.getResponseCode();
+
+            if (responseCode == 204) {
+                return new FakeURLConnection(originalUrl, "OK".getBytes(StandardCharsets.UTF_8));
+            } else {
+                return new FakeURLConnection(originalUrl, "Bad login".getBytes(StandardCharsets.UTF_8));
+            }
+        } catch (Exception e) {
+            throw new AssertionError("An error occurred");
+        }
+    }
+
+    // Credit: OnlineModeFix
+    // https://github.com/craftycodie/OnlineModeFix/blob/main/src/gg/codie/mineonline/protocol/CheckServerURLConnection.java
+    // https://github.com/craftycodie/OnlineModeFix/blob/main/src/gg/codie/minecraft/api/SessionServer.java
+    public static HttpURLConnection checkServer(URL originalUrl) {
+        try {
+            Map<String, String> params = queryStringParser(originalUrl.getQuery());
+            String user = params.get("user");
+            if (user == null) {
+                throw new AssertionError("missing user");
+            }
+            String serverId = params.get("serverId");
+            if (serverId == null) {
+                throw new AssertionError("missing serverId");
+            }
+            String ip = params.get("ip");
+
+            URL url = new URL( "https://sessionserver.mojang.com/session/minecraft/hasJoined?username=" + user + "&serverId=" + serverId + (ip != null ? "&ip=" + ip : ""));
+            url = getYggdrasilUrl(url, url.getHost());
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setDoInput(true);
+            connection.setDoOutput(false);
+            connection.setRequestMethod("GET");
+            connection.connect();
+            int responseCode = connection.getResponseCode();
+
+            if (responseCode == 200) {
+                return new FakeURLConnection(originalUrl, "YES".getBytes(StandardCharsets.UTF_8));
+            } else {
+                return new FakeURLConnection(originalUrl, "Bad login".getBytes(StandardCharsets.UTF_8));
+            }
+        } catch (Exception e) {
+            throw new AssertionError("An error occurred");
+        }
     }
 
     public static URL getYggdrasilUrl(URL originalUrl, String server) throws MalformedURLException {
