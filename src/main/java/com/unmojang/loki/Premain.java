@@ -1,9 +1,6 @@
 package com.unmojang.loki;
 
-import com.unmojang.loki.transformers.AllowedDomainTransformer;
-import com.unmojang.loki.transformers.NewAllowedDomainTransformer;
-import com.unmojang.loki.transformers.SignatureValidTransformer;
-import com.unmojang.loki.transformers.URLFactoryTransformer;
+import com.unmojang.loki.transformers.*;
 import nilloader.api.ClassTransformer;
 import nilloader.api.NilLogger;
 
@@ -12,7 +9,9 @@ public class Premain implements Runnable {
 
 	@Override
 	public void run() {
-		ClassTransformer.register(new URLFactoryTransformer());
+		log.info("Hello Loki World!");
+		ClassTransformer.register(new FactoryTransformer());
+		ClassTransformer.register(new LegacyFactoryTransformer());
 		ClassTransformer.register(new SignatureValidTransformer());   // Texture signatures (possibly unnecessary?)
 																	  // 1.7.2-1.18.2 (deprecated in 1.19)
 

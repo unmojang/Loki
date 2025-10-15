@@ -7,6 +7,8 @@ import nilloader.api.lib.mini.annotation.Patch;
 @Patch.Class("com.mojang.authlib.properties.Property")
 public class SignatureValidTransformer extends MiniTransformer {
     @Patch.Method("isSignatureValid(Ljava/security/PublicKey;)Z")
+    @Patch.Method.AffectsControlFlow
+    @Patch.Method.Optional
     public void patchSignatureValid(PatchContext ctx) {
         ctx.jumpToStart();   // HEAD
         ctx.add(ICONST_1()); // push 1 (true)

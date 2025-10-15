@@ -7,6 +7,8 @@ import nilloader.api.lib.mini.annotation.Patch;
 @Patch.Class("com.mojang.authlib.yggdrasil.TextureUrlChecker")
 public class NewAllowedDomainTransformer extends MiniTransformer {
     @Patch.Method("isAllowedTextureDomain(Ljava/lang/String;)Z")
+    @Patch.Method.AffectsControlFlow
+    @Patch.Method.Optional
     public void patchIsAllowedTextureDomain(PatchContext ctx) {
         ctx.jumpToStart();   // HEAD
         ctx.add(ICONST_1()); // push 1 (true)
