@@ -1,5 +1,6 @@
 package com.unmojang.loki.transformers;
 
+import com.unmojang.loki.Premain;
 import nilloader.api.lib.mini.MiniTransformer;
 import nilloader.api.lib.mini.PatchContext;
 import nilloader.api.lib.mini.annotation.Patch;
@@ -28,7 +29,9 @@ public class ConcatenateURLTransformer extends MiniTransformer {
     public static class Hooks {
         // thanks yushijinhun!
         // https://github.com/yushijinhun/authlib-injector/blob/develop/src/main/java/moe/yushi/authlibinjector/transform/support/ConcatenateURLTransformUnit.java
+        // https://github.com/yushijinhun/authlib-injector/issues/126
         public static URL concatenateURL(URL url, String query) {
+            Premain.log.info("Applying ConcatenateURL fixes");
             try {
                 if (url.getQuery() != null && !url.getQuery().isEmpty()) {
                     return new URL(url.getProtocol(), url.getHost(), url.getPort(), url.getFile() + "&" + query);
