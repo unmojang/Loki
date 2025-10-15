@@ -10,10 +10,12 @@ public class Premain implements Runnable {
 	@Override
 	public void run() {
 		log.info("Hello Loki World!");
-		ClassTransformer.register(new FactoryTransformer());
-		ClassTransformer.register(new LegacyFactoryTransformer());
-		ClassTransformer.register(new SignatureValidTransformer());   // Texture signatures (possibly unnecessary?)
-																	  // 1.7.2-1.18.2 (deprecated in 1.19)
+		ClassTransformer.register(new LegacyFactoryTransformer());       // <1.6
+		ClassTransformer.register(new FactoryTransformer());             // 1.6-1.16
+		ClassTransformer.register(new SignatureValidTransformer());      // Texture signatures (possibly unnecessary?)
+																	     // 1.7-1.18.2 (deprecated in 1.19)
+
+		ClassTransformer.register(new ServerFactoryTransformer()); // <1.16
 
 		// Allowed domains
 		ClassTransformer.register(new AllowedDomainTransformer());    // 1.7.6-1.16.5, 1.17-1.19.2

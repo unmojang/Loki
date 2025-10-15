@@ -144,7 +144,7 @@ public class Factories {
         String query = originalUrl.getQuery();
         if (YGGDRASIL_MAP.containsKey(host)) { // yggdrasil
             try {
-                final URL targetUrl = getYggdrasilUrl(originalUrl, "api.mojang.com");
+                final URL targetUrl = getYggdrasilUrl(originalUrl, originalUrl.getHost());
                 Premain.log.info("Redirecting " + originalUrl + " -> " + targetUrl);
 
                 final HttpURLConnection targetConn = (HttpURLConnection) targetUrl.openConnection();
