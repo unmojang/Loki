@@ -43,7 +43,7 @@ nil {
 }
 
 dependencies {
-	loader 'com.unascribed:nilloader:1.3.4' // wait for 1.3.6 to get 1.6.1-1.8.9 working
+	loader 'com.unascribed:nilloader:1.3.6'
 
 	// Any version available in the vanilla launcher can be put here, or...
 	game nil.minecraft('1.4.7', 'client')

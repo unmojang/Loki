@@ -24,6 +24,6 @@ public class Premain implements Runnable {
 		ClassTransformer.register(new NewAllowedDomainTransformer()); // 1.19.3+
 
 		// Misc fixes
-		ClassTransformer.register(new ConcatenateURLTransformer()); // Prevent port number being ignored in old authlib
+		ClassTransformer.register(new ConcatenateURLTransformer()); // Prevent port number being ignored in old authlib, if you specified it
 	}
 }

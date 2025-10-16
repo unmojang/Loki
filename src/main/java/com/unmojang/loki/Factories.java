@@ -202,15 +202,15 @@ public class Factories {
             if (path.startsWith("/MinecraftSkins") || path.startsWith("/skin")) {
                 Premain.log.info("Intercepting skin texture: " + originalUrl);
                 String username = Ygglib.getUsernameFromPath(path);
-                return Ygglib.getTexture(username, "SKIN");
+                return Ygglib.getTexture(originalUrl, username, "SKIN");
             } else if (path.startsWith("/MinecraftCloaks")) {
                 Premain.log.info("Intercepting cape texture: " + originalUrl);
                 String username = Ygglib.getUsernameFromPath(path);
-                return Ygglib.getTexture(username, "CAPE");
+                return Ygglib.getTexture(originalUrl, username, "CAPE");
             } else if (path.equals("/cloak/get.jsp")) {
                 Premain.log.info("Intercepting cape texture: " + originalUrl);
                 String username = Ygglib.queryStringParser(query).get("user");
-                return Ygglib.getTexture(username, "CAPE");
+                return Ygglib.getTexture(originalUrl, username, "CAPE");
             }
 
             // Snooper

@@ -74,7 +74,7 @@ public class Ygglib {
 
     // Credit: Prism Launcher legacy fixes
     // https://github.com/PrismLauncher/PrismLauncher/blob/develop/libraries/launcher/legacy/org/prismlauncher/legacy/fix/online/SkinFix.java
-    public static HttpURLConnection getTexture(String username, String type) {
+    public static HttpURLConnection getTexture(URL originalUrl, String username, String type) {
         try {
             String uuid = Ygglib.getUUID(username);
             String texturePayload = Ygglib.getTexturePayload(uuid);
@@ -82,7 +82,7 @@ public class Ygglib {
             JsonObject texturePayloadObj = JsonParser.object().from(texturePayload);
             JsonObject skinOrCape = texturePayloadObj.getObject("textures").getObject(type);
             String textureUrl = skinOrCape.getString("url");
-            if(textureUrl == null) return null;
+            if(textureUrl == null) return new FakeURLConnection(originalUrl, 204, null);
 
             if(type.equals("SKIN")) {
                 boolean isSlim = false;
@@ -128,7 +128,7 @@ public class Ygglib {
                     image = image.getSubimage(0, 0, 64, 32);
                     ImageIO.write(image, "png", out);
 
-                    return new FakeURLConnection(new URL(textureUrl), 200, out.toByteArray());
+                    return new FakeURLConnection(originalUrl, 200, out.toByteArray());
                 }
             } else if (type.equals("CAPE")) {
                 return (HttpURLConnection) new URL(textureUrl).openConnection();
