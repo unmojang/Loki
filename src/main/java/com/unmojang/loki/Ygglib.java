@@ -128,7 +128,7 @@ public class Ygglib {
                     image = image.getSubimage(0, 0, 64, 32);
                     ImageIO.write(image, "png", out);
 
-                    return new FakeURLConnection(new URL(textureUrl), out.toByteArray());
+                    return new FakeURLConnection(new URL(textureUrl), 200, out.toByteArray());
                 }
             } else if (type.equals("CAPE")) {
                 return (HttpURLConnection) new URL(textureUrl).openConnection();
@@ -173,7 +173,7 @@ public class Ygglib {
             String uuid;
             uuid = getUUID(user);
             if (uuid == null) {
-                return new FakeURLConnection(originalUrl, ("Couldn't find UUID of " + user).getBytes(StandardCharsets.UTF_8));
+                return new FakeURLConnection(originalUrl, 200, ("Couldn't find UUID of " + user).getBytes(StandardCharsets.UTF_8));
             }
 
             URL url = new URL( "https://sessionserver.mojang.com/session/minecraft/join");
@@ -194,9 +194,9 @@ public class Ygglib {
             int responseCode = connection.getResponseCode();
 
             if (responseCode == 204) {
-                return new FakeURLConnection(originalUrl, "OK".getBytes(StandardCharsets.UTF_8));
+                return new FakeURLConnection(originalUrl, 200, "OK".getBytes(StandardCharsets.UTF_8));
             } else {
-                return new FakeURLConnection(originalUrl, "Bad login".getBytes(StandardCharsets.UTF_8));
+                return new FakeURLConnection(originalUrl, 200, "Bad login".getBytes(StandardCharsets.UTF_8));
             }
         } catch (Exception e) {
             throw new AssertionError("An error occurred");
@@ -229,9 +229,9 @@ public class Ygglib {
             int responseCode = connection.getResponseCode();
 
             if (responseCode == 200) {
-                return new FakeURLConnection(originalUrl, "YES".getBytes(StandardCharsets.UTF_8));
+                return new FakeURLConnection(originalUrl, 200, "YES".getBytes(StandardCharsets.UTF_8));
             } else {
-                return new FakeURLConnection(originalUrl, "Bad login".getBytes(StandardCharsets.UTF_8));
+                return new FakeURLConnection(originalUrl, 200, "Bad login".getBytes(StandardCharsets.UTF_8));
             }
         } catch (Exception e) {
             throw new AssertionError("An error occurred");
@@ -258,9 +258,11 @@ public class Ygglib {
     public static class FakeURLConnection extends HttpURLConnection {
 
         private final byte[] data;
+        private final int code;
 
-        public FakeURLConnection(URL url, byte[] data) {
+        public FakeURLConnection(URL url, int code, byte[] data) {
             super(url);
+            this.code = code;
             this.data = data;
         }
 
@@ -276,6 +278,11 @@ public class Ygglib {
         @Override
         public int getContentLength() {
             return data.length;
+        }
+
+        @Override
+        public int getResponseCode() {
+            return code;
         }
 
         @Override

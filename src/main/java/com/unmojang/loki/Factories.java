@@ -3,24 +3,29 @@ package com.unmojang.loki;
 import java.io.*;
 import java.lang.reflect.Field;
 import java.net.*;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 import static com.unmojang.loki.Ygglib.getYggdrasilUrl;
 
 public class Factories {
-    private static final Set<String> ALLOWED_DOMAINS;
-    private static final Set<String> BLACKLISTED_PATHS;
+    private static final Set<String> INTERCEPTED_DOMAINS;
+    private static final Set<String> IGNORED_PATHS;
     public static final Map<String, String> YGGDRASIL_MAP;
 
     static {
-        ALLOWED_DOMAINS = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
+        INTERCEPTED_DOMAINS = new HashSet<>(Arrays.asList(
                 "s3.amazonaws.com",
                 "www.minecraft.net",
                 "skins.minecraft.net",
                 "session.minecraft.net",
-                "betacraft.uk"
-        )));
-        BLACKLISTED_PATHS = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
+                "betacraft.uk",
+                "snoop.minecraft.net"
+        ));
+        if (System.getProperty("Loki.enable_snooper", "false").equalsIgnoreCase("true")) {
+            INTERCEPTED_DOMAINS.remove("snoop.minecraft.net");
+        }
+        IGNORED_PATHS = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
                 "/MinecraftResources"
         )));
         Map<String, String> tmp = new HashMap<>();
@@ -85,7 +90,7 @@ public class Factories {
 
     private static URLStreamHandlerFactory getWrappedHandlerFactory(URLStreamHandlerFactory existingFactory) {
         final URLStreamHandlerFactory delegateFactory = existingFactory;
-        URLStreamHandlerFactory wrapper = protocol -> {
+        return protocol -> {
             try {
                 // Ask the existing factory first (if present)
                 URLStreamHandler handler = null;
@@ -105,7 +110,6 @@ public class Factories {
                 return null;
             }
         };
-        return wrapper;
     }
 
     private static URLStreamHandler wrapHandler(final URLStreamHandler delegate) {
@@ -184,7 +188,7 @@ public class Factories {
                 Premain.log.warn("Failed to redirect " + originalUrl + ": " + e);
                 return originalConn;
             }
-        } else if (ALLOWED_DOMAINS.contains(host) && BLACKLISTED_PATHS.stream().noneMatch(path::startsWith)) {
+        } else if (INTERCEPTED_DOMAINS.contains(host) && IGNORED_PATHS.stream().noneMatch(path::startsWith)) {
             // Authentication
             if (path.equals("/game/joinserver.jsp")) {
                 Premain.log.info("Intercepting joinServer: " + originalUrl);
@@ -207,6 +211,12 @@ public class Factories {
                 Premain.log.info("Intercepting cape texture: " + originalUrl);
                 String username = Ygglib.queryStringParser(query).get("user");
                 return Ygglib.getTexture(username, "CAPE");
+            }
+
+            // Snooper
+            if (host.equals("snoop.minecraft.net")) {
+                Premain.log.info("Snooper request intercepted: " + originalUrl);
+                return new Ygglib.FakeURLConnection(originalUrl, 403, ("Nice try ;)").getBytes(StandardCharsets.UTF_8));
             }
         }
 
