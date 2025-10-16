@@ -149,12 +149,9 @@ public class Ygglib {
                 throw new AssertionError("missing user");
             }
             String serverId = params.get("serverId");
-            if (serverId == null) {
-                throw new AssertionError("missing serverId");
-            }
-            String sessionId = params.get("sessionId");
+            String sessionId = params.getOrDefault("sessionId", params.get("session"));
             if (sessionId == null) {
-                throw new AssertionError("missing sessionId");
+                throw new AssertionError("missing session/sessionId");
             }
 
             // sessionId has the form:
@@ -184,12 +181,16 @@ public class Ygglib {
             connection.setRequestProperty("Content-Type", "application/json");
             connection.setRequestProperty("Accept", "application/json");
             try (OutputStream os = connection.getOutputStream()) {
-                String payload = "{"
-                        + "\"accessToken\": \"" + accessToken + "\","
-                        + "\"selectedProfile\": \"" + uuid + "\","
-                        + "\"serverId\": \"" + serverId + "\""
-                        + "}";
-                os.write(payload.getBytes(StandardCharsets.UTF_8));
+                StringBuilder payload = new StringBuilder();
+                payload.append("{")
+                        .append("\"accessToken\": \"").append(accessToken).append("\",")
+                        .append("\"selectedProfile\": \"").append(uuid).append("\"");
+
+                if (serverId != null) {
+                    payload.append(",\"serverId\": \"").append(serverId).append("\"");
+                }
+                payload.append("}");
+                os.write(payload.toString().getBytes(StandardCharsets.UTF_8));
             }
             int responseCode = connection.getResponseCode();
 
