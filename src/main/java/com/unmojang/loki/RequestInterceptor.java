@@ -40,6 +40,9 @@ public class RequestInterceptor {
         Premain.log.info("Arrived in URLFactory");
         final URLStreamHandlerFactory ourFactory = protocol -> {
             try {
+                if (!"http".equals(protocol) && !"https".equals(protocol)) {
+                    return null;
+                }
                 URLStreamHandler system = getDefaultHandler(protocol);
                 if (system == null) {
                     return null; // let JVM handle it
