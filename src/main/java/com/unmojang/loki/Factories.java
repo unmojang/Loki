@@ -6,8 +6,6 @@ import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
-import static com.unmojang.loki.Ygglib.getYggdrasilUrl;
-
 public class Factories {
     private static final Set<String> INTERCEPTED_DOMAINS;
     private static final Set<String> IGNORED_PATHS;
@@ -29,9 +27,11 @@ public class Factories {
                 "/MinecraftResources"
         )));
         Map<String, String> tmp = new HashMap<>();
-        tmp.put("authserver.mojang.com", System.getProperty("minecraft.api.auth.host", "authserver.mojang.com"));
-        tmp.put("api.mojang.com", System.getProperty("minecraft.api.account.host", "api.mojang.com"));
-        tmp.put("sessionserver.mojang.com", System.getProperty("minecraft.api.session.host", "sessionserver.mojang.com"));
+        tmp.put("authserver.mojang.com", System.getProperty("minecraft.api.auth.host", "https://authserver.mojang.com"));
+        tmp.put("api.mojang.com", System.getProperty("minecraft.api.account.host",
+                // fallback to 1.21.9+ minecraft.api.profiles.host
+                System.getProperty("minecraft.api.profiles.host", "https://api.mojang.com")));
+        tmp.put("sessionserver.mojang.com", System.getProperty("minecraft.api.session.host", "https://sessionserver.mojang.com"));
         YGGDRASIL_MAP = Collections.unmodifiableMap(tmp);
     }
 
@@ -150,7 +150,7 @@ public class Factories {
         String query = originalUrl.getQuery();
         if (YGGDRASIL_MAP.containsKey(host)) { // yggdrasil
             try {
-                final URL targetUrl = getYggdrasilUrl(originalUrl, originalUrl.getHost());
+                final URL targetUrl = Ygglib.getYggdrasilUrl(originalUrl, originalUrl.getHost());
                 Premain.log.info("Redirecting " + originalUrl + " -> " + targetUrl);
 
                 final HttpURLConnection targetConn = (HttpURLConnection) targetUrl.openConnection();
