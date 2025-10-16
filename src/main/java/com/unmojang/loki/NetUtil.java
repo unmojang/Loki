@@ -2,18 +2,55 @@ package com.unmojang.loki;
 
 import nilloader.api.lib.nanojson.JsonParser;
 
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManagerFactory;
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.security.KeyStore;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-public class LokiHTTP { // TODO use this
+public class NetUtil { // TODO use authlib-injector functions
+    public static void loadCacerts() {
+        // Load cacert.pem from resources
+        try (InputStream is = NetUtil.class.getResourceAsStream("/cacert.pem")) {
+            if (is == null) throw new RuntimeException("cacert.pem not found in resources");
+
+            CertificateFactory cf = CertificateFactory.getInstance("X.509");
+
+            KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
+            ks.load(null, null);
+
+            int certIndex = 0;
+            for (X509Certificate cert : (Iterable<X509Certificate>) cf.generateCertificates(is)) {
+                ks.setCertificateEntry("cert" + certIndex++, cert);
+            }
+
+            TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+            tmf.init(ks);
+
+            SSLContext sc = SSLContext.getInstance("TLS");
+            sc.init(null, tmf.getTrustManagers(), null);
+            HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
+
+            // Disable hostname verification
+            HttpsURLConnection.setDefaultHostnameVerifier((hostname, session) -> true);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return;
+        }
+        Premain.log.info("Loaded CA certs from cacert.pem");
+    }
+
     public static HttpURLConnection request(String method, String urlString, String body, String contentType) {
         try {
             URL url = new URL(urlString);

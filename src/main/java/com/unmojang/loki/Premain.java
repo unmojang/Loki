@@ -10,6 +10,8 @@ public class Premain implements Runnable {
 	@Override
 	public void run() {
 		log.info("Hello Loki World!");
+		// TLS fixes for Mojang's jre-legacy
+		NetUtil.loadCacerts();
 		// Authentication & skins
 		ClassTransformer.register(new ClassicFactoryTransformer());      // c0.0.18a-c0.30
 		ClassTransformer.register(new ReallyLegacyFactoryTransformer()); // Indev-a1.0.5_01
