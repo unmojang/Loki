@@ -31,6 +31,7 @@ public class RequestInterceptor {
         tmp.put("api.mojang.com", System.getProperty("minecraft.api.account.host",
                 // fallback to 1.21.9+ minecraft.api.profiles.host
                 System.getProperty("minecraft.api.profiles.host", "https://api.mojang.com")));
+        tmp.put("api.minecraftservices.com", System.getProperty("minecraft.api.services.host", "https://api.minecraftservices.com"));
         tmp.put("sessionserver.mojang.com", System.getProperty("minecraft.api.session.host", "https://sessionserver.mojang.com"));
         YGGDRASIL_MAP = Collections.unmodifiableMap(tmp);
     }
@@ -127,9 +128,9 @@ public class RequestInterceptor {
             protected URLConnection openConnection(URL u, Proxy proxy) throws IOException {
                 String protocol = u.getProtocol();
                 if (!"http".equals(protocol) && !"https".equals(protocol)) {  // not a http(s) request; ignore
-                    return openDefault(delegate, u);
+                    return openDefault(delegate, u, proxy);
                 }
-                return wrapConnection(u, openDefault(delegate, u));
+                return wrapConnection(u, openDefault(delegate, u, proxy));
             }
         };
     }
@@ -144,7 +145,7 @@ public class RequestInterceptor {
         }
     }
 
-    private static URLConnection wrapConnection(URL originalUrl, URLConnection originalConn) throws MalformedURLException {
+    private static URLConnection wrapConnection(URL originalUrl, URLConnection originalConn) {
         String host = originalUrl.getHost();
         String path = originalUrl.getPath();
         String query = originalUrl.getQuery();
