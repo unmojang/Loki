@@ -9,7 +9,7 @@ public class FactoryTransformer extends MiniTransformer {
 	@Patch.Method("main([Ljava/lang/String;)V")
 	public void patchInit(PatchContext ctx) {
 		ctx.jumpToStart();
-		ctx.add(INVOKESTATIC("com/unmojang/loki/Factories",
+		ctx.add(INVOKESTATIC("com/unmojang/loki/RequestInterceptor",
 				"URLFactory", "()V"));
 	}
 }

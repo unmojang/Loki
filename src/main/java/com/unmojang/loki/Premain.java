@@ -27,10 +27,10 @@ public class Premain implements Runnable {
 		ClassTransformer.register(new ConcatenateURLTransformer()); // Prevent port number being ignored in old authlib, if you specified it
 		if (System.getProperty("minecraft.api.profiles.host") == null) { // 1.21.9+ fixes
 			log.info("Applying 1.21.9+ fixes");
-			System.setProperty("minecraft.api.profiles.host", Factories.YGGDRASIL_MAP.get("api.mojang.com"));
+			System.setProperty("minecraft.api.profiles.host", RequestInterceptor.YGGDRASIL_MAP.get("api.mojang.com"));
 		} else if (System.getProperty("minecraft.api.account.host") == null) {
 			log.info("Applying <1.21.9 fixes");
-			System.setProperty("minecraft.api.account.host", Factories.YGGDRASIL_MAP.get("api.mojang.com"));
+			System.setProperty("minecraft.api.account.host", RequestInterceptor.YGGDRASIL_MAP.get("api.mojang.com"));
 		}
 	}
 }

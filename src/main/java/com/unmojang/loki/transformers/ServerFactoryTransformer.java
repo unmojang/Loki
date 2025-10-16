@@ -11,7 +11,7 @@ public class ServerFactoryTransformer extends MiniTransformer {
 	@Patch.Method.Optional
 	public void patchRun(PatchContext ctx) {
 		ctx.jumpToStart();
-		ctx.add(INVOKESTATIC("com/unmojang/loki/Factories",
+		ctx.add(INVOKESTATIC("com/unmojang/loki/RequestInterceptor",
 				"URLFactory", "()V"));
 	}
 }

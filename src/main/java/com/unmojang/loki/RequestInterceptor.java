@@ -6,7 +6,7 @@ import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
-public class Factories {
+public class RequestInterceptor {
     private static final Set<String> INTERCEPTED_DOMAINS;
     private static final Set<String> IGNORED_PATHS;
     public static final Map<String, String> YGGDRASIL_MAP;

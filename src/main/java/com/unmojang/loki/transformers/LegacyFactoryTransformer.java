@@ -9,7 +9,7 @@ public class LegacyFactoryTransformer extends MiniTransformer {
     @Patch.Method("<clinit>()V")
     public void patchClinit(PatchContext ctx) {
         ctx.jumpToStart();
-        ctx.add(INVOKESTATIC("com/unmojang/loki/Factories",
+        ctx.add(INVOKESTATIC("com/unmojang/loki/RequestInterceptor",
                 "URLFactory", "()V"));
     }
 }

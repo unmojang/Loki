@@ -14,7 +14,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static com.unmojang.loki.Factories.YGGDRASIL_MAP;
+import static com.unmojang.loki.RequestInterceptor.YGGDRASIL_MAP;
 
 public class Ygglib {
     public static String getUsernameFromPath(String path) {
