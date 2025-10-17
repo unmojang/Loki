@@ -11,11 +11,13 @@ Skins/capes: c0.0.18a and above
 
 Authentication: a1.0.16 and above
 
-Skin support was added to the game in c0.0.18a. Although multiplayer was reintroduced in a1.0.15, a1.0.16 implemented online mode functionality. This means that Loki effectively supports every Minecraft version.
+Skin support was added to the game in c0.0.18a. Although multiplayer was reintroduced in a1.0.15, a1.0.16 implemented
+online mode functionality. This means that Loki effectively supports every Minecraft version.
 
 ## Wait, what about classic servers?
 
-Classic servers use the [Classic Protocol](https://minecraft.wiki/w/Minecraft_Wiki:Projects/wiki.vg_merge/Classic_Protocol), and while this may be supported in the future, as of now there is little incentive to do so due to the availability of significantly better clones like [ClassiCube](https://www.classicube.net/).
+Classic servers use the [Classic Protocol](https://minecraft.wiki/w/Minecraft_Wiki:Projects/wiki.vg_merge/Classic_Protocol), and while this may be supported in the future, as of now there is
+little incentive to do so due to the availability of significantly better clones like [ClassiCube](https://www.classicube.net/).
 
 ## Are total conversion mods or obscure mod loaders supported?
 
@@ -29,3 +31,14 @@ Loki supports Java arguments to enable or disable some behaviour.
   ```
   -DLoki.enable_snooper=true
   ```
+
+## Troubleshooting
+
+### I can't join the server/send chat messages
+
+If you get "Chat disabled due to missing profile public key" when you try to send chat messages, you'll need to set
+`enforce-secure-profile=false` in `server.properties`. This problem affects 1.19.3-1.21.8.
+
+If you are kicked for "Invalid signature for profile public key", follow the above step. Then, in addition to that,
+install the [No Chat Reports](https://modrinth.com/mod/no-chat-reports) mod on either the server or the client. This problem affects 1.19+, though it
+typically only occurs when joining from a fallback API server account (e.g. Mojang account fallback).
