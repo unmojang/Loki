@@ -32,6 +32,8 @@ public class LegacyPublicKeyTransformer extends MiniTransformer {
                     jsonText = new String(buffer.toByteArray(), StandardCharsets.UTF_8);
                 }
 
+                jsonText = jsonText.replaceAll("\\s+", "");
+
                 // Expecting: {"profilePropertyKeys":[{"publicKey":"..."}]}
                 int start = jsonText.indexOf("\"publicKey\":\"");
                 if (start == -1) throw new IllegalStateException("publicKey not found in response");
@@ -155,6 +157,13 @@ public class LegacyPublicKeyTransformer extends MiniTransformer {
         ctx.add(INVOKEVIRTUAL("java/io/ByteArrayOutputStream", "toByteArray", "()[B"));
         ctx.add(GETSTATIC("java/nio/charset/StandardCharsets", "UTF_8", "Ljava/nio/charset/Charset;"));
         ctx.add(INVOKESPECIAL("java/lang/String", "<init>", "([BLjava/nio/charset/Charset;)V"));
+        ctx.add(ASTORE(6));
+
+        // jsonText = jsonText.replaceAll("\\s+", "")
+        ctx.add(ALOAD(6));
+        ctx.add(LDC("\\s+"));
+        ctx.add(LDC(""));
+        ctx.add(INVOKEVIRTUAL("java/lang/String", "replaceAll", "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;"));
         ctx.add(ASTORE(6));
 
         // idx = jsonText.indexOf("\"publicKey\":\"")
