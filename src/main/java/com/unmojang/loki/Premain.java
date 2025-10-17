@@ -25,6 +25,9 @@ public class Premain implements Runnable {
         ClassTransformer.register(new AllowedDomainTransformer());    // 1.7.6-1.16.5, 1.17-1.19.2
         ClassTransformer.register(new NewAllowedDomainTransformer()); // 1.19.3+
 
+        // Public keys
+        ClassTransformer.register(new LegacyPublicKeyTransformer()); // 1.19-1.19.2
+
         // Misc fixes
         ClassTransformer.register(new ConcatenateURLTransformer()); // Prevent port number being ignored in old authlib, if you specified it
         if (System.getProperty("minecraft.api.profiles.host") == null) { // 1.21.9+ fixes
