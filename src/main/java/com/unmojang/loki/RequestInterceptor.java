@@ -142,7 +142,7 @@ public class RequestInterceptor {
         try {
             // Use reflection to create the default handler
             Class<?> cls = Class.forName("sun.net.www.protocol." + protocol + ".Handler");
-            return (URLStreamHandler) cls.newInstance();
+            return (URLStreamHandler) cls.getDeclaredConstructor().newInstance();
         } catch (Exception e) {
             return null;
         }

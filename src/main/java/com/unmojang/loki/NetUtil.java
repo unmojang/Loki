@@ -11,7 +11,9 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
+import java.security.cert.Certificate;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.HashMap;
@@ -31,8 +33,10 @@ public class NetUtil { // TODO use authlib-injector functions
             ks.load(null, null);
 
             int certIndex = 0;
-            for (X509Certificate cert : (Iterable<X509Certificate>) cf.generateCertificates(is)) {
-                ks.setCertificateEntry("cert" + certIndex++, cert);
+            for (Certificate cert : cf.generateCertificates(is)) {
+                if (cert instanceof X509Certificate) {
+                    ks.setCertificateEntry("cert" + certIndex++, cert);
+                }
             }
 
             TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
@@ -65,7 +69,7 @@ public class NetUtil { // TODO use authlib-injector functions
                 }
                 if (body != null) {
                     try (OutputStream os = conn.getOutputStream()) {
-                        os.write(body.getBytes("UTF-8"));
+                        os.write(body.getBytes(StandardCharsets.UTF_8));
                     }
                 }
             }
@@ -97,7 +101,7 @@ public class NetUtil { // TODO use authlib-injector functions
             if (conn == null) return null;
 
             try (InputStream is = conn.getInputStream();
-                 BufferedReader reader = new BufferedReader(new InputStreamReader(is, "UTF-8"))) {
+                 BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
 
                 String content = reader.lines().collect(Collectors.joining("\n"));
                 Map<String, Object> obj = JsonParser.object().from(content); // parse JSON as Map
