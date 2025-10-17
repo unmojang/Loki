@@ -6,10 +6,10 @@ import nilloader.api.lib.mini.annotation.Patch;
 
 @Patch.Class("net.minecraft.client.main.Main")
 public class FactoryTransformer extends MiniTransformer {
-	@Patch.Method("main([Ljava/lang/String;)V")
-	public void patchInit(PatchContext ctx) {
-		ctx.jumpToStart();
-		ctx.add(INVOKESTATIC("com/unmojang/loki/RequestInterceptor",
-				"URLFactory", "()V"));
-	}
+    @Patch.Method("main([Ljava/lang/String;)V")
+    public void patchMain(PatchContext ctx) {
+        ctx.jumpToStart();
+        ctx.add(INVOKESTATIC("com/unmojang/loki/RequestInterceptor",
+                "URLFactory", "()V"));
+    }
 }

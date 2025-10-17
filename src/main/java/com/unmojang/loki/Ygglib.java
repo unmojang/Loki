@@ -82,9 +82,9 @@ public class Ygglib {
             JsonObject texturePayloadObj = JsonParser.object().from(texturePayload);
             JsonObject skinOrCape = texturePayloadObj.getObject("textures").getObject(type);
             String textureUrl = skinOrCape.getString("url");
-            if(textureUrl == null) return new FakeURLConnection(originalUrl, 204, null);
+            if (textureUrl == null) return new FakeURLConnection(originalUrl, 204, null);
 
-            if(type.equals("SKIN")) {
+            if (type.equals("SKIN")) {
                 boolean isSlim = false;
                 if (skinOrCape.has("metadata")) {
                     JsonObject metadata = skinOrCape.getObject("metadata");
@@ -173,7 +173,7 @@ public class Ygglib {
                 return new FakeURLConnection(originalUrl, 200, ("Couldn't find UUID of " + user).getBytes(StandardCharsets.UTF_8));
             }
 
-            URL url = new URL( "https://sessionserver.mojang.com/session/minecraft/join");
+            URL url = new URL("https://sessionserver.mojang.com/session/minecraft/join");
             url = getYggdrasilUrl(url, url.getHost());
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
             connection.setDoOutput(true);
@@ -220,7 +220,7 @@ public class Ygglib {
             }
             String ip = params.get("ip");
 
-            URL url = new URL( "https://sessionserver.mojang.com/session/minecraft/hasJoined?username=" + user + "&serverId=" + serverId + (ip != null ? "&ip=" + ip : ""));
+            URL url = new URL("https://sessionserver.mojang.com/session/minecraft/hasJoined?username=" + user + "&serverId=" + serverId + (ip != null ? "&ip=" + ip : ""));
             url = getYggdrasilUrl(url, url.getHost());
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
             connection.setDoInput(true);
