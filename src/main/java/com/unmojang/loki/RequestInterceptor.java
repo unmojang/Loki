@@ -8,7 +8,6 @@ import java.util.*;
 
 public class RequestInterceptor {
     private static final Set<String> INTERCEPTED_DOMAINS;
-    private static final Set<String> IGNORED_PATHS;
     public static final Map<String, String> YGGDRASIL_MAP;
 
     static {
@@ -23,9 +22,6 @@ public class RequestInterceptor {
         if (System.getProperty("Loki.enable_snooper", "false").equalsIgnoreCase("true")) {
             INTERCEPTED_DOMAINS.remove("snoop.minecraft.net");
         }
-        IGNORED_PATHS = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
-                "/MinecraftResources"
-        )));
         Map<String, String> tmp = new HashMap<>();
         tmp.put("authserver.mojang.com", System.getProperty("minecraft.api.auth.host", "https://authserver.mojang.com"));
         tmp.put("api.mojang.com", System.getProperty("minecraft.api.account.host",
@@ -192,7 +188,7 @@ public class RequestInterceptor {
                 Premain.log.warn("Failed to redirect " + originalUrl + ": " + e);
                 return originalConn;
             }
-        } else if (INTERCEPTED_DOMAINS.contains(host) && IGNORED_PATHS.stream().noneMatch(path::startsWith)) {
+        } else if (INTERCEPTED_DOMAINS.contains(host)) {
             // Authentication
             if (path.equals("/game/joinserver.jsp")) {
                 Premain.log.info("Intercepting joinServer: " + originalUrl);
@@ -215,6 +211,23 @@ public class RequestInterceptor {
                 Premain.log.info("Intercepting cape texture: " + originalUrl);
                 String username = Ygglib.queryStringParser(query).get("user");
                 return Ygglib.getTexture(originalUrl, username, "CAPE");
+            }
+
+            // Resources
+            if (path.equals("/MinecraftResources/")) {
+                try (InputStream is = RequestInterceptor.class.getResourceAsStream("/MinecraftResources.xml")) {
+                    assert is != null;
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
+                    StringBuilder sb = new StringBuilder();
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        sb.append(line).append("\n");
+                    }
+                    reader.close();
+                    return new Ygglib.FakeURLConnection(originalUrl, 200, sb.toString().getBytes(StandardCharsets.UTF_8));
+                } catch (Exception e) {
+                    return new Ygglib.FakeURLConnection(originalUrl, 500, "\0".getBytes(StandardCharsets.UTF_8));
+                }
             }
 
             // Snooper
