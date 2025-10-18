@@ -34,7 +34,7 @@ public class RequestInterceptor {
 
     public static void URLFactory() {
         Premain.log.info("Arrived in URLFactory");
-        final URLStreamHandlerFactory ourFactory = protocol -> {
+        final URLStreamHandlerFactory factory = protocol -> {
             try {
                 if (!"http".equals(protocol) && !"https".equals(protocol)) {
                     return null;
@@ -51,7 +51,7 @@ public class RequestInterceptor {
         };
 
         try {
-            URL.setURLStreamHandlerFactory(ourFactory);
+            URL.setURLStreamHandlerFactory(factory);
             Premain.log.info("setURLStreamHandlerFactory succeeded");
             return;
         } catch (Error e) {
@@ -69,7 +69,7 @@ public class RequestInterceptor {
 
             if (existingFactory == null) {
                 try {
-                    URL.setURLStreamHandlerFactory(ourFactory);
+                    URL.setURLStreamHandlerFactory(factory);
                     Premain.log.info("setURLStreamHandlerFactory succeeded on second attempt");
                     return;
                 } catch (Throwable t) {
@@ -113,6 +113,7 @@ public class RequestInterceptor {
     }
 
     private static URLStreamHandler wrapHandler(final URLStreamHandler delegate) {
+        Premain.log.info("Got into wrapHandler");
         return new URLStreamHandler() {
             @Override
             protected URLConnection openConnection(URL u) throws IOException {

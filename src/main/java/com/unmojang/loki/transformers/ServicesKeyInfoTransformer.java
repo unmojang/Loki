@@ -7,7 +7,7 @@ import nilloader.api.lib.mini.PatchContext;
 import nilloader.api.lib.mini.annotation.Patch;
 
 @Patch.Class("com.mojang.authlib.yggdrasil.YggdrasilServicesKeyInfo")
-public class LegacyPublicKeyTransformer extends MiniTransformer {
+public class ServicesKeyInfoTransformer extends MiniTransformer {
     @Patch.Method("<init>(Ljava/security/PublicKey;)V")
     @Patch.Method.AffectsControlFlow
     @Patch.Method.Optional
@@ -219,5 +219,15 @@ public class LegacyPublicKeyTransformer extends MiniTransformer {
         ctx.add(ALOAD(0));
         ctx.add(ALOAD(11));
         ctx.add(INVOKEVIRTUAL("java/lang/reflect/Field", "set", "(Ljava/lang/Object;Ljava/lang/Object;)V"));
+    }
+
+    @Patch.Method("validateProperty(Lcom/mojang/authlib/properties/Property;)Z")
+    @Patch.Method.AffectsControlFlow
+    @Patch.Method.Optional
+    public void patchValidateProperty(PatchContext ctx) {
+        Premain.log.info("Setting validateProperty to true in YggdrasilServicesKeyInfo");
+        ctx.jumpToStart();   // HEAD
+        ctx.add(ICONST_1()); // push 1 (true)
+        ctx.add(IRETURN());  // return it
     }
 }
