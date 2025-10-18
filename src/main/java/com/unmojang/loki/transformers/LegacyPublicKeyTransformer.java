@@ -34,10 +34,10 @@ public class LegacyPublicKeyTransformer extends MiniTransformer {
 
                 jsonText = jsonText.replaceAll("\\s+", "");
 
-                // Expecting: {"profilePropertyKeys":[{"publicKey":"..."}]}
-                int start = jsonText.indexOf("\"publicKey\":\"");
+                // Expecting: "profilePropertyKeys":[{"publicKey":"..."}]
+                jsonText.indexOf("\"profilePropertyKeys\":[{\"publicKey\":\"");
                 if (start == -1) throw new IllegalStateException("publicKey not found in response");
-                start += "\"publicKey\":\"".length();
+                start += "\"profilePropertyKeys\":[{\"publicKey\":\"".length();
                 int end = jsonText.indexOf("\"", start);
                 if (end == -1) throw new IllegalStateException("publicKey value not terminated");
                 String base64Key = jsonText.substring(start, end);
@@ -59,21 +59,6 @@ public class LegacyPublicKeyTransformer extends MiniTransformer {
         */
         Premain.log.info("Applying 1.19-1.19.2 publicKey replacement");
         ctx.jumpToLastReturn();
-
-        // Local variables
-        // 0 = this
-        // 1 = baseUrl
-        // 2 = url
-        // 3 = conn
-        // 4 = is
-        // 5 = nRead / idx / start
-        // 6 = jsonText
-        // 7 = keyB64
-        // 8 = decoded
-        // 9 = buffer / spec
-        // 10 = keyFactory
-        // 11 = publicKey
-        // 12 = pubKeyField
 
         // baseUrl = System.getProperty("minecraft.api.services.host", "https://api.minecraftservices.com")
         ctx.add(LDC("minecraft.api.services.host"));
@@ -166,15 +151,15 @@ public class LegacyPublicKeyTransformer extends MiniTransformer {
         ctx.add(INVOKEVIRTUAL("java/lang/String", "replaceAll", "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;"));
         ctx.add(ASTORE(6));
 
-        // idx = jsonText.indexOf("\"publicKey\":\"")
+        // idx = jsonText.indexOf("\"profilePropertyKeys\":[{\"publicKey\":\"")
         ctx.add(ALOAD(6));
-        ctx.add(LDC("\"publicKey\":\""));
+        ctx.add(LDC("\"profilePropertyKeys\":[{\"publicKey\":\""));
         ctx.add(INVOKEVIRTUAL("java/lang/String", "indexOf", "(Ljava/lang/String;)I"));
         ctx.add(ISTORE(5));
 
-        // start = idx + "\"publicKey\":\"".length()
+        // start = idx + "\"profilePropertyKeys\":[{\"publicKey\":\"".length()
         ctx.add(ILOAD(5));
-        ctx.add(LDC("\"publicKey\":\""));
+        ctx.add(LDC("\"profilePropertyKeys\":[{\"publicKey\":\""));
         ctx.add(INVOKEVIRTUAL("java/lang/String", "length", "()I"));
         ctx.add(IADD());
         ctx.add(ISTORE(5));
