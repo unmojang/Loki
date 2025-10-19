@@ -133,9 +133,7 @@ public class Ygglib {
             } else if (type.equals("CAPE")) {
                 return (HttpURLConnection) new URL(textureUrl).openConnection();
             }
-        } catch (Exception e) {
-            return null;
-        }
+        } catch (Exception ignored) {}
         return null;
     }
 
@@ -192,13 +190,11 @@ public class Ygglib {
                 payload.append("}");
                 os.write(payload.toString().getBytes(StandardCharsets.UTF_8));
             }
-            int responseCode = connection.getResponseCode();
 
-            if (responseCode == 204) {
+            if (connection.getResponseCode() == 204) {
                 return new FakeURLConnection(originalUrl, 200, "OK".getBytes(StandardCharsets.UTF_8));
-            } else {
-                return new FakeURLConnection(originalUrl, 200, "Bad login".getBytes(StandardCharsets.UTF_8));
             }
+            return new FakeURLConnection(originalUrl, 200, "Bad login".getBytes(StandardCharsets.UTF_8));
         } catch (Exception e) {
             throw new AssertionError("An error occurred");
         }
@@ -227,13 +223,11 @@ public class Ygglib {
             connection.setDoOutput(false);
             connection.setRequestMethod("GET");
             connection.connect();
-            int responseCode = connection.getResponseCode();
 
-            if (responseCode == 200) {
+            if (connection.getResponseCode() == 200) {
                 return new FakeURLConnection(originalUrl, 200, "YES".getBytes(StandardCharsets.UTF_8));
-            } else {
-                return new FakeURLConnection(originalUrl, 200, "Bad login".getBytes(StandardCharsets.UTF_8));
             }
+            return new FakeURLConnection(originalUrl, 200, "Bad login".getBytes(StandardCharsets.UTF_8));
         } catch (Exception e) {
             throw new AssertionError("An error occurred");
         }
@@ -257,7 +251,6 @@ public class Ygglib {
     }
 
     public static class FakeURLConnection extends HttpURLConnection {
-
         private final byte[] data;
         private final int code;
 

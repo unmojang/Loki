@@ -59,7 +59,7 @@ public class RequestInterceptor {
         }
     }
 
-    private static URLStreamHandler wrapHandler(final URLStreamHandler delegate) {
+    public static URLStreamHandler wrapHandler(final URLStreamHandler delegate) {
         Premain.log.info("Got into wrapHandler");
         return new URLStreamHandler() {
             @Override
@@ -92,7 +92,7 @@ public class RequestInterceptor {
         }
     }
 
-    private static URLConnection wrapConnection(URL originalUrl, URLConnection originalConn) {
+    private static URLConnection wrapConnection(URL originalUrl, HttpURLConnection originalConn) {
         String host = originalUrl.getHost();
         String path = originalUrl.getPath();
         String query = originalUrl.getQuery();
@@ -104,11 +104,11 @@ public class RequestInterceptor {
                 final HttpURLConnection targetConn = (HttpURLConnection) targetUrl.openConnection();
 
                 // Mirror HTTP method
-                if (originalConn instanceof HttpURLConnection) {
-                    targetConn.setRequestMethod(((HttpURLConnection) originalConn).getRequestMethod());
+                if (originalConn != null) {
+                    targetConn.setRequestMethod(originalConn.getRequestMethod());
                     targetConn.setDoOutput(originalConn.getDoOutput());
                     targetConn.setDoInput(true);
-                    targetConn.setInstanceFollowRedirects(((HttpURLConnection) originalConn).getInstanceFollowRedirects());
+                    targetConn.setInstanceFollowRedirects(originalConn.getInstanceFollowRedirects());
 
                     // Mirror headers
                     Map<String, List<String>> headers = originalConn.getRequestProperties();
@@ -189,23 +189,23 @@ public class RequestInterceptor {
     }
 
 
-    private static URLConnection openDefault(URLStreamHandler handler, URL url) throws IOException {
+    private static HttpURLConnection openDefault(URLStreamHandler handler, URL url) throws IOException {
         try {
             java.lang.reflect.Method m = URLStreamHandler.class
                     .getDeclaredMethod("openConnection", URL.class);
             m.setAccessible(true);
-            return (URLConnection) m.invoke(handler, url);
+            return (HttpURLConnection) m.invoke(handler, url);
         } catch (Exception e) {
             throw new IOException(e);
         }
     }
 
-    private static URLConnection openDefault(URLStreamHandler handler, URL url, Proxy proxy) throws IOException {
+    private static HttpURLConnection openDefault(URLStreamHandler handler, URL url, Proxy proxy) throws IOException {
         try {
             java.lang.reflect.Method m = URLStreamHandler.class
                     .getDeclaredMethod("openConnection", URL.class, Proxy.class);
             m.setAccessible(true);
-            return (URLConnection) m.invoke(handler, url, proxy);
+            return (HttpURLConnection) m.invoke(handler, url, proxy);
         } catch (Exception e) {
             throw new IOException(e);
         }

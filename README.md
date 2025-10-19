@@ -32,9 +32,13 @@ Loki supports Java arguments to enable or disable some behaviour.
   -DLoki.enable_snooper=true
   ```
 
+## Building
+
+Loki should be built with Java 17, though it supports Java 8 at runtime.
+
 ## Troubleshooting
 
-### I can't join the server/send chat messages
+### I can't join the server/send chat messages due to profile public key-related errors
 
 If you get "Chat disabled due to missing profile public key" when you try to send chat messages, you'll need to set
 `enforce-secure-profile=false` in `server.properties`. This problem affects 1.19.3-1.21.8.
@@ -42,3 +46,15 @@ If you get "Chat disabled due to missing profile public key" when you try to sen
 If you are kicked for "Invalid signature for profile public key", follow the above step. Then, in addition to that,
 install the [No Chat Reports](https://modrinth.com/mod/no-chat-reports) mod on either the server or the client. This problem affects 1.19+, though it
 typically only occurs when joining from a fallback API server account (e.g. Mojang account fallback).
+
+### It doesn't seem to work at all on Babric/BTW/something else using Java 16+
+
+First, try using Java 8 or 11 instead. If that doesn't work, unfortunately you will need to set these JVM arguments on
+both the client and the server:
+
+```
+--add-opens java.base/java.net=ALL-UNNAMED --add-opens java.base/sun.net.www.protocol.http=ALL-UNNAMED
+--add-opens java.base/sun.net.www.protocol.https=ALL-UNNAMED
+```
+
+See [#3](https://github.com/unmojang/loki/issues/3) for more details.
