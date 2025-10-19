@@ -53,8 +53,7 @@ First, try using Java 8 or 11 instead. If that doesn't work, unfortunately you w
 both the client and the server:
 
 ```
---add-opens java.base/java.net=ALL-UNNAMED --add-opens java.base/sun.net.www.protocol.http=ALL-UNNAMED
---add-opens java.base/sun.net.www.protocol.https=ALL-UNNAMED
+--add-opens java.base/java.net=ALL-UNNAMED --add-opens java.base/sun.net.www.protocol.http=ALL-UNNAMED --add-opens java.base/sun.net.www.protocol.https=ALL-UNNAMED
 ```
 
 See [#3](https://github.com/unmojang/loki/issues/3) for more details.
