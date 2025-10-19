@@ -13,13 +13,9 @@ public class Premain implements Runnable {
         // TLS fixes for Mojang's jre-legacy
         NetUtil.loadCacerts();
         // Authentication & skins
-        ClassTransformer.register(new ClassicFactoryTransformer());      // c0.0.18a-c0.30
-        ClassTransformer.register(new ReallyLegacyFactoryTransformer()); // Indev-a1.0.5_01
-        ClassTransformer.register(new LegacyFactoryTransformer());       // a1.0.6-1.6
-        ClassTransformer.register(new FactoryTransformer());             // 1.6-1.16
+        RequestInterceptor.setURLFactory();
         ClassTransformer.register(new SignatureValidTransformer());      /* Texture signatures (possibly unnecessary?)
 		                                                                    1.7-1.18.2 (deprecated in 1.19) */
-        ClassTransformer.register(new ServerFactoryTransformer());       // <1.16
 
         // Allowed texture domains
         ClassTransformer.register(new AllowedDomainTransformer());    // 1.7.6-1.16.5, 1.17-1.19.2

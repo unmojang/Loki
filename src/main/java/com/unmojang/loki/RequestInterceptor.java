@@ -1,7 +1,6 @@
 package com.unmojang.loki;
 
 import java.io.*;
-import java.lang.reflect.Field;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -32,8 +31,8 @@ public class RequestInterceptor {
         YGGDRASIL_MAP = Collections.unmodifiableMap(tmp);
     }
 
-    public static void URLFactory() {
-        Premain.log.info("Arrived in URLFactory");
+    public static void setURLFactory() {
+        Premain.log.info("Arrived in setURLFactory");
         final URLStreamHandlerFactory factory = protocol -> {
             try {
                 if (!"http".equals(protocol) && !"https".equals(protocol)) {
@@ -53,63 +52,11 @@ public class RequestInterceptor {
         try {
             URL.setURLStreamHandlerFactory(factory);
             Premain.log.info("setURLStreamHandlerFactory succeeded");
-            return;
         } catch (Error e) {
-            Premain.log.info("setURLStreamHandlerFactory threw Error (already set). Will try reflective wrap.");
+            Premain.log.info("setURLStreamHandlerFactory threw Error (already set).");
         } catch (Throwable t) {
             Premain.log.error("Unexpected error setting URLStreamHandlerFactory", t);
-            return;
         }
-
-        // If we got here, factory was already set. Try to wrap the existing factory reflectively.
-        try {
-            Field factoryField = URL.class.getDeclaredField("factory");
-            factoryField.setAccessible(true);
-            URLStreamHandlerFactory existingFactory = (URLStreamHandlerFactory) factoryField.get(null);
-
-            if (existingFactory == null) {
-                try {
-                    URL.setURLStreamHandlerFactory(factory);
-                    Premain.log.info("setURLStreamHandlerFactory succeeded on second attempt");
-                    return;
-                } catch (Throwable t) {
-                    Premain.log.warn("Second attempt to set factory failed", t);
-                }
-            }
-
-            URLStreamHandlerFactory wrapper = getWrappedHandlerFactory(existingFactory);
-
-            // Replace the private factory field with our wrapper (dangerous but necessary if factory already set).
-            factoryField.set(null, wrapper);
-            Premain.log.info("Replaced URL.factory reflectively with wrapper factory.");
-
-        } catch (Throwable t) {
-            Premain.log.error("Failed to wrap existing URL.factory reflectively", t);
-        }
-    }
-
-    private static URLStreamHandlerFactory getWrappedHandlerFactory(URLStreamHandlerFactory existingFactory) {
-        final URLStreamHandlerFactory delegateFactory = existingFactory;
-        return protocol -> {
-            try {
-                // Ask the existing factory first (if present)
-                URLStreamHandler handler = null;
-                if (delegateFactory != null) {
-                    try {
-                        handler = delegateFactory.createURLStreamHandler(protocol);
-                    } catch (Throwable t) {
-                        Premain.log.info("existing factory threw for protocol " + protocol, t);
-                    }
-                }
-                // If existing factory returned null, try system default
-                if (handler == null) handler = getDefaultHandler(protocol);
-                if (handler == null) return null;
-                return wrapHandler(handler);
-            } catch (Throwable t) {
-                Premain.log.warn("Failed to create wrapped handler for: " + protocol, t);
-                return null;
-            }
-        };
     }
 
     private static URLStreamHandler wrapHandler(final URLStreamHandler delegate) {
