@@ -1,4 +1,4 @@
-package com.unmojang.loki.transformers;
+package org.unmojang.loki.transformers;
 
 import nilloader.api.lib.mini.MiniTransformer;
 import nilloader.api.lib.mini.PatchContext;

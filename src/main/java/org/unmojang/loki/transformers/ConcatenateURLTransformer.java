@@ -1,6 +1,6 @@
-package com.unmojang.loki.transformers;
+package org.unmojang.loki.transformers;
 
-import com.unmojang.loki.Premain;
+import org.unmojang.loki.Premain;
 import nilloader.api.lib.asm.tree.LabelNode;
 import nilloader.api.lib.mini.MiniTransformer;
 import nilloader.api.lib.mini.PatchContext;

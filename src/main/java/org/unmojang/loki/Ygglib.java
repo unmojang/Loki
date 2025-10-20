@@ -1,4 +1,4 @@
-package com.unmojang.loki;
+package org.unmojang.loki;
 
 import nilloader.api.lib.nanojson.JsonObject;
 import nilloader.api.lib.nanojson.JsonParser;
@@ -13,8 +13,6 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
-
-import static com.unmojang.loki.RequestInterceptor.YGGDRASIL_MAP;
 
 public class Ygglib {
     public static String getUsernameFromPath(String path) {
@@ -234,7 +232,7 @@ public class Ygglib {
     }
 
     public static URL getYggdrasilUrl(URL originalUrl, String server) throws MalformedURLException {
-        String replacement = YGGDRASIL_MAP.get(server);
+        String replacement = RequestInterceptor.YGGDRASIL_MAP.get(server);
         URL replacementUrl = new URL(replacement.startsWith("http") ? replacement
                 : originalUrl.getProtocol() + "://" + replacement);
 

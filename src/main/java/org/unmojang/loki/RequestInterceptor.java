@@ -1,4 +1,4 @@
-package com.unmojang.loki;
+package org.unmojang.loki;
 
 import sun.misc.Unsafe;
 

@@ -1,12 +1,12 @@
 @nilmod {
 	/* There is no id field. The filename defines the id of the mod. */
 	name: "Loki";
-	description: "An example mod for NilLoader.";
+	description: "Patch (nearly) any Minecraft version to use custom API servers";
 	authors: "Unmojang";
 	version: "${version}";
 }
 
 entrypoints {
 	/* premain is the only entrypoint defined by NilLoader itself. */
-	premain: "com.unmojang.loki.Premain";
+	premain: "org.unmojang.loki.Premain";
 }
