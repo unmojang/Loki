@@ -83,7 +83,7 @@ public class LokiUtil {
         }
     }
 
-    public static void unsetApiEnv() {
+    public static void unsetVanillaEnv() {
         Premain.log.info("Clearing minecraft.api.*.host parameters");
 
         System.clearProperty("minecraft.api.env");
