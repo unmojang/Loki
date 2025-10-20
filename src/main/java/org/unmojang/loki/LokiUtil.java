@@ -11,10 +11,10 @@ import java.security.cert.Certificate;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 
-public class NetUtil {
+public class LokiUtil {
     public static void loadCacerts() {
         // Load cacert.pem from resources
-        try (InputStream is = NetUtil.class.getResourceAsStream("/cacert.pem")) {
+        try (InputStream is = LokiUtil.class.getResourceAsStream("/cacert.pem")) {
             if (is == null) throw new RuntimeException("cacert.pem not found in resources");
 
             CertificateFactory cf = CertificateFactory.getInstance("X.509");

@@ -11,10 +11,10 @@ public class Premain implements Runnable {
     public void run() {
         log.info("Hello Loki World!");
         // TLS fixes for Mojang's jre-legacy
-        NetUtil.loadCacerts();
+        LokiUtil.loadCacerts();
         // Authlib-Injector API
         if (System.getProperty("Loki.url", null) != null) {
-            NetUtil.InitAuthlibInjectorAPI(System.getProperty("Loki.url"));
+            LokiUtil.InitAuthlibInjectorAPI(System.getProperty("Loki.url"));
         }
         // Authentication & skins
         RequestInterceptor.setURLFactory();
