@@ -72,14 +72,14 @@ public class RequestInterceptor {
     }
 
     private static URLConnection wrapConnection(java.net.URL originalUrl, java.net.URLConnection originalConn) {
-        if (Objects.equals(System.getProperty("Loki.debug", "false"), "true")) {
-            Premain.log.info("Connection: " + ((HttpURLConnection) originalConn).getRequestMethod() + " " + originalUrl);
-        }
         if (!(originalConn instanceof HttpURLConnection)) return originalConn;
         String host = originalUrl.getHost();
         String path = originalUrl.getPath();
         String query = originalUrl.getQuery();
         HttpURLConnection httpConn = (HttpURLConnection) originalConn;
+        if (Objects.equals(System.getProperty("Loki.debug", "false"), "true")) {
+            Premain.log.info("Connection: " + httpConn.getRequestMethod() + " " + originalUrl);
+        }
         if (YGGDRASIL_MAP.containsKey(host)) { // yggdrasil
             Premain.log.info("Intercepting: " + originalUrl);
             try {
