@@ -120,7 +120,9 @@ public class RequestInterceptor {
                 if (path.startsWith("/session/minecraft/profile/")) { // ReIndev fix
                     return Ygglib.getSessionProfile(originalUrl);
                 }
-                if (path.equals("/events")) { // Snooper (1.18+): https://api.minecraftservices.com/events
+                if (path.equals("/events") &&
+                        !(System.getProperty("Loki.enable_snooper", "false")
+                                .equalsIgnoreCase("true"))) { // Snooper (1.18+): https://api.minecraftservices.com/events
                     Premain.log.info("Snooper request intercepted: " + originalUrl);
                     return new Ygglib.FakeURLConnection(originalUrl, 403, ("Nice try ;)").getBytes(StandardCharsets.UTF_8));
                 }
