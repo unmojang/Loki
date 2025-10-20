@@ -47,6 +47,11 @@ Loki supports Java arguments to enable or disable some behaviour.
   -DLoki.enable_realms=false
   ```
 
+- Disable vanilla environment settings added in 1.16+, rely entirely on Loki
+  ```
+  -DLoki.enable_vanilla_env=false
+  ```
+
 ## Troubleshooting
 
 ### I can't join the server/send chat messages due to profile public key-related errors

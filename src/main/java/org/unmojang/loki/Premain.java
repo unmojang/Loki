@@ -4,6 +4,8 @@ import org.unmojang.loki.transformers.*;
 import nilloader.api.ClassTransformer;
 import nilloader.api.NilLogger;
 
+import java.util.Objects;
+
 public class Premain implements Runnable {
     public static final NilLogger log = NilLogger.get("Loki");
 
@@ -14,7 +16,7 @@ public class Premain implements Runnable {
         LokiUtil.loadCacerts();
         // Authlib-Injector API
         if (System.getProperty("Loki.url", null) != null) {
-            LokiUtil.InitAuthlibInjectorAPI(System.getProperty("Loki.url"));
+            LokiUtil.initAuthlibInjectorAPI(System.getProperty("Loki.url"));
         }
         // Authentication & skins
         RequestInterceptor.setURLFactory();
@@ -30,12 +32,10 @@ public class Premain implements Runnable {
 
         // Misc fixes
         ClassTransformer.register(new ConcatenateURLTransformer()); // Prevent port number being ignored in old authlib, if you specified it
-        if (System.getProperty("minecraft.api.profiles.host") == null) { // 1.21.9+ fixes
-            log.info("Applying 1.21.9+ fixes");
-            System.setProperty("minecraft.api.profiles.host", RequestInterceptor.YGGDRASIL_MAP.get("api.mojang.com"));
-        } else if (System.getProperty("minecraft.api.account.host") == null) {
-            log.info("Applying <1.21.9 fixes");
-            System.setProperty("minecraft.api.account.host", RequestInterceptor.YGGDRASIL_MAP.get("api.mojang.com"));
+        if (Objects.equals(System.getProperty("Loki.enable_vanilla_env", "true"), "true")) {
+            LokiUtil.apply1219Fixes();
+        } else {
+            LokiUtil.unsetApiEnv();
         }
     }
 }

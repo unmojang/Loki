@@ -7,7 +7,6 @@ import java.lang.reflect.Field;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class RequestInterceptor {
     private static final Set<String> INTERCEPTED_DOMAINS;
@@ -37,13 +36,18 @@ public class RequestInterceptor {
             INTERCEPTED_DOMAINS.add("java.frontendlegacy.realms.minecraft-services.net");
             INTERCEPTED_DOMAINS.add("pc.realms.minecraft.net");
         }
+
+        String accountHost = System.getProperty("minecraft.api.account.host",
+                System.getProperty("minecraft.api.profiles.host"));
+        String authHost = System.getProperty("minecraft.api.auth.host");
+        String sessionHost = System.getProperty("minecraft.api.session.host");
+        String servicesHost = System.getProperty("minecraft.api.services.host");
+
         Map<String, String> tmp = new HashMap<>();
-        tmp.put("authserver.mojang.com", System.getProperty("minecraft.api.auth.host", "https://authserver.mojang.com"));
-        tmp.put("api.mojang.com", System.getProperty("minecraft.api.account.host",
-                // fallback to 1.21.9+ minecraft.api.profiles.host
-                System.getProperty("minecraft.api.profiles.host", "https://api.mojang.com")));
-        tmp.put("api.minecraftservices.com", System.getProperty("minecraft.api.services.host", "https://api.minecraftservices.com"));
-        tmp.put("sessionserver.mojang.com", System.getProperty("minecraft.api.session.host", "https://sessionserver.mojang.com"));
+        tmp.put("authserver.mojang.com", authHost != null ? authHost : "https://authserver.mojang.com");
+        tmp.put("api.mojang.com", accountHost != null ? accountHost : "https://api.mojang.com");
+        tmp.put("api.minecraftservices.com", servicesHost != null ? servicesHost : "https://api.minecraftservices.com");
+        tmp.put("sessionserver.mojang.com", sessionHost != null ? sessionHost : "https://sessionserver.mojang.com");
         YGGDRASIL_MAP = Collections.unmodifiableMap(tmp);
     }
 
@@ -112,6 +116,7 @@ public class RequestInterceptor {
             Premain.log.info("Intercepting: " + originalUrl);
             try {
                 final URL targetUrl = Ygglib.getYggdrasilUrl(originalUrl, originalUrl.getHost());
+                Premain.log.info(" -> " + targetUrl);
                 if (path.startsWith("/session/minecraft/profile/")) { // ReIndev fix
                     return Ygglib.getSessionProfile(originalUrl);
                 }
