@@ -1,6 +1,9 @@
 package com.unmojang.loki;
 
+import sun.misc.Unsafe;
+
 import java.io.*;
+import java.lang.reflect.Field;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -8,8 +11,16 @@ import java.util.*;
 public class RequestInterceptor {
     private static final Set<String> INTERCEPTED_DOMAINS;
     public static final Map<String, String> YGGDRASIL_MAP;
+    private static final sun.misc.Unsafe unsafe = getUnsafe();
+    private static final Map<String, URLStreamHandler> DEFAULT_HANDLERS = new HashMap<>();
 
     static {
+        try {
+            DEFAULT_HANDLERS.put("http", getSystemHandler("http"));
+            DEFAULT_HANDLERS.put("https", getSystemHandler("https"));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         INTERCEPTED_DOMAINS = new HashSet<>(Arrays.asList(
                 "s3.amazonaws.com",
                 "www.minecraft.net",
@@ -33,105 +44,57 @@ public class RequestInterceptor {
 
     public static void setURLFactory() {
         Premain.log.info("Arrived in setURLFactory");
-        final URLStreamHandlerFactory factory = protocol -> {
+        URL.setURLStreamHandlerFactory(protocol -> {
+            if (!"http".equals(protocol) && !"https".equals(protocol)) return null;
+            URLStreamHandler delegate = DEFAULT_HANDLERS.get(protocol);
+            if (delegate == null) return null;
+            return new URLStreamHandlerProxy(delegate);
+        });
+    }
+
+    private static class URLStreamHandlerProxy extends URLStreamHandler {
+        private final URLStreamHandler parent;
+
+        public URLStreamHandlerProxy(URLStreamHandler parent) {
+            this.parent = parent;
+        }
+
+        @Override
+        protected URLConnection openConnection(URL url) throws IOException {
+            // Use public constructor to delegate to parent handler
+            URL delegated = new URL(null, url.toExternalForm(), parent);
+            URLConnection conn = delegated.openConnection();
+            return wrapConnection(url, conn);
+        }
+
+        @Override
+        protected URLConnection openConnection(URL url, Proxy proxy) throws IOException {
+            // Java URL constructor does not support Proxy directly, need fallback
             try {
-                if (!"http".equals(protocol) && !"https".equals(protocol)) {
-                    return null;
-                }
-                URLStreamHandler system = getDefaultHandler(protocol);
-                if (system == null) {
-                    return null; // let JVM handle it
-                }
-                return wrapHandler(system);
-            } catch (Throwable t) {
-                Premain.log.warn("failed to create/wrap handler for protocol: " + protocol, t);
-                return null;
+                java.lang.reflect.Method m = URLStreamHandler.class
+                        .getDeclaredMethod("openConnection", URL.class, Proxy.class);
+                m.setAccessible(true); // will fail on Java 9+, avoid if possible
+                URLConnection conn = (URLConnection) m.invoke(parent, url, proxy);
+                return wrapConnection(url, conn);
+            } catch (Exception e) {
+                // Fallback: open URL without proxy
+                URL delegated = new URL(null, url.toExternalForm(), parent);
+                return wrapConnection(url, delegated.openConnection());
             }
-        };
-
-        try {
-            URL.setURLStreamHandlerFactory(factory);
-            Premain.log.info("setURLStreamHandlerFactory succeeded");
-        } catch (Error e) {
-            Premain.log.info("setURLStreamHandlerFactory threw Error (already set).");
-        } catch (Throwable t) {
-            Premain.log.error("Unexpected error setting URLStreamHandlerFactory", t);
         }
     }
 
-    public static URLStreamHandler wrapHandler(final URLStreamHandler delegate) {
-        Premain.log.info("Got into wrapHandler");
-        return new URLStreamHandler() {
-            @Override
-            protected URLConnection openConnection(URL u) throws IOException {
-                String protocol = u.getProtocol();
-                if (!"http".equals(protocol) && !"https".equals(protocol)) { // not a http(s) request; ignore
-                    return openDefault(delegate, u);
-                }
-                return wrapConnection(u, openDefault(delegate, u));
-            }
-
-            @Override
-            protected URLConnection openConnection(URL u, Proxy proxy) throws IOException {
-                String protocol = u.getProtocol();
-                if (!"http".equals(protocol) && !"https".equals(protocol)) {  // not a http(s) request; ignore
-                    return openDefault(delegate, u, proxy);
-                }
-                return wrapConnection(u, openDefault(delegate, u, proxy));
-            }
-        };
-    }
-
-    private static URLStreamHandler getDefaultHandler(String protocol) {
-        try {
-            // Use reflection to create the default handler
-            Class<?> cls = Class.forName("sun.net.www.protocol." + protocol + ".Handler");
-            return (URLStreamHandler) cls.getDeclaredConstructor().newInstance();
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    private static URLConnection wrapConnection(URL originalUrl, HttpURLConnection originalConn) {
+    private static URLConnection wrapConnection(java.net.URL originalUrl, java.net.URLConnection originalConn) {
+        if (!(originalConn instanceof HttpURLConnection)) return originalConn;
         String host = originalUrl.getHost();
         String path = originalUrl.getPath();
         String query = originalUrl.getQuery();
+        HttpURLConnection httpConn = (HttpURLConnection) originalConn;
         if (YGGDRASIL_MAP.containsKey(host)) { // yggdrasil
             try {
                 final URL targetUrl = Ygglib.getYggdrasilUrl(originalUrl, originalUrl.getHost());
                 Premain.log.info("Redirecting " + originalUrl + " -> " + targetUrl);
-
-                final HttpURLConnection targetConn = (HttpURLConnection) targetUrl.openConnection();
-
-                // Mirror HTTP method
-                if (originalConn != null) {
-                    targetConn.setRequestMethod(originalConn.getRequestMethod());
-                    targetConn.setDoOutput(originalConn.getDoOutput());
-                    targetConn.setDoInput(true);
-                    targetConn.setInstanceFollowRedirects(originalConn.getInstanceFollowRedirects());
-
-                    // Mirror headers
-                    Map<String, List<String>> headers = originalConn.getRequestProperties();
-                    for (Map.Entry<String, List<String>> entry : headers.entrySet()) {
-                        String key = entry.getKey();
-                        if (key == null) continue; // skip pseudo-headers
-                        for (String val : entry.getValue()) {
-                            targetConn.addRequestProperty(key, val);
-                        }
-                    }
-
-                    // Mirror body if present
-                    if (originalConn.getDoOutput()) {
-                        targetConn.setDoOutput(true);
-                        try (InputStream is = originalConn.getInputStream();
-                             OutputStream os = targetConn.getOutputStream()) {
-                            byte[] buf = new byte[8192];
-                            int r;
-                            while ((r = is.read(buf)) != -1) os.write(buf, 0, r);
-                        }
-                    }
-                }
-                return targetConn;
+                return mirrorHttpURLConnection(targetUrl, httpConn);
             } catch (Exception e) {
                 Premain.log.warn("Failed to redirect " + originalUrl + ": " + e);
                 return originalConn;
@@ -188,26 +151,52 @@ public class RequestInterceptor {
         return originalConn;
     }
 
+    private static HttpURLConnection mirrorHttpURLConnection(URL targetUrl, HttpURLConnection httpConn) throws IOException {
+        final HttpURLConnection targetConn = (HttpURLConnection) targetUrl.openConnection();
 
-    private static HttpURLConnection openDefault(URLStreamHandler handler, URL url) throws IOException {
-        try {
-            java.lang.reflect.Method m = URLStreamHandler.class
-                    .getDeclaredMethod("openConnection", URL.class);
-            m.setAccessible(true);
-            return (HttpURLConnection) m.invoke(handler, url);
-        } catch (Exception e) {
-            throw new IOException(e);
+        // Mirror HTTP method
+        targetConn.setRequestMethod(httpConn.getRequestMethod());
+        targetConn.setDoOutput(httpConn.getDoOutput());
+        targetConn.setDoInput(true);
+        targetConn.setInstanceFollowRedirects(httpConn.getInstanceFollowRedirects());
+
+        // Mirror headers
+        Map<String, List<String>> headers = httpConn.getRequestProperties();
+        for (Map.Entry<String, List<String>> entry : headers.entrySet()) {
+            String key = entry.getKey();
+            if (key == null) continue; // skip pseudo-headers
+            for (String val : entry.getValue()) {
+                targetConn.addRequestProperty(key, val);
+            }
         }
+
+        // Mirror body if present
+        if (httpConn.getDoOutput()) {
+            targetConn.setDoOutput(true);
+            try (InputStream is = httpConn.getInputStream();
+                 OutputStream os = targetConn.getOutputStream()) {
+                byte[] buf = new byte[8192];
+                int r;
+                while ((r = is.read(buf)) != -1) os.write(buf, 0, r);
+            }
+        }
+        return targetConn;
     }
 
-    private static HttpURLConnection openDefault(URLStreamHandler handler, URL url, Proxy proxy) throws IOException {
+    private static URLStreamHandler getSystemHandler(String protocol) throws Exception {
+        URL url = new URL(protocol + ":"); // create a temporary URL
+        Field handlerField = URL.class.getDeclaredField("handler");
+        long offset = unsafe.objectFieldOffset(handlerField);
+        return (URLStreamHandler) unsafe.getObject(url, offset);
+    }
+
+    private static Unsafe getUnsafe() {
         try {
-            java.lang.reflect.Method m = URLStreamHandler.class
-                    .getDeclaredMethod("openConnection", URL.class, Proxy.class);
-            m.setAccessible(true);
-            return (HttpURLConnection) m.invoke(handler, url, proxy);
+            Field f = Unsafe.class.getDeclaredField("theUnsafe");
+            f.setAccessible(true);
+            return (Unsafe) f.get(null);
         } catch (Exception e) {
-            throw new IOException(e);
+            throw new RuntimeException(e);
         }
     }
 }

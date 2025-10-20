@@ -36,22 +36,3 @@ mappings {
 tasks.withType(JavaCompile).configureEach {
 	options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation" << "-Xlint:rawtypes" << "-Xlint:all"
 }
-
-task compileJava16WrappingProvider(type: JavaCompile) {
-	source = fileTree('src/java16') // Only for WrappingProvider
-	destinationDir = file("$buildDir/classes/java16")
-	classpath = sourceSets.main.runtimeClasspath
-	sourceCompatibility = 16
-	targetCompatibility = 16
-
-	javaCompiler = javaToolchains.compilerFor {
-		languageVersion = JavaLanguageVersion.of(16)
-	}
-}
-
-jar {
-	from(sourceSets.main.output)
-	from("$buildDir/classes/java16")
-}
-
-jar.dependsOn compileJava16WrappingProvider
