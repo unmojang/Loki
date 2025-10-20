@@ -1,7 +1,9 @@
 package org.unmojang.loki;
 
+import nilloader.api.lib.nanojson.JsonArray;
 import nilloader.api.lib.nanojson.JsonObject;
 import nilloader.api.lib.nanojson.JsonParser;
+import nilloader.api.lib.nanojson.JsonWriter;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
@@ -11,6 +13,7 @@ import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -35,7 +38,8 @@ public class Ygglib {
         try {
             URL skinUrl = new URL("https://api.mojang.com/users/profiles/minecraft/" + URLEncoder.encode(username, "UTF-8"));
             skinUrl = getYggdrasilUrl(skinUrl, skinUrl.getHost());
-            HttpURLConnection conn = (HttpURLConnection) skinUrl.openConnection();
+            URLStreamHandler handler = RequestInterceptor.DEFAULT_HANDLERS.get(skinUrl.getProtocol());
+            HttpURLConnection conn = RequestInterceptor.openWithParent(skinUrl, handler);
             conn.setRequestMethod("GET");
             conn.setConnectTimeout(5000);
             conn.setReadTimeout(5000);
@@ -54,7 +58,8 @@ public class Ygglib {
         try {
             URL textureUrl = new URL("https://sessionserver.mojang.com/session/minecraft/profile/" + URLEncoder.encode(uuid, "UTF-8"));
             textureUrl = getYggdrasilUrl(textureUrl, textureUrl.getHost());
-            HttpURLConnection conn = (HttpURLConnection) textureUrl.openConnection();
+            URLStreamHandler handler = RequestInterceptor.DEFAULT_HANDLERS.get(textureUrl.getProtocol());
+            HttpURLConnection conn = RequestInterceptor.openWithParent(textureUrl, handler);
             conn.setRequestMethod("GET");
             conn.setConnectTimeout(5000);
             conn.setReadTimeout(5000);
@@ -131,8 +136,10 @@ public class Ygglib {
             } else if (type.equals("CAPE")) {
                 return (HttpURLConnection) new URL(textureUrl).openConnection();
             }
-        } catch (Exception ignored) {}
-        return null;
+            throw new RuntimeException();
+        } catch (Exception e) {
+            return new FakeURLConnection(originalUrl, 500, ("\0").getBytes(StandardCharsets.UTF_8));
+        }
     }
 
     // Credit: Fjord Launcher legacy fixes
@@ -171,12 +178,13 @@ public class Ygglib {
 
             URL url = new URL("https://sessionserver.mojang.com/session/minecraft/join");
             url = getYggdrasilUrl(url, url.getHost());
-            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-            connection.setDoOutput(true);
-            connection.setRequestMethod("POST");
-            connection.setRequestProperty("Content-Type", "application/json");
-            connection.setRequestProperty("Accept", "application/json");
-            try (OutputStream os = connection.getOutputStream()) {
+            URLStreamHandler handler = RequestInterceptor.DEFAULT_HANDLERS.get(url.getProtocol());
+            HttpURLConnection conn = RequestInterceptor.openWithParent(url, handler);
+            conn.setDoOutput(true);
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setRequestProperty("Accept", "application/json");
+            try (OutputStream os = conn.getOutputStream()) {
                 StringBuilder payload = new StringBuilder();
                 payload.append("{")
                         .append("\"accessToken\": \"").append(accessToken).append("\",")
@@ -189,12 +197,12 @@ public class Ygglib {
                 os.write(payload.toString().getBytes(StandardCharsets.UTF_8));
             }
 
-            if (connection.getResponseCode() == 204) {
+            if (conn.getResponseCode() == 204) {
                 return new FakeURLConnection(originalUrl, 200, "OK".getBytes(StandardCharsets.UTF_8));
             }
             return new FakeURLConnection(originalUrl, 200, "Bad login".getBytes(StandardCharsets.UTF_8));
         } catch (Exception e) {
-            throw new AssertionError("An error occurred");
+            return new FakeURLConnection(originalUrl, 500, ("\0").getBytes(StandardCharsets.UTF_8));
         }
     }
 
@@ -216,18 +224,19 @@ public class Ygglib {
 
             URL url = new URL("https://sessionserver.mojang.com/session/minecraft/hasJoined?username=" + user + "&serverId=" + serverId + (ip != null ? "&ip=" + ip : ""));
             url = getYggdrasilUrl(url, url.getHost());
-            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-            connection.setDoInput(true);
-            connection.setDoOutput(false);
-            connection.setRequestMethod("GET");
-            connection.connect();
+            URLStreamHandler handler = RequestInterceptor.DEFAULT_HANDLERS.get(url.getProtocol());
+            HttpURLConnection conn = RequestInterceptor.openWithParent(url, handler);
+            conn.setDoInput(true);
+            conn.setDoOutput(false);
+            conn.setRequestMethod("GET");
+            conn.connect();
 
-            if (connection.getResponseCode() == 200) {
+            if (conn.getResponseCode() == 200) {
                 return new FakeURLConnection(originalUrl, 200, "YES".getBytes(StandardCharsets.UTF_8));
             }
             return new FakeURLConnection(originalUrl, 200, "Bad login".getBytes(StandardCharsets.UTF_8));
         } catch (Exception e) {
-            throw new AssertionError("An error occurred");
+            return new FakeURLConnection(originalUrl, 500, ("\0").getBytes(StandardCharsets.UTF_8));
         }
     }
 
@@ -246,6 +255,42 @@ public class Ygglib {
         if (originalUrl.getQuery() != null) finalUrlStr += "?" + originalUrl.getQuery();
 
         return new URL(finalUrlStr);
+    }
+
+    public static HttpURLConnection getSessionProfile(URL url) {
+        try {
+            url = getYggdrasilUrl(url, url.getHost());
+            URLStreamHandler handler = RequestInterceptor.DEFAULT_HANDLERS.get(url.getProtocol());
+            HttpURLConnection conn = RequestInterceptor.openWithParent(url, handler);
+            conn.setRequestMethod("GET");
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(5000);
+
+            BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+            String profileJson = reader.lines().collect(Collectors.joining());
+            JsonObject profileObj = JsonParser.object().from(profileJson);
+            JsonArray properties = profileObj.getArray("properties");
+            if (properties == null) throw new RuntimeException();
+
+            // Use iterator to safely remove elements
+            Iterator<Object> iter = properties.iterator();
+            while (iter.hasNext()) {
+                Object elem = iter.next();
+                if (elem instanceof JsonObject) {
+                    JsonObject prop = (JsonObject) elem;
+                    String name = prop.getString("name");
+                    if (!"textures".equals(name)) {
+                        iter.remove(); // remove uploadableTextures entry
+                    }
+                } else {
+                    throw new RuntimeException();
+                }
+            }
+            profileJson = JsonWriter.string(profileObj);
+            return new FakeURLConnection(url, 200, profileJson.getBytes(StandardCharsets.UTF_8));
+        } catch (Exception e) {
+            return new FakeURLConnection(url, 500, ("\0").getBytes(StandardCharsets.UTF_8));
+        }
     }
 
     public static class FakeURLConnection extends HttpURLConnection {

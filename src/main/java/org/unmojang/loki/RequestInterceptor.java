@@ -12,7 +12,7 @@ public class RequestInterceptor {
     private static final Set<String> INTERCEPTED_DOMAINS;
     public static final Map<String, String> YGGDRASIL_MAP;
     private static final sun.misc.Unsafe unsafe = getUnsafe();
-    private static final Map<String, URLStreamHandler> DEFAULT_HANDLERS = new HashMap<>();
+    public static final Map<String, URLStreamHandler> DEFAULT_HANDLERS = new HashMap<>();
 
     static {
         try {
@@ -84,7 +84,7 @@ public class RequestInterceptor {
         }
     }
 
-    private static HttpURLConnection openWithParent(URL url, URLStreamHandler handler) throws IOException {
+    public static HttpURLConnection openWithParent(URL url, URLStreamHandler handler) throws IOException {
         try {
             // Use the URL constructor with null context to avoid global wrapper
             URL delegated = new URL(null, url.toExternalForm(), handler);
@@ -101,9 +101,12 @@ public class RequestInterceptor {
         String query = originalUrl.getQuery();
         HttpURLConnection httpConn = (HttpURLConnection) originalConn;
         if (YGGDRASIL_MAP.containsKey(host)) { // yggdrasil
+            Premain.log.info("Intercepting: " + originalUrl);
             try {
                 final URL targetUrl = Ygglib.getYggdrasilUrl(originalUrl, originalUrl.getHost());
-                Premain.log.info("Redirecting " + originalUrl + " -> " + targetUrl);
+                if (path.startsWith("/session/minecraft/profile/")) { // ReIndev fix
+                    return Ygglib.getSessionProfile(originalUrl);
+                }
                 return mirrorHttpURLConnection(targetUrl, httpConn);
             } catch (Exception e) {
                 Premain.log.warn("Failed to redirect " + originalUrl + ": " + e);
