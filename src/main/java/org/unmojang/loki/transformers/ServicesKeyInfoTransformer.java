@@ -1,10 +1,10 @@
 package org.unmojang.loki.transformers;
 
-import org.unmojang.loki.Premain;
 import nilloader.api.lib.asm.tree.LabelNode;
 import nilloader.api.lib.mini.MiniTransformer;
 import nilloader.api.lib.mini.PatchContext;
 import nilloader.api.lib.mini.annotation.Patch;
+import org.unmojang.loki.Premain;
 
 @Patch.Class("com.mojang.authlib.yggdrasil.YggdrasilServicesKeyInfo")
 public class ServicesKeyInfoTransformer extends MiniTransformer {

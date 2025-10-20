@@ -1,8 +1,8 @@
 package org.unmojang.loki;
 
-import org.unmojang.loki.transformers.*;
 import nilloader.api.ClassTransformer;
 import nilloader.api.NilLogger;
+import org.unmojang.loki.transformers.*;
 
 import java.util.Objects;
 

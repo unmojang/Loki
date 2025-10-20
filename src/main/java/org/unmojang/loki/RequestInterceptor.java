@@ -9,10 +9,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public class RequestInterceptor {
-    private static final Set<String> INTERCEPTED_DOMAINS;
     public static final Map<String, String> YGGDRASIL_MAP;
-    private static final sun.misc.Unsafe unsafe = getUnsafe();
     public static final Map<String, URLStreamHandler> DEFAULT_HANDLERS = new HashMap<>();
+    private static final Set<String> INTERCEPTED_DOMAINS;
+    private static final sun.misc.Unsafe unsafe = getUnsafe();
 
     static {
         try {
@@ -59,38 +59,6 @@ public class RequestInterceptor {
             if (delegate == null) return null;
             return new URLStreamHandlerProxy(delegate);
         });
-    }
-
-    private static class URLStreamHandlerProxy extends URLStreamHandler {
-        private final URLStreamHandler parent;
-
-        public URLStreamHandlerProxy(URLStreamHandler parent) {
-            this.parent = parent;
-        }
-
-        @Override
-        protected URLConnection openConnection(URL url) throws IOException {
-            // Use public constructor to delegate to parent handler
-            URL delegated = new URL(null, url.toExternalForm(), parent);
-            URLConnection conn = delegated.openConnection();
-            return wrapConnection(url, conn);
-        }
-
-        @Override
-        protected URLConnection openConnection(URL url, Proxy proxy) throws IOException {
-            // Java URL constructor does not support Proxy directly, need fallback
-            try {
-                java.lang.reflect.Method m = URLStreamHandler.class
-                        .getDeclaredMethod("openConnection", URL.class, Proxy.class);
-                m.setAccessible(true); // will fail on Java 9+, avoid if possible
-                URLConnection conn = (URLConnection) m.invoke(parent, url, proxy);
-                return wrapConnection(url, conn);
-            } catch (Exception e) {
-                // Fallback: open URL without proxy
-                URL delegated = new URL(null, url.toExternalForm(), parent);
-                return wrapConnection(url, delegated.openConnection());
-            }
-        }
     }
 
     public static HttpURLConnection openWithParent(URL url, URLStreamHandler handler) throws IOException {
@@ -238,6 +206,38 @@ public class RequestInterceptor {
             return (Unsafe) f.get(null);
         } catch (Exception e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    private static class URLStreamHandlerProxy extends URLStreamHandler {
+        private final URLStreamHandler parent;
+
+        public URLStreamHandlerProxy(URLStreamHandler parent) {
+            this.parent = parent;
+        }
+
+        @Override
+        protected URLConnection openConnection(URL url) throws IOException {
+            // Use public constructor to delegate to parent handler
+            URL delegated = new URL(null, url.toExternalForm(), parent);
+            URLConnection conn = delegated.openConnection();
+            return wrapConnection(url, conn);
+        }
+
+        @Override
+        protected URLConnection openConnection(URL url, Proxy proxy) throws IOException {
+            // Java URL constructor does not support Proxy directly, need fallback
+            try {
+                java.lang.reflect.Method m = URLStreamHandler.class
+                        .getDeclaredMethod("openConnection", URL.class, Proxy.class);
+                m.setAccessible(true); // will fail on Java 9+, avoid if possible
+                URLConnection conn = (URLConnection) m.invoke(parent, url, proxy);
+                return wrapConnection(url, conn);
+            } catch (Exception e) {
+                // Fallback: open URL without proxy
+                URL delegated = new URL(null, url.toExternalForm(), parent);
+                return wrapConnection(url, delegated.openConnection());
+            }
         }
     }
 }
