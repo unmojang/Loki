@@ -84,6 +84,16 @@ public class RequestInterceptor {
         }
     }
 
+    private static HttpURLConnection openWithParent(URL url, URLStreamHandler handler) throws IOException {
+        try {
+            // Use the URL constructor with null context to avoid global wrapper
+            URL delegated = new URL(null, url.toExternalForm(), handler);
+            return (HttpURLConnection) delegated.openConnection();
+        } catch (ClassCastException e) {
+            throw new IOException("Handler did not return HttpURLConnection", e);
+        }
+    }
+
     private static URLConnection wrapConnection(java.net.URL originalUrl, java.net.URLConnection originalConn) {
         if (!(originalConn instanceof HttpURLConnection)) return originalConn;
         String host = originalUrl.getHost();
@@ -139,6 +149,8 @@ public class RequestInterceptor {
                 } catch (Exception e) {
                     return new Ygglib.FakeURLConnection(originalUrl, 500, "\0".getBytes(StandardCharsets.UTF_8));
                 }
+            } else if (path.startsWith("/MinecraftResources/")) { // resource fetch attempt
+                return new Ygglib.FakeURLConnection(originalUrl, 500, "\0".getBytes(StandardCharsets.UTF_8));
             }
 
             // Snooper
@@ -152,7 +164,8 @@ public class RequestInterceptor {
     }
 
     private static HttpURLConnection mirrorHttpURLConnection(URL targetUrl, HttpURLConnection httpConn) throws IOException {
-        final HttpURLConnection targetConn = (HttpURLConnection) targetUrl.openConnection();
+        URLStreamHandler handler = DEFAULT_HANDLERS.get(targetUrl.getProtocol());
+        final HttpURLConnection targetConn = openWithParent(targetUrl, handler);
 
         // Mirror HTTP method
         targetConn.setRequestMethod(httpConn.getRequestMethod());
