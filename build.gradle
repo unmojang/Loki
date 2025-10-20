@@ -7,7 +7,7 @@ targetCompatibility = 8
 
 group = 'org.unmojang'
 archivesBaseName = 'Loki'
-version = '1.1'
+version = '1.2'
 
 repositories {
 	maven {
