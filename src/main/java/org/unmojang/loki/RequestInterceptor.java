@@ -7,6 +7,7 @@ import java.lang.reflect.Field;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class RequestInterceptor {
     private static final Set<String> INTERCEPTED_DOMAINS;
@@ -31,6 +32,10 @@ public class RequestInterceptor {
         ));
         if (System.getProperty("Loki.enable_snooper", "false").equalsIgnoreCase("true")) {
             INTERCEPTED_DOMAINS.remove("snoop.minecraft.net");
+        }
+        if (System.getProperty("Loki.enable_realms", "true").equalsIgnoreCase("false")) {
+            INTERCEPTED_DOMAINS.add("java.frontendlegacy.realms.minecraft-services.net");
+            INTERCEPTED_DOMAINS.add("pc.realms.minecraft.net");
         }
         Map<String, String> tmp = new HashMap<>();
         tmp.put("authserver.mojang.com", System.getProperty("minecraft.api.auth.host", "https://authserver.mojang.com"));
@@ -95,6 +100,9 @@ public class RequestInterceptor {
     }
 
     private static URLConnection wrapConnection(java.net.URL originalUrl, java.net.URLConnection originalConn) {
+        if (Objects.equals(System.getProperty("Loki.debug", "false"), "true")) {
+            Premain.log.info("Connection: " + ((HttpURLConnection) originalConn).getRequestMethod() + " " + originalUrl);
+        }
         if (!(originalConn instanceof HttpURLConnection)) return originalConn;
         String host = originalUrl.getHost();
         String path = originalUrl.getPath();
@@ -106,6 +114,10 @@ public class RequestInterceptor {
                 final URL targetUrl = Ygglib.getYggdrasilUrl(originalUrl, originalUrl.getHost());
                 if (path.startsWith("/session/minecraft/profile/")) { // ReIndev fix
                     return Ygglib.getSessionProfile(originalUrl);
+                }
+                if (path.equals("/events")) { // Snooper (1.18+): https://api.minecraftservices.com/events
+                    Premain.log.info("Snooper request intercepted: " + originalUrl);
+                    return new Ygglib.FakeURLConnection(originalUrl, 403, ("Nice try ;)").getBytes(StandardCharsets.UTF_8));
                 }
                 return mirrorHttpURLConnection(targetUrl, httpConn);
             } catch (Exception e) {
@@ -159,6 +171,12 @@ public class RequestInterceptor {
             // Snooper
             if (host.equals("snoop.minecraft.net")) {
                 Premain.log.info("Snooper request intercepted: " + originalUrl);
+                return new Ygglib.FakeURLConnection(originalUrl, 403, ("Nice try ;)").getBytes(StandardCharsets.UTF_8));
+            }
+
+            // Realms
+            if (host.equals("java.frontendlegacy.realms.minecraft-services.net") || host.equals("pc.realms.minecraft.net")) {
+                Premain.log.info("Realms request intercepted: " + originalUrl);
                 return new Ygglib.FakeURLConnection(originalUrl, 403, ("Nice try ;)").getBytes(StandardCharsets.UTF_8));
             }
         }

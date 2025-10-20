@@ -32,9 +32,19 @@ Loki supports Java arguments to enable or disable some behaviour.
   -DLoki.url=https://drasl.unmojang.org
   ```
 
+- Enable debug mode (increased verbosity)
+  ```
+  -DLoki.debug=true
+  ```
+
 - Re-enable snooper
   ```
   -DLoki.enable_snooper=true
+  ```
+
+- Disable realms APIs
+  ```
+  -DLoki.enable_realms=false
   ```
 
 ## Troubleshooting
