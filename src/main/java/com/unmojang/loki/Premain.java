@@ -12,6 +12,10 @@ public class Premain implements Runnable {
         log.info("Hello Loki World!");
         // TLS fixes for Mojang's jre-legacy
         NetUtil.loadCacerts();
+        // Authlib-Injector API
+        if (System.getProperty("Loki.url", null) != null) {
+            NetUtil.InitAuthlibInjectorAPI(System.getProperty("Loki.url"));
+        }
         // Authentication & skins
         RequestInterceptor.setURLFactory();
         ClassTransformer.register(new SignatureValidTransformer());      /* Texture signatures (possibly unnecessary?)

@@ -27,6 +27,11 @@ They should be, but if not, please file an issue.
 
 Loki supports Java arguments to enable or disable some behaviour.
 
+- Use Authlib-Injector URL instead of `minecraft.api.*.host` parameters
+  ```
+  -DLoki.url=https://drasl.unmojang.org
+  ```
+
 - Re-enable snooper
   ```
   -DLoki.enable_snooper=true
