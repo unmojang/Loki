@@ -34,7 +34,7 @@ public class Premain implements Runnable {
         ClassTransformer.register(new ConcatenateURLTransformer()); // Prevent port number being ignored in old authlib, if you specified it
 
         // Apply 1.21.9+ fixes if Loki.enable_vanilla_env is true (default), otherwise unset vanilla environment
-        if (Objects.equals(System.getProperty("Loki.enable_vanilla_env", "true"), "true")) {
+        if (!(Objects.equals(System.getProperty("Loki.enable_vanilla_env", "true"), "false"))) {
             LokiUtil.apply1219Fixes();
         } else {
             LokiUtil.unsetVanillaEnv();

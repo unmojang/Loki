@@ -13,6 +13,9 @@ public class RequestInterceptor {
     public static final Map<String, URLStreamHandler> DEFAULT_HANDLERS = new HashMap<>();
     private static final Set<String> INTERCEPTED_DOMAINS;
     private static final sun.misc.Unsafe unsafe = getUnsafe();
+    private static final Boolean enable_snooper =  System.getProperty("Loki.enable_snooper", "false").equalsIgnoreCase("true");
+    private static final Boolean enable_realms = !(System.getProperty("Loki.enable_realms", "true").equalsIgnoreCase("false"));
+    private static final Boolean enable_debug = System.getProperty("Loki.debug", "false").equalsIgnoreCase("true");
 
     static {
         try {
@@ -26,13 +29,12 @@ public class RequestInterceptor {
                 "www.minecraft.net",
                 "skins.minecraft.net",
                 "session.minecraft.net",
-                "betacraft.uk",
-                "snoop.minecraft.net"
+                "betacraft.uk"
         ));
-        if (System.getProperty("Loki.enable_snooper", "false").equalsIgnoreCase("true")) {
-            INTERCEPTED_DOMAINS.remove("snoop.minecraft.net");
+        if (!enable_snooper) {
+            INTERCEPTED_DOMAINS.add("snoop.minecraft.net");
         }
-        if (System.getProperty("Loki.enable_realms", "true").equalsIgnoreCase("false")) {
+        if (!enable_realms) {
             INTERCEPTED_DOMAINS.add("java.frontendlegacy.realms.minecraft-services.net");
             INTERCEPTED_DOMAINS.add("pc.realms.minecraft.net");
         }
@@ -77,7 +79,7 @@ public class RequestInterceptor {
         String path = originalUrl.getPath();
         String query = originalUrl.getQuery();
         HttpURLConnection httpConn = (HttpURLConnection) originalConn;
-        if (Objects.equals(System.getProperty("Loki.debug", "false"), "true")) {
+        if (enable_debug) {
             Premain.log.info("Connection: " + httpConn.getRequestMethod() + " " + originalUrl);
         }
         if (YGGDRASIL_MAP.containsKey(host)) { // yggdrasil
@@ -88,9 +90,7 @@ public class RequestInterceptor {
                 if (path.startsWith("/session/minecraft/profile/")) { // ReIndev fix
                     return Ygglib.getSessionProfile(originalUrl);
                 }
-                if (path.equals("/events") &&
-                        !(System.getProperty("Loki.enable_snooper", "false")
-                                .equalsIgnoreCase("true"))) { // Snooper (1.18+): https://api.minecraftservices.com/events
+                if (path.equals("/events") && !(enable_snooper)) { // Snooper (1.18+): https://api.minecraftservices.com/events
                     Premain.log.info("Snooper request intercepted: " + originalUrl);
                     return new Ygglib.FakeURLConnection(originalUrl, 403, ("Nice try ;)").getBytes(StandardCharsets.UTF_8));
                 }
