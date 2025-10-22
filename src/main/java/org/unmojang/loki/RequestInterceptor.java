@@ -83,12 +83,11 @@ public class RequestInterceptor {
             Premain.log.info("Connection: " + httpConn.getRequestMethod() + " " + originalUrl);
         }
         if (YGGDRASIL_MAP.containsKey(host)) { // yggdrasil
-            Premain.log.info("Intercepting: " + originalUrl);
             try {
                 final URL targetUrl = Ygglib.getYggdrasilUrl(originalUrl, originalUrl.getHost());
-                Premain.log.info(" -> " + targetUrl);
+                Premain.log.info("Intercepting: " + originalUrl + " -> " + targetUrl);
                 if (path.startsWith("/session/minecraft/profile/")) { // ReIndev fix
-                    return Ygglib.getSessionProfile(originalUrl);
+                    return Ygglib.getSessionProfile(targetUrl, httpConn);
                 }
                 if (path.equals("/events") && !(enable_snooper)) { // Snooper (1.18+): https://api.minecraftservices.com/events
                     Premain.log.info("Snooper request intercepted: " + originalUrl);
@@ -159,7 +158,7 @@ public class RequestInterceptor {
         return originalConn;
     }
 
-    private static HttpURLConnection mirrorHttpURLConnection(URL targetUrl, HttpURLConnection httpConn) throws IOException {
+    public static HttpURLConnection mirrorHttpURLConnection(URL targetUrl, HttpURLConnection httpConn) throws IOException {
         URLStreamHandler handler = DEFAULT_HANDLERS.get(targetUrl.getProtocol());
         final HttpURLConnection targetConn = openWithParent(targetUrl, handler);
 

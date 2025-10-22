@@ -257,15 +257,9 @@ public class Ygglib {
         return new URL(finalUrlStr);
     }
 
-    public static HttpURLConnection getSessionProfile(URL url) {
+    public static HttpURLConnection getSessionProfile(URL url, HttpURLConnection originalHttpConn) {
         try {
-            url = getYggdrasilUrl(url, url.getHost());
-            URLStreamHandler handler = RequestInterceptor.DEFAULT_HANDLERS.get(url.getProtocol());
-            HttpURLConnection conn = RequestInterceptor.openWithParent(url, handler);
-            conn.setRequestMethod("GET");
-            conn.setConnectTimeout(5000);
-            conn.setReadTimeout(5000);
-
+            HttpURLConnection conn = RequestInterceptor.mirrorHttpURLConnection(url, originalHttpConn);
             BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
             String profileJson = reader.lines().collect(Collectors.joining());
             JsonObject profileObj = JsonParser.object().from(profileJson);
