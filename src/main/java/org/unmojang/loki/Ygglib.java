@@ -54,9 +54,9 @@ public class Ygglib {
         }
     }
 
-    public static String getTexturePayload(String uuid) {
+    public static String getTexturePayload(String uuid, boolean raw) {
         try {
-            URL textureUrl = new URL("https://sessionserver.mojang.com/session/minecraft/profile/" + URLEncoder.encode(uuid, "UTF-8"));
+            URL textureUrl = new URL("https://sessionserver.mojang.com/session/minecraft/profile/" + URLEncoder.encode(uuid, "UTF-8") + "?unsigned=false");
             textureUrl = getYggdrasilUrl(textureUrl, textureUrl.getHost());
             URLStreamHandler handler = RequestInterceptor.DEFAULT_HANDLERS.get(textureUrl.getProtocol());
             HttpURLConnection conn = RequestInterceptor.openWithParent(textureUrl, handler);
@@ -66,6 +66,7 @@ public class Ygglib {
 
             BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
             String profileJson = reader.lines().collect(Collectors.joining());
+            if (raw) return profileJson;
             JsonObject profileObj = JsonParser.object().from(profileJson);
             String texturesBase64 = profileObj.getArray("properties").getObject(0).getString("value");
             return new String(Base64.getDecoder().decode(texturesBase64), StandardCharsets.UTF_8);
@@ -80,7 +81,7 @@ public class Ygglib {
     public static HttpURLConnection getTexture(URL originalUrl, String username, String type) {
         try {
             String uuid = Ygglib.getUUID(username);
-            String texturePayload = Ygglib.getTexturePayload(uuid);
+            String texturePayload = Ygglib.getTexturePayload(uuid, false);
             if (texturePayload == null) return null;
             JsonObject texturePayloadObj = JsonParser.object().from(texturePayload);
             JsonObject skinOrCape = texturePayloadObj.getObject("textures").getObject(type);
@@ -257,9 +258,9 @@ public class Ygglib {
         return new URL(finalUrlStr);
     }
 
-    public static HttpURLConnection getSessionProfile(URL url, HttpURLConnection originalHttpConn) {
+    public static HttpURLConnection getSessionProfile(URL originalUrl, HttpURLConnection originalHttpConn) {
         try {
-            HttpURLConnection conn = RequestInterceptor.mirrorHttpURLConnection(url, originalHttpConn);
+            HttpURLConnection conn = RequestInterceptor.mirrorHttpURLConnection(originalUrl, originalHttpConn);
             BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
             String profileJson = reader.lines().collect(Collectors.joining());
             JsonObject profileObj = JsonParser.object().from(profileJson);
@@ -281,9 +282,53 @@ public class Ygglib {
                 }
             }
             profileJson = JsonWriter.string(profileObj);
-            return new FakeURLConnection(url, 200, profileJson.getBytes(StandardCharsets.UTF_8));
+            return new FakeURLConnection(originalUrl, 200, profileJson.getBytes(StandardCharsets.UTF_8));
         } catch (Exception e) {
-            return new FakeURLConnection(url, 500, ("\0").getBytes(StandardCharsets.UTF_8));
+            return new FakeURLConnection(originalUrl, 500, ("\0").getBytes(StandardCharsets.UTF_8));
+        }
+    }
+
+    public static HttpURLConnection getAshcon(URL originalUrl, String username) {
+        try {
+            String uuid = getUUID(username);
+            String profileJson = getTexturePayload(uuid, true);
+            assert profileJson != null;
+            JsonObject profileObj = JsonParser.object().from(profileJson);
+            JsonObject properties = profileObj.getArray("properties").getObject(0);
+            String texturesBase64 = properties.getString("value");
+            String signaturesBase64 = properties.getString("signature");
+            String texturePayload = new String(Base64.getDecoder().decode(texturesBase64), StandardCharsets.UTF_8);
+            JsonObject texturePayloadObj = JsonParser.object().from(texturePayload);
+            JsonObject skinObj = texturePayloadObj.getObject("textures").getObject("SKIN");
+            boolean isSlim = false;
+            if (skinObj.has("metadata")) {
+                JsonObject metadata = skinObj.getObject("metadata");
+                if ("slim".equals(metadata.getString("model", ""))) {
+                    isSlim = true;
+                }
+            }
+
+            String responseJson = "{\n" +
+                    "  \"uuid\": \"" + uuid + "\",\n" +
+                    "  \"username\": \"" + username + "\",\n" +
+                    "  \"username_history\": [\n" +
+                    "    {\n" +
+                    "      \"username\": \"" + username + "\"\n" +
+                    "    }\n" +
+                    "  ],\n" +
+                    "  \"textures\": {\n" +
+                    "    \"custom\": true,\n" +
+                    "    \"slim\": " + isSlim + ",\n" +
+                    "    \"raw\": {\n" +
+                    "      \"value\": \"" + texturesBase64 + "\",\n" +
+                    "      \"signature\": \"" + signaturesBase64 + "\"\n" +
+                    "    }\n" +
+                    "  },\n" +
+                    "  \"created_at\": null\n" +
+                    "}";
+            return new FakeURLConnection(originalUrl, 200, (responseJson).getBytes(StandardCharsets.UTF_8));
+        } catch (Exception e) {
+            return new FakeURLConnection(originalUrl, 500, ("\0").getBytes(StandardCharsets.UTF_8));
         }
     }
 

@@ -29,7 +29,8 @@ public class RequestInterceptor {
                 "www.minecraft.net",
                 "skins.minecraft.net",
                 "session.minecraft.net",
-                "betacraft.uk"
+                "betacraft.uk",
+                "api.ashcon.app"
         ));
         if (!enable_snooper) {
             INTERCEPTED_DOMAINS.add("snoop.minecraft.net");
@@ -152,6 +153,12 @@ public class RequestInterceptor {
             if (host.equals("java.frontendlegacy.realms.minecraft-services.net") || host.equals("pc.realms.minecraft.net")) {
                 Premain.log.info("Realms request intercepted: " + originalUrl);
                 return new Ygglib.FakeURLConnection(originalUrl, 403, ("Nice try ;)").getBytes(StandardCharsets.UTF_8));
+            }
+
+            if (host.equals("api.ashcon.app") && path.matches("^/mojang/[^/]+/user/.*")) {
+                Premain.log.info("Intercepting api.ashcon.app: " + originalUrl);
+                String username = Ygglib.getUsernameFromPath(originalUrl.getPath());
+                return Ygglib.getAshcon(originalUrl, username);
             }
         }
 

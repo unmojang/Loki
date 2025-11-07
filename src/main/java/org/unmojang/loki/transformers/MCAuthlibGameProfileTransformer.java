@@ -1,14 +1,27 @@
 package org.unmojang.loki.transformers;
 
+import nilloader.api.lib.asm.Type;
 import nilloader.api.lib.asm.tree.LabelNode;
 import nilloader.api.lib.mini.MiniTransformer;
 import nilloader.api.lib.mini.PatchContext;
 import nilloader.api.lib.mini.annotation.Patch;
 import org.unmojang.loki.Premain;
 
-@Patch.Class("com.mojang.authlib.yggdrasil.YggdrasilServicesKeyInfo")
-public class ServicesKeyInfoTransformer extends MiniTransformer {
-    @Patch.Method("<init>(Ljava/security/PublicKey;)V")
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.security.KeyFactory;
+import java.security.PublicKey;
+import java.security.spec.X509EncodedKeySpec;
+import java.util.Base64;
+
+@Patch.Class("com.github.steveice10.mc.auth.data.GameProfile")
+public class MCAuthlibGameProfileTransformer extends MiniTransformer {
+    @Patch.Method("<clinit>()V")
     @Patch.Method.AffectsControlFlow
     @Patch.Method.Optional
     public void replaceKey(PatchContext ctx) {
@@ -48,16 +61,20 @@ public class ServicesKeyInfoTransformer extends MiniTransformer {
                 KeyFactory keyFactory = KeyFactory.getInstance("RSA");
                 PublicKey publicKey = keyFactory.generatePublic(spec);
 
-                Field pubKeyField = this.getClass().getDeclaredField("publicKey");
+                Field pubKeyField = GameProfile.class.getDeclaredField("SIGNATURE_KEY");
                 pubKeyField.setAccessible(true);
-                pubKeyField.set(this.getClass(), publicKey);
-
+                unsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
+                unsafeField.setAccessible(true);
+                unsafe = (sun.misc.Unsafe) unsafeField.get(null);
+                staticBase = unsafe.staticFieldBase(pubKeyField);
+                staticOffset = unsafe.staticFieldOffset(pubKeyField);
+                unsafe.putObject(staticBase, staticOffset, publicKey);
             } catch (Exception e) {
                 throw new AssertionError("Failed to fetch services key!", e);
             }
         }
         */
-        Premain.log.info("Applying 1.19-1.19.2 publicKey replacement");
+        Premain.log.info("Applying MCAuthLib SIGNATURE_KEY replacement");
         ctx.jumpToLastReturn();
 
         // baseUrl = System.getProperty("minecraft.api.services.host", "https://api.minecraftservices.com")
@@ -202,32 +219,52 @@ public class ServicesKeyInfoTransformer extends MiniTransformer {
         ctx.add(INVOKEVIRTUAL("java/security/KeyFactory", "generatePublic", "(Ljava/security/spec/KeySpec;)Ljava/security/PublicKey;"));
         ctx.add(ASTORE(11));
 
-        // pubKeyField = this.getClass().getDeclaredField("publicKey")
-        ctx.add(ALOAD(0));
-        ctx.add(INVOKEVIRTUAL("java/lang/Object", "getClass", "()Ljava/lang/Class;"));
-        ctx.add(LDC("publicKey"));
+        // pubKeyField = GameProfile.class.getDeclaredField("SIGNATURE_KEY")
+        ctx.add(LDC(Type.getType("Lcom/github/steveice10/mc/auth/data/GameProfile;"))); // GameProfile.class
+        ctx.add(LDC("SIGNATURE_KEY"));
         ctx.add(INVOKEVIRTUAL("java/lang/Class", "getDeclaredField", "(Ljava/lang/String;)Ljava/lang/reflect/Field;"));
-        ctx.add(ASTORE(12));
+        ctx.add(ASTORE(12)); // pubKeyField
 
         // pubKeyField.setAccessible(true)
         ctx.add(ALOAD(12));
         ctx.add(ICONST_1());
         ctx.add(INVOKEVIRTUAL("java/lang/reflect/Field", "setAccessible", "(Z)V"));
 
-        // pubKeyField.set(this, publicKey)
-        ctx.add(ALOAD(12));
-        ctx.add(ALOAD(0));
-        ctx.add(ALOAD(11));
-        ctx.add(INVOKEVIRTUAL("java/lang/reflect/Field", "set", "(Ljava/lang/Object;Ljava/lang/Object;)V"));
-    }
+        // unsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe")
+        ctx.add(LDC(Type.getType("Lsun/misc/Unsafe;"))); // Unsafe.class
+        ctx.add(LDC("theUnsafe"));
+        ctx.add(INVOKEVIRTUAL("java/lang/Class", "getDeclaredField", "(Ljava/lang/String;)Ljava/lang/reflect/Field;"));
+        ctx.add(ASTORE(13)); // unsafeField
 
-    @Patch.Method("validateProperty(Lcom/mojang/authlib/properties/Property;)Z")
-    @Patch.Method.AffectsControlFlow
-    @Patch.Method.Optional
-    public void patchValidateProperty(PatchContext ctx) {
-        Premain.log.info("Patching validateProperty in com.mojang.authlib.yggdrasil.YggdrasilServicesKeyInfo");
-        ctx.jumpToStart();   // HEAD
-        ctx.add(ICONST_1()); // push 1 (true)
-        ctx.add(IRETURN());  // return it
+        // unsafeField.setAccessible(true)
+        ctx.add(ALOAD(13));
+        ctx.add(ICONST_1());
+        ctx.add(INVOKEVIRTUAL("java/lang/reflect/Field", "setAccessible", "(Z)V"));
+
+        // unsafe = (sun.misc.Unsafe) unsafeField.get(null)
+        ctx.add(ALOAD(13));
+        ctx.add(ACONST_NULL());
+        ctx.add(INVOKEVIRTUAL("java/lang/reflect/Field", "get", "(Ljava/lang/Object;)Ljava/lang/Object;"));
+        ctx.add(CHECKCAST("sun/misc/Unsafe"));
+        ctx.add(ASTORE(14)); // unsafe
+
+        // staticBase = unsafe.staticFieldBase(pubKeyField)
+        ctx.add(ALOAD(14));        // unsafe
+        ctx.add(ALOAD(12));        // pubKeyField
+        ctx.add(INVOKEVIRTUAL("sun/misc/Unsafe", "staticFieldBase", "(Ljava/lang/reflect/Field;)Ljava/lang/Object;"));
+        ctx.add(ASTORE(15));       // staticBase
+
+        // staticOffset = unsafe.staticFieldOffset(pubKeyField)
+        ctx.add(ALOAD(14));        // unsafe
+        ctx.add(ALOAD(12));        // pubKeyField
+        ctx.add(INVOKEVIRTUAL("sun/misc/Unsafe", "staticFieldOffset", "(Ljava/lang/reflect/Field;)J"));
+        ctx.add(LSTORE(16));       // staticOffset (long -> slots 16 & 17)
+
+        // unsafe.putObject(staticBase, staticOffset, publicKey)
+        ctx.add(ALOAD(14));        // unsafe
+        ctx.add(ALOAD(15));        // staticBase
+        ctx.add(LLOAD(16));        // staticOffset
+        ctx.add(ALOAD(11));        // publicKey
+        ctx.add(INVOKEVIRTUAL("sun/misc/Unsafe", "putObject", "(Ljava/lang/Object;JLjava/lang/Object;)V"));
     }
 }

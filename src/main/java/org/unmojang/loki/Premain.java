@@ -32,6 +32,8 @@ public class Premain implements Runnable {
 
         // Misc fixes
         ClassTransformer.register(new ConcatenateURLTransformer()); // Prevent port number being ignored in old authlib, if you specified it
+        ClassTransformer.register(new MCAuthlibAllowedDomainTransformer());
+        ClassTransformer.register(new MCAuthlibGameProfileTransformer());
 
         // Apply 1.21.9+ fixes if Loki.enable_vanilla_env is true (default), otherwise unset vanilla environment
         if (!(Objects.equals(System.getProperty("Loki.enable_vanilla_env", "true"), "false"))) {
