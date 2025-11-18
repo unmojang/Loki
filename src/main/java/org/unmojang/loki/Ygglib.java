@@ -49,12 +49,12 @@ public class Ygglib {
             JsonObject obj = JsonParser.object().from(jsonText);
             return obj.getString("id");
         } catch (Exception e) {
-            e.printStackTrace();
+            Premain.log.error("Failed to get UUID for " + username, e);
             return null;
         }
     }
 
-    public static String getTexturePayload(String uuid, boolean raw) {
+    public static String getTexturesProperty(String uuid, boolean returnProfileJson) {
         try {
             URL textureUrl = new URL("https://sessionserver.mojang.com/session/minecraft/profile/" + URLEncoder.encode(uuid, "UTF-8") + "?unsigned=false");
             textureUrl = getYggdrasilUrl(textureUrl, textureUrl.getHost());
@@ -66,12 +66,12 @@ public class Ygglib {
 
             BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
             String profileJson = reader.lines().collect(Collectors.joining());
-            if (raw) return profileJson;
+            if (returnProfileJson) return profileJson;
             JsonObject profileObj = JsonParser.object().from(profileJson);
             String texturesBase64 = profileObj.getArray("properties").getObject(0).getString("value");
             return new String(Base64.getDecoder().decode(texturesBase64), StandardCharsets.UTF_8);
         } catch (Exception e) {
-            e.printStackTrace();
+            Premain.log.error("Failed to get textures property for " + uuid, e);
             return null;
         }
     }
@@ -80,10 +80,11 @@ public class Ygglib {
     // https://github.com/PrismLauncher/PrismLauncher/blob/develop/libraries/launcher/legacy/org/prismlauncher/legacy/fix/online/SkinFix.java
     public static HttpURLConnection getTexture(URL originalUrl, String username, String type) {
         try {
-            String uuid = Ygglib.getUUID(username);
-            String texturePayload = Ygglib.getTexturePayload(uuid, false);
-            if (texturePayload == null) return null;
-            JsonObject texturePayloadObj = JsonParser.object().from(texturePayload);
+            String uuid = getUUID(username);
+            if (uuid == null) throw new RuntimeException("Couldn't find UUID of " + username);
+            String texturesProperty = getTexturesProperty(uuid, false);
+            if (texturesProperty == null) throw new AssertionError("textures property was null");
+            JsonObject texturePayloadObj = JsonParser.object().from(texturesProperty);
             JsonObject skinOrCape = texturePayloadObj.getObject("textures").getObject(type);
             String textureUrl = skinOrCape.getString("url");
             if (textureUrl == null) return new FakeURLConnection(originalUrl, 204, null);
@@ -137,9 +138,10 @@ public class Ygglib {
             } else if (type.equals("CAPE")) {
                 return (HttpURLConnection) new URL(textureUrl).openConnection();
             }
-            throw new RuntimeException();
+            throw new RuntimeException("Unexpected texture type. How did we get here?");
         } catch (Exception e) {
-            return new FakeURLConnection(originalUrl, 500, ("\0").getBytes(StandardCharsets.UTF_8));
+            Premain.log.error("getTexture failed", e);
+            throw new RuntimeException(e);
         }
     }
 
@@ -148,15 +150,11 @@ public class Ygglib {
     public static HttpURLConnection joinServer(URL originalUrl) {
         try {
             Map<String, String> params = queryStringParser(originalUrl.getQuery());
-            String user = params.get("user");
-            if (user == null) {
-                throw new AssertionError("missing user");
-            }
+            String username = params.get("user");
+            if (username == null) throw new AssertionError("missing user");
             String serverId = params.get("serverId");
             String sessionId = params.getOrDefault("sessionId", params.get("session"));
-            if (sessionId == null) {
-                throw new AssertionError("missing session/sessionId");
-            }
+            if (sessionId == null) throw new AssertionError("missing session/sessionId");
 
             // sessionId has the form:
             // token:<accessToken>:<player UUID>
@@ -172,10 +170,8 @@ public class Ygglib {
             }
 
             String uuid;
-            uuid = getUUID(user);
-            if (uuid == null) {
-                return new FakeURLConnection(originalUrl, 200, ("Couldn't find UUID of " + user).getBytes(StandardCharsets.UTF_8));
-            }
+            uuid = getUUID(username);
+            if (uuid == null) throw new RuntimeException("Couldn't find UUID of " + username);
 
             URL url = new URL("https://sessionserver.mojang.com/session/minecraft/join");
             url = getYggdrasilUrl(url, url.getHost());
@@ -203,7 +199,8 @@ public class Ygglib {
             }
             return new FakeURLConnection(originalUrl, 200, "Bad login".getBytes(StandardCharsets.UTF_8));
         } catch (Exception e) {
-            return new FakeURLConnection(originalUrl, 500, ("\0").getBytes(StandardCharsets.UTF_8));
+            Premain.log.error("joinServer failed", e);
+            throw new RuntimeException(e);
         }
     }
 
@@ -214,13 +211,9 @@ public class Ygglib {
         try {
             Map<String, String> params = queryStringParser(originalUrl.getQuery());
             String user = params.get("user");
-            if (user == null) {
-                throw new AssertionError("missing user");
-            }
+            if (user == null) throw new AssertionError("missing user");
             String serverId = params.get("serverId");
-            if (serverId == null) {
-                throw new AssertionError("missing serverId");
-            }
+            if (serverId == null) throw new AssertionError("missing serverId");
             String ip = params.get("ip");
 
             URL url = new URL("https://sessionserver.mojang.com/session/minecraft/hasJoined?username=" + user + "&serverId=" + serverId + (ip != null ? "&ip=" + ip : ""));
@@ -237,7 +230,8 @@ public class Ygglib {
             }
             return new FakeURLConnection(originalUrl, 200, "Bad login".getBytes(StandardCharsets.UTF_8));
         } catch (Exception e) {
-            return new FakeURLConnection(originalUrl, 500, ("\0").getBytes(StandardCharsets.UTF_8));
+            Premain.log.error("checkServer failed", e);
+            throw new RuntimeException(e);
         }
     }
 
@@ -265,7 +259,7 @@ public class Ygglib {
             String profileJson = reader.lines().collect(Collectors.joining());
             JsonObject profileObj = JsonParser.object().from(profileJson);
             JsonArray properties = profileObj.getArray("properties");
-            if (properties == null) throw new RuntimeException();
+            if (properties == null) throw new AssertionError("properties was null");
 
             // Use iterator to safely remove elements
             Iterator<Object> iter = properties.iterator();
@@ -278,21 +272,23 @@ public class Ygglib {
                         iter.remove(); // remove uploadableTextures entry
                     }
                 } else {
-                    throw new RuntimeException();
+                    throw new AssertionError("elem was not an instance of JsonObject");
                 }
             }
             profileJson = JsonWriter.string(profileObj);
             return new FakeURLConnection(originalUrl, 200, profileJson.getBytes(StandardCharsets.UTF_8));
         } catch (Exception e) {
-            return new FakeURLConnection(originalUrl, 500, ("\0").getBytes(StandardCharsets.UTF_8));
+            Premain.log.error("getSessionProfile failed", e);
+            throw new RuntimeException(e);
         }
     }
 
     public static HttpURLConnection getAshcon(URL originalUrl, String username) {
         try {
             String uuid = getUUID(username);
-            String profileJson = getTexturePayload(uuid, true);
-            assert profileJson != null;
+            if (uuid == null) throw new RuntimeException("Couldn't find UUID of " + username);
+            String profileJson = getTexturesProperty(uuid, true);
+            if (profileJson == null) throw new AssertionError("profile JSON was null");
             JsonObject profileObj = JsonParser.object().from(profileJson);
             JsonObject properties = profileObj.getArray("properties").getObject(0);
             String texturesBase64 = properties.getString("value");
@@ -328,7 +324,8 @@ public class Ygglib {
                     "}";
             return new FakeURLConnection(originalUrl, 200, (responseJson).getBytes(StandardCharsets.UTF_8));
         } catch (Exception e) {
-            return new FakeURLConnection(originalUrl, 500, ("\0").getBytes(StandardCharsets.UTF_8));
+            Premain.log.error("getAshcon failed", e);
+            throw new RuntimeException(e);
         }
     }
 

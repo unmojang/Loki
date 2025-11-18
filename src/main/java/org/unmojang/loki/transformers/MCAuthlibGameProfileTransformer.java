@@ -7,18 +7,6 @@ import nilloader.api.lib.mini.PatchContext;
 import nilloader.api.lib.mini.annotation.Patch;
 import org.unmojang.loki.Premain;
 
-import java.io.ByteArrayOutputStream;
-import java.io.InputStream;
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
-import java.security.KeyFactory;
-import java.security.PublicKey;
-import java.security.spec.X509EncodedKeySpec;
-import java.util.Base64;
-
 @Patch.Class("com.github.steveice10.mc.auth.data.GameProfile")
 public class MCAuthlibGameProfileTransformer extends MiniTransformer {
     @Patch.Method("<clinit>()V")

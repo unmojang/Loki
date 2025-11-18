@@ -39,7 +39,7 @@ public class LokiUtil {
             // Disable hostname verification
             HttpsURLConnection.setDefaultHostnameVerifier((hostname, session) -> true);
         } catch (Exception e) {
-            e.printStackTrace();
+            Premain.log.error("Failed to load CA certs from cacert.pem", e);
             return;
         }
         Premain.log.info("Loaded CA certs from cacert.pem");
@@ -54,7 +54,7 @@ public class LokiUtil {
             conn.connect();
             return conn.getHeaderField("X-Authlib-Injector-Api-Location");
         } catch (Exception e) {
-            e.printStackTrace();
+            Premain.log.error("Failed to get authlib-injector API location", e);
             return null;
         }
     }

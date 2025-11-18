@@ -19,10 +19,10 @@ public class RequestInterceptor {
 
     static {
         try {
-            DEFAULT_HANDLERS.put("http", getSystemHandler("http"));
-            DEFAULT_HANDLERS.put("https", getSystemHandler("https"));
+            DEFAULT_HANDLERS.put("http", getSystemURLHandler("http"));
+            DEFAULT_HANDLERS.put("https", getSystemURLHandler("https"));
         } catch (Exception e) {
-            e.printStackTrace();
+            Premain.log.error("Failed to get system URL handler", e);
         }
         INTERCEPTED_DOMAINS = new HashSet<>(Arrays.asList(
                 "s3.amazonaws.com",
@@ -96,7 +96,7 @@ public class RequestInterceptor {
                 }
                 return mirrorHttpURLConnection(targetUrl, httpConn);
             } catch (Exception e) {
-                Premain.log.warn("Failed to redirect " + originalUrl + ": " + e);
+                Premain.log.error("Failed to intercept " + originalUrl, e);
                 return originalConn;
             }
         } else if (INTERCEPTED_DOMAINS.contains(host)) {
@@ -137,6 +137,7 @@ public class RequestInterceptor {
                     reader.close();
                     return new Ygglib.FakeURLConnection(originalUrl, 200, sb.toString().getBytes(StandardCharsets.UTF_8));
                 } catch (Exception e) {
+                    Premain.log.error("Failed to intercept " + originalUrl, e);
                     return new Ygglib.FakeURLConnection(originalUrl, 500, "\0".getBytes(StandardCharsets.UTF_8));
                 }
             } else if (path.startsWith("/MinecraftResources/")) { // resource fetch attempt
@@ -198,7 +199,7 @@ public class RequestInterceptor {
         return targetConn;
     }
 
-    private static URLStreamHandler getSystemHandler(String protocol) throws Exception {
+    private static URLStreamHandler getSystemURLHandler(String protocol) throws Exception {
         URL url = new URL(protocol + ":"); // create a temporary URL
         Field handlerField = URL.class.getDeclaredField("handler");
         long offset = unsafe.objectFieldOffset(handlerField);
