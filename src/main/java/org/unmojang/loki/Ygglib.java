@@ -85,7 +85,7 @@ public class Ygglib {
             Premain.log.info("UUID of " + username + ": " + uuid);
 
             String texturesProperty = getTexturesProperty(uuid, false);
-            if (texturesProperty == null) throw new AssertionError("textures property was null");
+            if (texturesProperty == null) throw new RuntimeException("textures property was null");
             JsonObject texturePayloadObj = JsonParser.object().from(texturesProperty);
             JsonObject skinOrCape = texturePayloadObj.getObject("textures").getObject(type);
             String textureUrl = skinOrCape.getString("url");
@@ -153,21 +153,21 @@ public class Ygglib {
         try {
             Map<String, String> params = queryStringParser(originalUrl.getQuery());
             String username = params.get("user");
-            if (username == null) throw new AssertionError("missing user");
+            if (username == null) throw new RuntimeException("missing user");
             String serverId = params.get("serverId");
             String sessionId = params.getOrDefault("sessionId", params.get("session"));
-            if (sessionId == null || sessionId.isEmpty()) throw new AssertionError("missing session/sessionId");
+            if (sessionId == null || sessionId.isEmpty()) throw new RuntimeException("missing session/sessionId");
 
             // sessionId has the form:
             // token:<accessToken>:<player UUID>
             // or, as of Minecraft release 1.3.1, it may be URL encoded:
             // token%3A<accessToken>%3A<player UUID>
             if (!sessionId.contains(":") && !sessionId.contains("%3A")) {
-                throw new AssertionError("invalid sessionId");
+                throw new RuntimeException("invalid sessionId");
             }
             String[] parts = sessionId.split(sessionId.contains(":") ? ":" : "%3A");
             if (parts.length < 3 || parts[1].isEmpty() || parts[2].isEmpty()) {
-                throw new AssertionError("invalid sessionId");
+                throw new RuntimeException("invalid sessionId");
             }
 
             String accessToken = parts[1];
@@ -212,9 +212,9 @@ public class Ygglib {
         try {
             Map<String, String> params = queryStringParser(originalUrl.getQuery());
             String user = params.get("user");
-            if (user == null) throw new AssertionError("missing user");
+            if (user == null) throw new RuntimeException("missing user");
             String serverId = params.get("serverId");
-            if (serverId == null) throw new AssertionError("missing serverId");
+            if (serverId == null) throw new RuntimeException("missing serverId");
             String ip = params.get("ip");
 
             URL url = new URL("https://sessionserver.mojang.com/session/minecraft/hasJoined?username=" + user + "&serverId=" + serverId + (ip != null ? "&ip=" + ip : ""));
@@ -260,7 +260,7 @@ public class Ygglib {
             String profileJson = reader.lines().collect(Collectors.joining());
             JsonObject profileObj = JsonParser.object().from(profileJson);
             JsonArray properties = profileObj.getArray("properties");
-            if (properties == null) throw new AssertionError("properties was null");
+            if (properties == null) throw new RuntimeException("properties was null");
 
             // Use iterator to safely remove elements
             Iterator<Object> iter = properties.iterator();
@@ -273,7 +273,7 @@ public class Ygglib {
                         iter.remove(); // remove uploadableTextures entry
                     }
                 } else {
-                    throw new AssertionError("elem was not an instance of JsonObject");
+                    throw new RuntimeException("elem was not an instance of JsonObject");
                 }
             }
             profileJson = JsonWriter.string(profileObj);
@@ -291,7 +291,7 @@ public class Ygglib {
             Premain.log.info("UUID of " + username + ": " + uuid);
 
             String profileJson = getTexturesProperty(uuid, true);
-            if (profileJson == null) throw new AssertionError("profile JSON was null");
+            if (profileJson == null) throw new RuntimeException("profile JSON was null");
             JsonObject profileObj = JsonParser.object().from(profileJson);
             JsonObject properties = profileObj.getArray("properties").getObject(0);
             String texturesBase64 = properties.getString("value");
