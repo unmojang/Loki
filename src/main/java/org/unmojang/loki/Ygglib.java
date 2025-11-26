@@ -82,6 +82,8 @@ public class Ygglib {
         try {
             String uuid = getUUID(username);
             if (uuid == null) throw new RuntimeException("Couldn't find UUID of " + username);
+            Premain.log.info("UUID of " + username + ": " + uuid);
+
             String texturesProperty = getTexturesProperty(uuid, false);
             if (texturesProperty == null) throw new AssertionError("textures property was null");
             JsonObject texturePayloadObj = JsonParser.object().from(texturesProperty);
@@ -154,24 +156,23 @@ public class Ygglib {
             if (username == null) throw new AssertionError("missing user");
             String serverId = params.get("serverId");
             String sessionId = params.getOrDefault("sessionId", params.get("session"));
-            if (sessionId == null) throw new AssertionError("missing session/sessionId");
+            if (sessionId == null || sessionId.isEmpty()) throw new AssertionError("missing session/sessionId");
 
             // sessionId has the form:
             // token:<accessToken>:<player UUID>
             // or, as of Minecraft release 1.3.1, it may be URL encoded:
             // token%3A<accessToken>%3A<player UUID>
-            String accessToken;
-            if (sessionId.contains(":")) {
-                accessToken = sessionId.split(":")[1];
-            } else if (sessionId.contains("%3A")) {
-                accessToken = sessionId.split("%3A")[1];
-            } else {
+            if (!sessionId.contains(":") && !sessionId.contains("%3A")) {
+                throw new AssertionError("invalid sessionId");
+            }
+            String[] parts = sessionId.split(sessionId.contains(":") ? ":" : "%3A");
+            if (parts.length < 3 || parts[1].isEmpty() || parts[2].isEmpty()) {
                 throw new AssertionError("invalid sessionId");
             }
 
-            String uuid;
-            uuid = getUUID(username);
-            if (uuid == null) throw new RuntimeException("Couldn't find UUID of " + username);
+            String accessToken = parts[1];
+            String uuid = parts[2];
+            Premain.log.info("UUID of " + username + ": " + uuid);
 
             URL url = new URL("https://sessionserver.mojang.com/session/minecraft/join");
             url = getYggdrasilUrl(url, url.getHost());
@@ -287,6 +288,8 @@ public class Ygglib {
         try {
             String uuid = getUUID(username);
             if (uuid == null) throw new RuntimeException("Couldn't find UUID of " + username);
+            Premain.log.info("UUID of " + username + ": " + uuid);
+
             String profileJson = getTexturesProperty(uuid, true);
             if (profileJson == null) throw new AssertionError("profile JSON was null");
             JsonObject profileObj = JsonParser.object().from(profileJson);
