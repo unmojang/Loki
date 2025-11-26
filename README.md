@@ -2,8 +2,8 @@
 
 Patch (nearly) any Minecraft version to use custom API servers
 
-![Minecraft Alpha 1.0.16 with Loki](img/a1.0.16.png)
-![Minecraft 1.21.10 with Loki](img/1.21.10.png)
+![Minecraft Classic 0.0.18a_02 with Loki](img/1.png)
+![Minecraft 1.21.10 with Loki](img/2.png)
 
 ## Supported versions
 
