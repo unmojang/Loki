@@ -30,7 +30,8 @@ public class RequestInterceptor {
                 "skins.minecraft.net",
                 "session.minecraft.net",
                 "betacraft.uk",
-                "api.ashcon.app"
+                "api.ashcon.app",
+                "mineskin.eu"
         ));
         if (!enable_snooper) {
             INTERCEPTED_DOMAINS.add("snoop.minecraft.net");
