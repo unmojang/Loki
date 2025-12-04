@@ -3,9 +3,12 @@ package org.unmojang.loki;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManagerFactory;
+import java.io.BufferedReader;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateFactory;
@@ -92,5 +95,22 @@ public class LokiUtil {
         System.clearProperty("minecraft.api.auth.host");
         System.clearProperty("minecraft.api.session.host");
         System.clearProperty("minecraft.api.services.host");
+    }
+
+    public static byte[] readResourceFromJar(URL originalUrl, String path) {
+        try (InputStream is = LokiUtil.class.getResourceAsStream(path)) {
+            if (is == null) throw new RuntimeException("resource is null, invalid file path?");
+            BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                sb.append(line).append('\n');
+            }
+            reader.close();
+            return sb.toString().getBytes(StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            Premain.log.error("Failed to intercept " + originalUrl, e);
+            return "\0".getBytes(StandardCharsets.UTF_8);
+        }
     }
 }

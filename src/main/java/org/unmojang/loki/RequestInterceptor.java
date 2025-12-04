@@ -126,22 +126,14 @@ public class RequestInterceptor {
             }
 
             // Resources
-            if (path.equals("/MinecraftResources/")) {
-                try (InputStream is = RequestInterceptor.class.getResourceAsStream("/MinecraftResources.xml")) {
-                    assert is != null;
-                    BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
-                    StringBuilder sb = new StringBuilder();
-                    String line;
-                    while ((line = reader.readLine()) != null) {
-                        sb.append(line).append("\n");
-                    }
-                    reader.close();
-                    return new Ygglib.FakeURLConnection(originalUrl, 200, sb.toString().getBytes(StandardCharsets.UTF_8));
-                } catch (Exception e) {
-                    Premain.log.error("Failed to intercept " + originalUrl, e);
-                    return new Ygglib.FakeURLConnection(originalUrl, 500, "\0".getBytes(StandardCharsets.UTF_8));
-                }
-            } else if (path.startsWith("/MinecraftResources/")) { // resource fetch attempt
+            if (host.equals("s3.amazonaws.com") && path.equals("/MinecraftResources/")) {
+                byte[] resources = LokiUtil.readResourceFromJar(originalUrl, "/MinecraftResources.xml");
+                return new Ygglib.FakeURLConnection(originalUrl, 200, resources);
+            } else if (host.equals("www.minecraft.net") && path.equals("/resources/")) {
+                byte[] resources = LokiUtil.readResourceFromJar(originalUrl, "/resources.txt");
+                return new Ygglib.FakeURLConnection(originalUrl, 200, resources);
+            } else if ((host.equals("s3.amazonaws.com") && path.startsWith("/MinecraftResources/"))
+                    || (host.equals("www.minecraft.net") && path.startsWith("/resources/"))) { // resource fetch attempt
                 return new Ygglib.FakeURLConnection(originalUrl, 500, "\0".getBytes(StandardCharsets.UTF_8));
             }
 
