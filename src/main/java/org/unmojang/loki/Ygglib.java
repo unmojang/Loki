@@ -1,9 +1,9 @@
 package org.unmojang.loki;
 
-import nilloader.api.lib.nanojson.JsonArray;
-import nilloader.api.lib.nanojson.JsonObject;
-import nilloader.api.lib.nanojson.JsonParser;
-import nilloader.api.lib.nanojson.JsonWriter;
+import com.grack.nanojson.JsonArray;
+import com.grack.nanojson.JsonObject;
+import com.grack.nanojson.JsonParser;
+import com.grack.nanojson.JsonWriter;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
@@ -49,7 +49,7 @@ public class Ygglib {
             JsonObject obj = JsonParser.object().from(jsonText);
             return obj.getString("id");
         } catch (Exception e) {
-            Premain.log.error("Failed to get UUID for " + username, e);
+            Loki.log.error("Failed to get UUID for " + username, e);
             return null;
         }
     }
@@ -71,7 +71,7 @@ public class Ygglib {
             String texturesBase64 = profileObj.getArray("properties").getObject(0).getString("value");
             return new String(Base64.getDecoder().decode(texturesBase64), StandardCharsets.UTF_8);
         } catch (Exception e) {
-            Premain.log.error("Failed to get textures property for " + uuid, e);
+            Loki.log.error("Failed to get textures property for " + uuid, e);
             return null;
         }
     }
@@ -82,7 +82,7 @@ public class Ygglib {
         try {
             String uuid = getUUID(username);
             if (uuid == null) throw new RuntimeException("Couldn't find UUID of " + username);
-            Premain.log.info("UUID of " + username + ": " + uuid);
+            Loki.log.info("UUID of " + username + ": " + uuid);
 
             String texturesProperty = getTexturesProperty(uuid, false);
             if (texturesProperty == null) throw new RuntimeException("textures property was null");
@@ -142,7 +142,7 @@ public class Ygglib {
             }
             throw new RuntimeException("Unexpected texture type. How did we get here?");
         } catch (Exception e) {
-            Premain.log.error("getTexture failed", e);
+            Loki.log.error("getTexture failed", e);
             throw new RuntimeException(e);
         }
     }
@@ -172,7 +172,7 @@ public class Ygglib {
 
             String accessToken = parts[1];
             String uuid = parts[2];
-            Premain.log.info("UUID of " + username + ": " + uuid);
+            Loki.log.info("UUID of " + username + ": " + uuid);
 
             URL url = new URL("https://sessionserver.mojang.com/session/minecraft/join");
             url = getYggdrasilUrl(url, url.getHost());
@@ -200,7 +200,7 @@ public class Ygglib {
             }
             return new FakeURLConnection(originalUrl, 200, "Bad login".getBytes(StandardCharsets.UTF_8));
         } catch (Exception e) {
-            Premain.log.error("joinServer failed", e);
+            Loki.log.error("joinServer failed", e);
             throw new RuntimeException(e);
         }
     }
@@ -231,7 +231,7 @@ public class Ygglib {
             }
             return new FakeURLConnection(originalUrl, 200, "Bad login".getBytes(StandardCharsets.UTF_8));
         } catch (Exception e) {
-            Premain.log.error("checkServer failed", e);
+            Loki.log.error("checkServer failed", e);
             throw new RuntimeException(e);
         }
     }
@@ -279,7 +279,7 @@ public class Ygglib {
             profileJson = JsonWriter.string(profileObj);
             return new FakeURLConnection(originalUrl, 200, profileJson.getBytes(StandardCharsets.UTF_8));
         } catch (Exception e) {
-            Premain.log.error("getSessionProfile failed", e);
+            Loki.log.error("getSessionProfile failed", e);
             throw new RuntimeException(e);
         }
     }
@@ -288,7 +288,7 @@ public class Ygglib {
         try {
             String uuid = getUUID(username);
             if (uuid == null) throw new RuntimeException("Couldn't find UUID of " + username);
-            Premain.log.info("UUID of " + username + ": " + uuid);
+            Loki.log.info("UUID of " + username + ": " + uuid);
 
             String profileJson = getTexturesProperty(uuid, true);
             if (profileJson == null) throw new RuntimeException("profile JSON was null");
@@ -327,7 +327,7 @@ public class Ygglib {
                     "}";
             return new FakeURLConnection(originalUrl, 200, (responseJson).getBytes(StandardCharsets.UTF_8));
         } catch (Exception e) {
-            Premain.log.error("getAshcon failed", e);
+            Loki.log.error("getAshcon failed", e);
             throw new RuntimeException(e);
         }
     }

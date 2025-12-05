@@ -13,16 +13,13 @@ public class RequestInterceptor {
     public static final Map<String, URLStreamHandler> DEFAULT_HANDLERS = new HashMap<>();
     private static final Set<String> INTERCEPTED_DOMAINS;
     private static final sun.misc.Unsafe unsafe = getUnsafe();
-    private static final Boolean enable_snooper =  System.getProperty("Loki.enable_snooper", "false").equalsIgnoreCase("true");
-    private static final Boolean enable_realms = !(System.getProperty("Loki.enable_realms", "true").equalsIgnoreCase("false"));
-    private static final Boolean enable_debug = System.getProperty("Loki.debug", "false").equalsIgnoreCase("true");
 
     static {
         try {
             DEFAULT_HANDLERS.put("http", getSystemURLHandler("http"));
             DEFAULT_HANDLERS.put("https", getSystemURLHandler("https"));
         } catch (Exception e) {
-            Premain.log.error("Failed to get system URL handler", e);
+            Loki.log.error("Failed to get system URL handler", e);
         }
         INTERCEPTED_DOMAINS = new HashSet<>(Arrays.asList(
                 "s3.amazonaws.com",
@@ -33,12 +30,15 @@ public class RequestInterceptor {
                 "api.ashcon.app",
                 "mineskin.eu"
         ));
-        if (!enable_snooper) {
-            INTERCEPTED_DOMAINS.add("snoop.minecraft.net");
-        }
-        if (!enable_realms) {
+        if (!Loki.enable_realms) {
             INTERCEPTED_DOMAINS.add("java.frontendlegacy.realms.minecraft-services.net");
             INTERCEPTED_DOMAINS.add("pc.realms.minecraft.net");
+        }
+        if (!Loki.enable_snooper) {
+            INTERCEPTED_DOMAINS.add("snoop.minecraft.net");
+        }
+        if (!Loki.modded_capes) {
+            INTERCEPTED_DOMAINS.add("api.betterthanadventure.net");
         }
 
         String accountHost = System.getProperty("minecraft.api.account.host",
@@ -56,7 +56,7 @@ public class RequestInterceptor {
     }
 
     public static void setURLFactory() {
-        Premain.log.info("Arrived in setURLFactory");
+        Loki.log.info("Arrived in setURLFactory");
         URL.setURLStreamHandlerFactory(protocol -> {
             if (!"http".equals(protocol) && !"https".equals(protocol)) return null;
             URLStreamHandler delegate = DEFAULT_HANDLERS.get(protocol);
@@ -81,46 +81,46 @@ public class RequestInterceptor {
         String path = originalUrl.getPath();
         String query = originalUrl.getQuery();
         HttpURLConnection httpConn = (HttpURLConnection) originalConn;
-        if (enable_debug) {
-            Premain.log.info("Connection: " + httpConn.getRequestMethod() + " " + originalUrl);
+        if (Loki.debug) {
+            Loki.log.info("Connection: " + httpConn.getRequestMethod() + " " + originalUrl);
         }
         if (YGGDRASIL_MAP.containsKey(host)) { // yggdrasil
             try {
                 final URL targetUrl = Ygglib.getYggdrasilUrl(originalUrl, originalUrl.getHost());
-                Premain.log.info("Intercepting: " + originalUrl + " -> " + targetUrl);
+                Loki.log.info("Intercepting: " + originalUrl + " -> " + targetUrl);
                 if (path.startsWith("/session/minecraft/profile/")) { // ReIndev fix
                     return Ygglib.getSessionProfile(targetUrl, httpConn);
                 }
-                if (path.equals("/events") && !(enable_snooper)) { // Snooper (1.18+): https://api.minecraftservices.com/events
-                    Premain.log.info("Snooper request intercepted: " + originalUrl);
+                if (path.equals("/events") && !(Loki.enable_snooper)) { // Snooper (1.18+): https://api.minecraftservices.com/events
+                    Loki.log.info("Snooper request intercepted: " + originalUrl);
                     return new Ygglib.FakeURLConnection(originalUrl, 403, ("Nice try ;)").getBytes(StandardCharsets.UTF_8));
                 }
                 return mirrorHttpURLConnection(targetUrl, httpConn);
             } catch (Exception e) {
-                Premain.log.error("Failed to intercept " + originalUrl, e);
+                Loki.log.error("Failed to intercept " + originalUrl, e);
                 return originalConn;
             }
         } else if (INTERCEPTED_DOMAINS.contains(host)) {
             // Authentication
             if (path.equals("/game/joinserver.jsp")) {
-                Premain.log.info("Intercepting joinServer: " + originalUrl);
+                Loki.log.info("Intercepting joinServer: " + originalUrl);
                 return Ygglib.joinServer(originalUrl);
             } else if (path.equals("/game/checkserver.jsp")) {
-                Premain.log.info("Intercepting checkServer: " + originalUrl);
+                Loki.log.info("Intercepting checkServer: " + originalUrl);
                 return Ygglib.checkServer(originalUrl);
             }
 
             // Textures
             if (path.startsWith("/MinecraftSkins") || path.startsWith("/skin")) {
-                Premain.log.info("Intercepting skin texture: " + originalUrl);
+                Loki.log.info("Intercepting skin texture: " + originalUrl);
                 String username = Ygglib.getUsernameFromPath(path);
                 return Ygglib.getTexture(originalUrl, username, "SKIN");
             } else if (path.startsWith("/MinecraftCloaks")) {
-                Premain.log.info("Intercepting cape texture: " + originalUrl);
+                Loki.log.info("Intercepting cape texture: " + originalUrl);
                 String username = Ygglib.getUsernameFromPath(path);
                 return Ygglib.getTexture(originalUrl, username, "CAPE");
             } else if (path.equals("/cloak/get.jsp")) {
-                Premain.log.info("Intercepting cape texture: " + originalUrl);
+                Loki.log.info("Intercepting cape texture: " + originalUrl);
                 String username = Ygglib.queryStringParser(query).get("user");
                 return Ygglib.getTexture(originalUrl, username, "CAPE");
             }
@@ -139,20 +139,26 @@ public class RequestInterceptor {
 
             // Snooper
             if (host.equals("snoop.minecraft.net")) {
-                Premain.log.info("Snooper request intercepted: " + originalUrl);
+                Loki.log.info("Snooper request intercepted: " + originalUrl);
                 return new Ygglib.FakeURLConnection(originalUrl, 403, ("Nice try ;)").getBytes(StandardCharsets.UTF_8));
             }
 
             // Realms
             if (host.equals("java.frontendlegacy.realms.minecraft-services.net") || host.equals("pc.realms.minecraft.net")) {
-                Premain.log.info("Realms request intercepted: " + originalUrl);
+                Loki.log.info("Realms request intercepted: " + originalUrl);
                 return new Ygglib.FakeURLConnection(originalUrl, 403, ("Nice try ;)").getBytes(StandardCharsets.UTF_8));
             }
 
+            // Misc
             if (host.equals("api.ashcon.app") && path.matches("^/mojang/[^/]+/user/.*")) {
-                Premain.log.info("Intercepting api.ashcon.app: " + originalUrl);
+                Loki.log.info("Intercepting api.ashcon.app: " + originalUrl);
                 String username = Ygglib.getUsernameFromPath(originalUrl.getPath());
                 return Ygglib.getAshcon(originalUrl, username);
+            }
+
+            if (host.equals("api.betterthanadventure.net") && path.endsWith("/capes")) {
+                Loki.log.info("Intercepting api.betterthanadventure.net: " + originalUrl);
+                return new Ygglib.FakeURLConnection(originalUrl, 403, ("Nice try ;)").getBytes(StandardCharsets.UTF_8));
             }
         }
 

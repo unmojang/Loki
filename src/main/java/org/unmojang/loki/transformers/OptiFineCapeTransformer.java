@@ -11,7 +11,7 @@ import org.unmojang.loki.Loki;
 import java.lang.instrument.ClassFileTransformer;
 import java.security.ProtectionDomain;
 
-public class SignatureValidTransformer implements ClassFileTransformer {
+public class OptiFineCapeTransformer implements ClassFileTransformer {
     @Override
     public byte[] transform(
             ClassLoader loader,
@@ -20,7 +20,7 @@ public class SignatureValidTransformer implements ClassFileTransformer {
             ProtectionDomain protectionDomain,
             byte[] classfileBuffer) {
 
-        if (!"com/mojang/authlib/properties/Property".equals(className)) return null;
+        if (!className.endsWith("CapeUtils")) return null;
 
         try {
             ClassNode cn = new ClassNode();
@@ -30,13 +30,12 @@ public class SignatureValidTransformer implements ClassFileTransformer {
             boolean changed = false;
 
             for (MethodNode mn : cn.methods) {
-                if (mn.name.equals("isSignatureValid") && mn.desc.equals("(Ljava/security/PublicKey;)Z")) {
+                if (mn.name.equals("downloadCape")) {
                     mn.instructions.clear();
                     mn.tryCatchBlocks.clear();
                     if (mn.localVariables != null) mn.localVariables.clear();
 
-                    mn.instructions.add(new InsnNode(Opcodes.ICONST_1));
-                    mn.instructions.add(new InsnNode(Opcodes.IRETURN));
+                    mn.instructions.add(new InsnNode(Opcodes.RETURN));
 
                     Loki.log.info("Patching " + mn.name + " in " + className);
                     changed = true;
@@ -51,7 +50,7 @@ public class SignatureValidTransformer implements ClassFileTransformer {
             return cw.toByteArray();
 
         } catch (Throwable t) {
-            Loki.log.error("Failed to transform isSignatureValid!", t);
+            Loki.log.error("Failed to transform downloadCape!", t);
             return null;
         }
     }

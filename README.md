@@ -52,6 +52,11 @@ Loki supports Java arguments to enable or disable some behaviour.
   -DLoki.enable_vanilla_env=false
   ```
 
+- Re-enable modded capes (OptiFine, etc)
+  ```
+  -DLoki.modded_capes=true
+  ```
+
 ## Troubleshooting
 
 ### I can't join the server/send chat messages due to profile public key-related errors

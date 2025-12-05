@@ -42,10 +42,10 @@ public class LokiUtil {
             // Disable hostname verification
             HttpsURLConnection.setDefaultHostnameVerifier((hostname, session) -> true);
         } catch (Exception e) {
-            Premain.log.error("Failed to load CA certs from cacert.pem", e);
+            Loki.log.error("Failed to load CA certs from cacert.pem", e);
             return;
         }
-        Premain.log.info("Loaded CA certs from cacert.pem");
+        Loki.log.info("Loaded CA certs from cacert.pem");
     }
 
     public static String getAuthlibInjectorApiLocation(String server) {
@@ -57,16 +57,25 @@ public class LokiUtil {
             conn.connect();
             return conn.getHeaderField("X-Authlib-Injector-Api-Location");
         } catch (Exception e) {
-            Premain.log.error("Failed to get authlib-injector API location", e);
+            Loki.log.error("Failed to get authlib-injector API location", e);
             return null;
         }
     }
 
+    private static String normalizeUrl(String url) {
+        String lowercased = url.toLowerCase();
+        if (!lowercased.startsWith("http://") && !lowercased.startsWith("https://")) {
+            url = "https://" + url;
+        }
+        return url;
+    }
+
     public static void initAuthlibInjectorAPI(String server) {
-        if (!(server.startsWith("http://") || server.startsWith("https://"))) return;
+        server = normalizeUrl(server);
+        Loki.log.info("Using authlib-injector API");
+        Loki.log.info("API Server: " + server);
         String authlibInjectorApiLocation = getAuthlibInjectorApiLocation(server);
         if (authlibInjectorApiLocation == null) authlibInjectorApiLocation = server;
-        Premain.log.info("Using authlib-injector API");
 
         System.setProperty("minecraft.api.env", "custom");
         System.setProperty("minecraft.api.account.host", authlibInjectorApiLocation + "/api");
@@ -78,16 +87,16 @@ public class LokiUtil {
 
     public static void apply1219Fixes() {
         if (System.getProperty("minecraft.api.profiles.host") == null) {
-            Premain.log.info("Applying 1.21.9+ fixes");
+            Loki.log.info("Applying 1.21.9+ fixes");
             System.setProperty("minecraft.api.profiles.host", RequestInterceptor.YGGDRASIL_MAP.get("api.mojang.com"));
         } else if (System.getProperty("minecraft.api.account.host") == null) {
-            Premain.log.info("Applying <1.21.9 fixes");
+            Loki.log.info("Applying <1.21.9 fixes");
             System.setProperty("minecraft.api.account.host", RequestInterceptor.YGGDRASIL_MAP.get("api.mojang.com"));
         }
     }
 
     public static void unsetVanillaEnv() {
-        Premain.log.info("Clearing minecraft.api.*.host parameters");
+        Loki.log.info("Clearing minecraft.api.*.host parameters");
 
         System.clearProperty("minecraft.api.env");
         System.clearProperty("minecraft.api.account.host");
@@ -109,7 +118,7 @@ public class LokiUtil {
             reader.close();
             return sb.toString().getBytes(StandardCharsets.UTF_8);
         } catch (Exception e) {
-            Premain.log.error("Failed to intercept " + originalUrl, e);
+            Loki.log.error("Failed to intercept " + originalUrl, e);
             return "\0".getBytes(StandardCharsets.UTF_8);
         }
     }

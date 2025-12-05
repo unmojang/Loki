@@ -1,19 +1,17 @@
 package org.unmojang.loki.transformers;
 
-import nilloader.api.lib.asm.Type;
-import nilloader.api.lib.asm.tree.LabelNode;
-import nilloader.api.lib.mini.MiniTransformer;
-import nilloader.api.lib.mini.PatchContext;
-import nilloader.api.lib.mini.annotation.Patch;
-import org.unmojang.loki.Premain;
+import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.ClassWriter;
+import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.Type;
+import org.objectweb.asm.tree.*;
+import org.unmojang.loki.Loki;
 
-@Patch.Class("com.github.steveice10.mc.auth.data.GameProfile")
-public class MCAuthlibGameProfileTransformer extends MiniTransformer {
-    @Patch.Method("<clinit>()V")
-    @Patch.Method.AffectsControlFlow
-    @Patch.Method.Optional
-    public void replaceKey(PatchContext ctx) {
-        /*
+import java.lang.instrument.ClassFileTransformer;
+import java.security.ProtectionDomain;
+
+public class MCAuthlibGameProfileTransformer implements ClassFileTransformer {
+    /*
         public void replaceKey() {
             try {
                 String baseUrl = System.getProperty("minecraft.api.services.host", "https://api.minecraftservices.com");
@@ -61,198 +59,234 @@ public class MCAuthlibGameProfileTransformer extends MiniTransformer {
                 throw new AssertionError("Failed to fetch services key!", e);
             }
         }
-        */
-        Premain.log.info("Applying MCAuthLib SIGNATURE_KEY replacement");
-        ctx.jumpToLastReturn();
+     */
 
-        // baseUrl = System.getProperty("minecraft.api.services.host", "https://api.minecraftservices.com")
-        ctx.add(LDC("minecraft.api.services.host"));
-        ctx.add(LDC("https://api.minecraftservices.com"));
-        ctx.add(INVOKESTATIC("java/lang/System", "getProperty",
-                "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;"));
-        ctx.add(ASTORE(1));
+    @Override
+    public byte[] transform(
+            ClassLoader loader,
+            String className,
+            Class<?> classBeingRedefined,
+            ProtectionDomain protectionDomain,
+            byte[] classfileBuffer) {
 
-        // url = new URL(baseUrl + "/publickeys")
-        ctx.add(NEW("java/net/URL"));
-        ctx.add(DUP());
-        ctx.add(NEW("java/lang/StringBuilder"));
-        ctx.add(DUP());
-        ctx.add(INVOKESPECIAL("java/lang/StringBuilder", "<init>", "()V"));
-        ctx.add(ALOAD(1));
-        ctx.add(INVOKEVIRTUAL("java/lang/StringBuilder", "append", "(Ljava/lang/String;)Ljava/lang/StringBuilder;"));
-        ctx.add(LDC("/publickeys"));
-        ctx.add(INVOKEVIRTUAL("java/lang/StringBuilder", "append", "(Ljava/lang/String;)Ljava/lang/StringBuilder;"));
-        ctx.add(INVOKEVIRTUAL("java/lang/StringBuilder", "toString", "()Ljava/lang/String;"));
-        ctx.add(INVOKESPECIAL("java/net/URL", "<init>", "(Ljava/lang/String;)V"));
-        ctx.add(ASTORE(2));
+        if (!"com/github/steveice10/mc/auth/data/GameProfile".equals(className)) return null;
 
-        // conn = (HttpURLConnection) url.openConnection()
-        ctx.add(ALOAD(2));
-        ctx.add(INVOKEVIRTUAL("java/net/URL", "openConnection", "()Ljava/net/URLConnection;"));
-        ctx.add(CHECKCAST("java/net/HttpURLConnection"));
-        ctx.add(ASTORE(3));
+        try {
+            ClassNode cn = new ClassNode();
+            ClassReader cr = new ClassReader(classfileBuffer);
+            cr.accept(cn, 0);
 
-        // conn.setRequestMethod("GET")
-        ctx.add(ALOAD(3));
-        ctx.add(LDC("GET"));
-        ctx.add(INVOKEVIRTUAL("java/net/HttpURLConnection", "setRequestMethod", "(Ljava/lang/String;)V"));
+            boolean changed = false;
 
-        // conn.setDoInput(true)
-        ctx.add(ALOAD(3));
-        ctx.add(ICONST_1());
-        ctx.add(INVOKEVIRTUAL("java/net/HttpURLConnection", "setDoInput", "(Z)V"));
+            for (MethodNode mn : cn.methods) {
+                if ("<clinit>".equals(mn.name) && "()V".equals(mn.desc)) {
+                    AbstractInsnNode ret = null;
+                    for (AbstractInsnNode insn : mn.instructions.toArray()) {
+                        if (insn.getOpcode() == Opcodes.RETURN) {
+                            ret = insn;
+                        }
+                    }
+                    if (ret == null) throw new RuntimeException("could not find RETURN");
 
-        // is = conn.getInputStream()
-        ctx.add(ALOAD(3));
-        ctx.add(INVOKEVIRTUAL("java/net/HttpURLConnection", "getInputStream", "()Ljava/io/InputStream;"));
-        ctx.add(ASTORE(4));
+                    InsnList insns = new InsnList();
 
-        // buffer = new ByteArrayOutputStream()
-        ctx.add(NEW("java/io/ByteArrayOutputStream"));
-        ctx.add(DUP());
-        ctx.add(INVOKESPECIAL("java/io/ByteArrayOutputStream", "<init>", "()V"));
-        ctx.add(ASTORE(9));
+                    insns.add(new LdcInsnNode("minecraft.api.services.host"));
+                    insns.add(new LdcInsnNode("https://api.minecraftservices.com"));
+                    insns.add(new MethodInsnNode(
+                            Opcodes.INVOKESTATIC,
+                            "java/lang/System",
+                            "getProperty",
+                            "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;",
+                            false));
+                    insns.add(new VarInsnNode(Opcodes.ASTORE, 1)); // baseUrl (slot 1)
 
-        // data = new byte[8192]
-        ctx.add(SIPUSH(8192));
-        ctx.add(NEWARRAY(T_BYTE));
-        ctx.add(ASTORE(8));
+                    insns.add(new TypeInsnNode(Opcodes.NEW, "java/net/URL"));
+                    insns.add(new InsnNode(Opcodes.DUP));
+                    insns.add(new TypeInsnNode(Opcodes.NEW, "java/lang/StringBuilder"));
+                    insns.add(new InsnNode(Opcodes.DUP));
+                    insns.add(new MethodInsnNode(Opcodes.INVOKESPECIAL, "java/lang/StringBuilder", "<init>", "()V", false));
+                    insns.add(new VarInsnNode(Opcodes.ALOAD, 1)); // baseUrl
+                    insns.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "java/lang/StringBuilder", "append", "(Ljava/lang/String;)Ljava/lang/StringBuilder;", false));
+                    insns.add(new LdcInsnNode("/publickeys"));
+                    insns.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "java/lang/StringBuilder", "append", "(Ljava/lang/String;)Ljava/lang/StringBuilder;", false));
+                    insns.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "java/lang/StringBuilder", "toString", "()Ljava/lang/String;", false));
+                    insns.add(new MethodInsnNode(Opcodes.INVOKESPECIAL, "java/net/URL", "<init>", "(Ljava/lang/String;)V", false));
+                    insns.add(new VarInsnNode(Opcodes.ASTORE, 2)); // url (slot 2)
 
-        // read loop
-        LabelNode loopStart = new LabelNode();
-        LabelNode loopEnd = new LabelNode();
-        ctx.add(loopStart);
-        ctx.add(ALOAD(4)); // is
-        ctx.add(ALOAD(8)); // data
-        ctx.add(ICONST_0());
-        ctx.add(ALOAD(8));
-        ctx.add(ARRAYLENGTH());
-        ctx.add(INVOKEVIRTUAL("java/io/InputStream", "read", "([BII)I"));
-        ctx.add(DUP());
-        ctx.add(ISTORE(5)); // nRead
-        ctx.add(ICONST_M1());
-        ctx.add(IF_ICMPEQ(loopEnd));
-        ctx.add(ALOAD(9)); // buffer
-        ctx.add(ALOAD(8)); // data
-        ctx.add(ICONST_0());
-        ctx.add(ILOAD(5));
-        ctx.add(INVOKEVIRTUAL("java/io/ByteArrayOutputStream", "write", "([BII)V"));
-        ctx.add(GOTO(loopStart));
-        ctx.add(loopEnd);
+                    insns.add(new VarInsnNode(Opcodes.ALOAD, 2));
+                    insns.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "java/net/URL", "openConnection", "()Ljava/net/URLConnection;", false));
+                    insns.add(new TypeInsnNode(Opcodes.CHECKCAST, "java/net/HttpURLConnection"));
+                    insns.add(new VarInsnNode(Opcodes.ASTORE, 3)); // conn
 
-        // jsonText = new String(buffer.toByteArray(), StandardCharsets.UTF_8)
-        ctx.add(NEW("java/lang/String"));
-        ctx.add(DUP());
-        ctx.add(ALOAD(9));
-        ctx.add(INVOKEVIRTUAL("java/io/ByteArrayOutputStream", "toByteArray", "()[B"));
-        ctx.add(GETSTATIC("java/nio/charset/StandardCharsets", "UTF_8", "Ljava/nio/charset/Charset;"));
-        ctx.add(INVOKESPECIAL("java/lang/String", "<init>", "([BLjava/nio/charset/Charset;)V"));
-        ctx.add(ASTORE(6));
+                    insns.add(new VarInsnNode(Opcodes.ALOAD, 3));
+                    insns.add(new LdcInsnNode("GET"));
+                    insns.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "java/net/HttpURLConnection", "setRequestMethod", "(Ljava/lang/String;)V", false));
 
-        // jsonText = jsonText.replaceAll("\\s+", "")
-        ctx.add(ALOAD(6));
-        ctx.add(LDC("\\s+"));
-        ctx.add(LDC(""));
-        ctx.add(INVOKEVIRTUAL("java/lang/String", "replaceAll", "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;"));
-        ctx.add(ASTORE(6));
+                    insns.add(new VarInsnNode(Opcodes.ALOAD, 3));
+                    insns.add(new InsnNode(Opcodes.ICONST_1));
+                    insns.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "java/net/HttpURLConnection", "setDoInput", "(Z)V", false));
 
-        // idx = jsonText.indexOf("\"profilePropertyKeys\":[{\"publicKey\":\"")
-        ctx.add(ALOAD(6));
-        ctx.add(LDC("\"profilePropertyKeys\":[{\"publicKey\":\""));
-        ctx.add(INVOKEVIRTUAL("java/lang/String", "indexOf", "(Ljava/lang/String;)I"));
-        ctx.add(ISTORE(5));
+                    insns.add(new VarInsnNode(Opcodes.ALOAD, 3));
+                    insns.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "java/net/HttpURLConnection", "getInputStream", "()Ljava/io/InputStream;", false));
+                    insns.add(new VarInsnNode(Opcodes.ASTORE, 4)); // is
 
-        // start = idx + "\"profilePropertyKeys\":[{\"publicKey\":\"".length()
-        ctx.add(ILOAD(5));
-        ctx.add(LDC("\"profilePropertyKeys\":[{\"publicKey\":\""));
-        ctx.add(INVOKEVIRTUAL("java/lang/String", "length", "()I"));
-        ctx.add(IADD());
-        ctx.add(ISTORE(5));
+                    insns.add(new TypeInsnNode(Opcodes.NEW, "java/io/ByteArrayOutputStream"));
+                    insns.add(new InsnNode(Opcodes.DUP));
+                    insns.add(new MethodInsnNode(Opcodes.INVOKESPECIAL, "java/io/ByteArrayOutputStream", "<init>", "()V", false));
+                    insns.add(new VarInsnNode(Opcodes.ASTORE, 9)); // buffer
 
-        // end = jsonText.indexOf("\"", start)
-        ctx.add(ALOAD(6));
-        ctx.add(LDC("\""));
-        ctx.add(ILOAD(5));
-        ctx.add(INVOKEVIRTUAL("java/lang/String", "indexOf", "(Ljava/lang/String;I)I"));
-        ctx.add(ISTORE(8));
+                    insns.add(new IntInsnNode(Opcodes.SIPUSH, 8192));
+                    insns.add(new IntInsnNode(Opcodes.NEWARRAY, Opcodes.T_BYTE));
+                    insns.add(new VarInsnNode(Opcodes.ASTORE, 8)); // data ([B)
 
-        // keyB64 = jsonText.substring(start, end)
-        ctx.add(ALOAD(6));
-        ctx.add(ILOAD(5));
-        ctx.add(ILOAD(8));
-        ctx.add(INVOKEVIRTUAL("java/lang/String", "substring", "(II)Ljava/lang/String;"));
-        ctx.add(ASTORE(7));
+                    LabelNode loopStart = new LabelNode();
+                    LabelNode loopEnd = new LabelNode();
+                    insns.add(loopStart);
 
-        // decode keyB64 -> decoded
-        ctx.add(INVOKESTATIC("java/util/Base64", "getDecoder", "()Ljava/util/Base64$Decoder;"));
-        ctx.add(ALOAD(7));
-        ctx.add(INVOKEVIRTUAL("java/util/Base64$Decoder", "decode", "(Ljava/lang/String;)[B"));
-        ctx.add(ASTORE(8));
+                    insns.add(new VarInsnNode(Opcodes.ALOAD, 4));          // InputStream is
+                    insns.add(new VarInsnNode(Opcodes.ALOAD, 8));          // byte[] data
+                    insns.add(new InsnNode(Opcodes.ICONST_0));             // 0
+                    insns.add(new VarInsnNode(Opcodes.ALOAD, 8));          // data
+                    insns.add(new InsnNode(Opcodes.ARRAYLENGTH));         // data.length
+                    insns.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "java/io/InputStream", "read", "([BII)I", false));
+                    insns.add(new InsnNode(Opcodes.DUP));
+                    insns.add(new VarInsnNode(Opcodes.ISTORE, 5));         // nRead (int slot 5)
+                    insns.add(new InsnNode(Opcodes.ICONST_M1));
+                    insns.add(new JumpInsnNode(Opcodes.IF_ICMPEQ, loopEnd));
+                    insns.add(new VarInsnNode(Opcodes.ALOAD, 9));          // buffer
+                    insns.add(new VarInsnNode(Opcodes.ALOAD, 8));          // data
+                    insns.add(new InsnNode(Opcodes.ICONST_0));
+                    insns.add(new VarInsnNode(Opcodes.ILOAD, 5));          // nRead
+                    insns.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "java/io/ByteArrayOutputStream", "write", "([BII)V", false));
+                    insns.add(new JumpInsnNode(Opcodes.GOTO, loopStart));
+                    insns.add(loopEnd);
 
-        // spec = new X509EncodedKeySpec(decoded)
-        ctx.add(NEW("java/security/spec/X509EncodedKeySpec"));
-        ctx.add(DUP());
-        ctx.add(ALOAD(8));
-        ctx.add(INVOKESPECIAL("java/security/spec/X509EncodedKeySpec", "<init>", "([B)V"));
-        ctx.add(ASTORE(9));
+                    insns.add(new TypeInsnNode(Opcodes.NEW, "java/lang/String"));
+                    insns.add(new InsnNode(Opcodes.DUP));
+                    insns.add(new VarInsnNode(Opcodes.ALOAD, 9));
+                    insns.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "java/io/ByteArrayOutputStream", "toByteArray", "()[B", false));
+                    insns.add(new FieldInsnNode(Opcodes.GETSTATIC, "java/nio/charset/StandardCharsets", "UTF_8", "Ljava/nio/charset/Charset;"));
+                    insns.add(new MethodInsnNode(Opcodes.INVOKESPECIAL, "java/lang/String", "<init>", "([BLjava/nio/charset/Charset;)V", false));
+                    insns.add(new VarInsnNode(Opcodes.ASTORE, 6)); // jsonText
 
-        // keyFactory = KeyFactory.getInstance("RSA")
-        ctx.add(LDC("RSA"));
-        ctx.add(INVOKESTATIC("java/security/KeyFactory", "getInstance", "(Ljava/lang/String;)Ljava/security/KeyFactory;"));
-        ctx.add(ASTORE(10));
+                    insns.add(new VarInsnNode(Opcodes.ALOAD, 6));
+                    insns.add(new LdcInsnNode("\\s+"));
+                    insns.add(new LdcInsnNode(""));
+                    insns.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "java/lang/String", "replaceAll", "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;", false));
+                    insns.add(new VarInsnNode(Opcodes.ASTORE, 6));
 
-        // publicKey = keyFactory.generatePublic(spec)
-        ctx.add(ALOAD(10));
-        ctx.add(ALOAD(9));
-        ctx.add(INVOKEVIRTUAL("java/security/KeyFactory", "generatePublic", "(Ljava/security/spec/KeySpec;)Ljava/security/PublicKey;"));
-        ctx.add(ASTORE(11));
+                    insns.add(new VarInsnNode(Opcodes.ALOAD, 6));
+                    insns.add(new LdcInsnNode("\"profilePropertyKeys\":[{\"publicKey\":\""));
+                    insns.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "java/lang/String", "indexOf", "(Ljava/lang/String;)I", false));
+                    insns.add(new VarInsnNode(Opcodes.ISTORE, 5)); // idx
 
-        // pubKeyField = GameProfile.class.getDeclaredField("SIGNATURE_KEY")
-        ctx.add(LDC(Type.getType("Lcom/github/steveice10/mc/auth/data/GameProfile;"))); // GameProfile.class
-        ctx.add(LDC("SIGNATURE_KEY"));
-        ctx.add(INVOKEVIRTUAL("java/lang/Class", "getDeclaredField", "(Ljava/lang/String;)Ljava/lang/reflect/Field;"));
-        ctx.add(ASTORE(12)); // pubKeyField
+                    insns.add(new VarInsnNode(Opcodes.ILOAD, 5));
+                    insns.add(new LdcInsnNode("\"profilePropertyKeys\":[{\"publicKey\":\""));
+                    insns.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "java/lang/String", "length", "()I", false));
+                    insns.add(new InsnNode(Opcodes.IADD));
+                    insns.add(new VarInsnNode(Opcodes.ISTORE, 5)); // start
 
-        // pubKeyField.setAccessible(true)
-        ctx.add(ALOAD(12));
-        ctx.add(ICONST_1());
-        ctx.add(INVOKEVIRTUAL("java/lang/reflect/Field", "setAccessible", "(Z)V"));
+                    insns.add(new VarInsnNode(Opcodes.ALOAD, 6));
+                    insns.add(new LdcInsnNode("\""));
+                    insns.add(new VarInsnNode(Opcodes.ILOAD, 5));
+                    insns.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "java/lang/String", "indexOf", "(Ljava/lang/String;I)I", false));
+                    insns.add(new VarInsnNode(Opcodes.ISTORE, 8)); // NOTE: store as int in slot 8
 
-        // unsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe")
-        ctx.add(LDC(Type.getType("Lsun/misc/Unsafe;"))); // Unsafe.class
-        ctx.add(LDC("theUnsafe"));
-        ctx.add(INVOKEVIRTUAL("java/lang/Class", "getDeclaredField", "(Ljava/lang/String;)Ljava/lang/reflect/Field;"));
-        ctx.add(ASTORE(13)); // unsafeField
+                    insns.add(new VarInsnNode(Opcodes.ALOAD, 6));
+                    insns.add(new VarInsnNode(Opcodes.ILOAD, 5));
+                    insns.add(new VarInsnNode(Opcodes.ILOAD, 8));
+                    insns.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "java/lang/String", "substring", "(II)Ljava/lang/String;", false));
+                    insns.add(new VarInsnNode(Opcodes.ASTORE, 7)); // keyB64
 
-        // unsafeField.setAccessible(true)
-        ctx.add(ALOAD(13));
-        ctx.add(ICONST_1());
-        ctx.add(INVOKEVIRTUAL("java/lang/reflect/Field", "setAccessible", "(Z)V"));
+                    insns.add(new MethodInsnNode(Opcodes.INVOKESTATIC, "java/util/Base64", "getDecoder", "()Ljava/util/Base64$Decoder;", false));
+                    insns.add(new VarInsnNode(Opcodes.ALOAD, 7));
+                    insns.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "java/util/Base64$Decoder", "decode", "(Ljava/lang/String;)[B", false));
+                    insns.add(new VarInsnNode(Opcodes.ASTORE, 8)); // decoded bytes ([B) Opcodes.IADDslot 8 reused for byte[]; ok because previous int stored elsewhere
 
-        // unsafe = (sun.misc.Unsafe) unsafeField.get(null)
-        ctx.add(ALOAD(13));
-        ctx.add(ACONST_NULL());
-        ctx.add(INVOKEVIRTUAL("java/lang/reflect/Field", "get", "(Ljava/lang/Object;)Ljava/lang/Object;"));
-        ctx.add(CHECKCAST("sun/misc/Unsafe"));
-        ctx.add(ASTORE(14)); // unsafe
+                    insns.add(new TypeInsnNode(Opcodes.NEW, "java/security/spec/X509EncodedKeySpec"));
+                    insns.add(new InsnNode(Opcodes.DUP));
+                    insns.add(new VarInsnNode(Opcodes.ALOAD, 8));
+                    insns.add(new MethodInsnNode(Opcodes.INVOKESPECIAL, "java/security/spec/X509EncodedKeySpec", "<init>", "([B)V", false));
+                    insns.add(new VarInsnNode(Opcodes.ASTORE, 9)); // spec
 
-        // staticBase = unsafe.staticFieldBase(pubKeyField)
-        ctx.add(ALOAD(14));        // unsafe
-        ctx.add(ALOAD(12));        // pubKeyField
-        ctx.add(INVOKEVIRTUAL("sun/misc/Unsafe", "staticFieldBase", "(Ljava/lang/reflect/Field;)Ljava/lang/Object;"));
-        ctx.add(ASTORE(15));       // staticBase
+                    insns.add(new LdcInsnNode("RSA"));
+                    insns.add(new MethodInsnNode(Opcodes.INVOKESTATIC, "java/security/KeyFactory", "getInstance", "(Ljava/lang/String;)Ljava/security/KeyFactory;", false));
+                    insns.add(new VarInsnNode(Opcodes.ASTORE, 10)); // keyFactory
 
-        // staticOffset = unsafe.staticFieldOffset(pubKeyField)
-        ctx.add(ALOAD(14));        // unsafe
-        ctx.add(ALOAD(12));        // pubKeyField
-        ctx.add(INVOKEVIRTUAL("sun/misc/Unsafe", "staticFieldOffset", "(Ljava/lang/reflect/Field;)J"));
-        ctx.add(LSTORE(16));       // staticOffset (long -> slots 16 & 17)
+                    insns.add(new VarInsnNode(Opcodes.ALOAD, 10));
+                    insns.add(new VarInsnNode(Opcodes.ALOAD, 9));
+                    insns.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "java/security/KeyFactory", "generatePublic", "(Ljava/security/spec/KeySpec;)Ljava/security/PublicKey;", false));
+                    insns.add(new VarInsnNode(Opcodes.ASTORE, 11)); // publicKey
 
-        // unsafe.putObject(staticBase, staticOffset, publicKey)
-        ctx.add(ALOAD(14));        // unsafe
-        ctx.add(ALOAD(15));        // staticBase
-        ctx.add(LLOAD(16));        // staticOffset
-        ctx.add(ALOAD(11));        // publicKey
-        ctx.add(INVOKEVIRTUAL("sun/misc/Unsafe", "putObject", "(Ljava/lang/Object;JLjava/lang/Object;)V"));
+                    insns.add(new LdcInsnNode(Type.getType("Lcom/github/steveice10/mc/auth/data/GameProfile;")));
+                    insns.add(new LdcInsnNode("SIGNATURE_KEY"));
+                    insns.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "java/lang/Class", "getDeclaredField", "(Ljava/lang/String;)Ljava/lang/reflect/Field;", false));
+                    insns.add(new VarInsnNode(Opcodes.ASTORE, 12)); // pubKeyField
+
+                    insns.add(new VarInsnNode(Opcodes.ALOAD, 12));
+                    insns.add(new InsnNode(Opcodes.ICONST_1));
+                    insns.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "java/lang/reflect/Field", "setAccessible", "(Z)V", false));
+
+                    insns.add(new LdcInsnNode(Type.getType("Lsun/misc/Unsafe;")));
+                    insns.add(new LdcInsnNode("theUnsafe"));
+                    insns.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "java/lang/Class", "getDeclaredField", "(Ljava/lang/String;)Ljava/lang/reflect/Field;", false));
+                    insns.add(new VarInsnNode(Opcodes.ASTORE, 13)); // unsafeField
+
+                    insns.add(new VarInsnNode(Opcodes.ALOAD, 13));
+                    insns.add(new InsnNode(Opcodes.ICONST_1));
+                    insns.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "java/lang/reflect/Field", "setAccessible", "(Z)V", false));
+
+                    insns.add(new VarInsnNode(Opcodes.ALOAD, 13));
+                    insns.add(new InsnNode(Opcodes.ACONST_NULL));
+                    insns.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "java/lang/reflect/Field", "get", "(Ljava/lang/Object;)Ljava/lang/Object;", false));
+                    insns.add(new TypeInsnNode(Opcodes.CHECKCAST, "sun/misc/Unsafe"));
+                    insns.add(new VarInsnNode(Opcodes.ASTORE, 14)); // unsafe
+
+                    insns.add(new VarInsnNode(Opcodes.ALOAD, 14));
+                    insns.add(new VarInsnNode(Opcodes.ALOAD, 12));
+                    insns.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "sun/misc/Unsafe", "staticFieldBase", "(Ljava/lang/reflect/Field;)Ljava/lang/Object;", false));
+                    insns.add(new VarInsnNode(Opcodes.ASTORE, 15)); // staticBase
+
+                    insns.add(new VarInsnNode(Opcodes.ALOAD, 14));
+                    insns.add(new VarInsnNode(Opcodes.ALOAD, 12));
+                    insns.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "sun/misc/Unsafe", "staticFieldOffset", "(Ljava/lang/reflect/Field;)J", false));
+                    insns.add(new VarInsnNode(Opcodes.LSTORE, 16)); // staticOffset (long -> slots 16 & 17)
+
+                    insns.add(new VarInsnNode(Opcodes.ALOAD, 14));
+                    insns.add(new VarInsnNode(Opcodes.ALOAD, 15));
+                    insns.add(new VarInsnNode(Opcodes.LLOAD, 16));
+                    insns.add(new VarInsnNode(Opcodes.ALOAD, 11));
+                    insns.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "sun/misc/Unsafe", "putObject", "(Ljava/lang/Object;JLjava/lang/Object;)V", false));
+
+                    mn.instructions.insertBefore(ret, insns);
+
+                    Loki.log.info("Patching " + mn.name + " in " + className);
+                    changed = true;
+                } else if ("validateProperty".equals(mn.name) && "(Lcom/mojang/authlib/properties/Property;)Z".equals(mn.desc)) {
+                    mn.instructions.clear();
+                    mn.tryCatchBlocks.clear();
+                    if (mn.localVariables != null) mn.localVariables.clear();
+
+                    InsnList insns = new InsnList();
+                    insns.add(new InsnNode(Opcodes.ICONST_1));
+                    insns.add(new InsnNode(Opcodes.IRETURN));
+
+                    mn.instructions.add(insns);
+
+                    Loki.log.info("Patching " + mn.name + " in " + className);
+                    changed = true;
+                }
+            }
+
+            if (!changed) return null;
+
+            ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
+            cn.accept(cw);
+            return cw.toByteArray();
+
+        } catch (Throwable t) {
+            Loki.log.error("Failed to transform publicKey!", t);
+            return null;
+        }
     }
 }
