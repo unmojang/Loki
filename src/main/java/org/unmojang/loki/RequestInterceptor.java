@@ -125,18 +125,6 @@ public class RequestInterceptor {
                 return Ygglib.getTexture(originalUrl, username, "CAPE");
             }
 
-            // Resources
-            if (host.equals("s3.amazonaws.com") && path.equals("/MinecraftResources/")) {
-                byte[] resources = LokiUtil.readResourceFromJar(originalUrl, "/MinecraftResources.xml");
-                return new Ygglib.FakeURLConnection(originalUrl, 200, resources);
-            } else if (host.equals("www.minecraft.net") && path.equals("/resources/")) {
-                byte[] resources = LokiUtil.readResourceFromJar(originalUrl, "/resources.txt");
-                return new Ygglib.FakeURLConnection(originalUrl, 200, resources);
-            } else if ((host.equals("s3.amazonaws.com") && path.startsWith("/MinecraftResources/"))
-                    || (host.equals("www.minecraft.net") && path.startsWith("/resources/"))) { // resource fetch attempt
-                return new Ygglib.FakeURLConnection(originalUrl, 500, "\0".getBytes(StandardCharsets.UTF_8));
-            }
-
             // Snooper
             if (host.equals("snoop.minecraft.net")) {
                 Loki.log.info("Snooper request intercepted: " + originalUrl);

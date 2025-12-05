@@ -105,21 +105,4 @@ public class LokiUtil {
         System.clearProperty("minecraft.api.session.host");
         System.clearProperty("minecraft.api.services.host");
     }
-
-    public static byte[] readResourceFromJar(URL originalUrl, String path) {
-        try (InputStream is = LokiUtil.class.getResourceAsStream(path)) {
-            if (is == null) throw new RuntimeException("resource is null, invalid file path?");
-            BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
-            StringBuilder sb = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                sb.append(line).append('\n');
-            }
-            reader.close();
-            return sb.toString().getBytes(StandardCharsets.UTF_8);
-        } catch (Exception e) {
-            Loki.log.error("Failed to intercept " + originalUrl, e);
-            return "\0".getBytes(StandardCharsets.UTF_8);
-        }
-    }
 }
