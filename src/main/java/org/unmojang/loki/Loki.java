@@ -10,7 +10,6 @@ public class Loki {
     public static final Boolean debug = System.getProperty("Loki.debug", "false").equalsIgnoreCase("true");
     public static final Boolean enable_realms = !System.getProperty("Loki.enable_realms", "true").equalsIgnoreCase("false");
     public static final Boolean enable_snooper =  System.getProperty("Loki.enable_snooper", "false").equalsIgnoreCase("true");
-    public static final Boolean enable_vanilla_env = !System.getProperty("Loki.enable_vanilla_env", "true").equalsIgnoreCase("false");
     public static final Boolean modded_capes = System.getProperty("Loki.modded_capes", "false").equalsIgnoreCase("true");
 
     public static void premain(String agentArgs, Instrumentation inst) {
@@ -37,15 +36,12 @@ public class Loki {
         // Misc fixes
         inst.addTransformer(new ConcatenateURLTransformer()); // Prevent port number being ignored in old authlib, if you specified it
         inst.addTransformer(new MCAuthlibGameProfileTransformer()); // Primarily for MojangFix
+        inst.addTransformer(new ForgeSetURLFactoryTransformer(), true); // Fix 1.13-1.16 Forge
 
         // Intercept OptiFine capes to prevent collisions, for whatever reason it isn't caught by Loki's URL factory
         if (!modded_capes) inst.addTransformer(new OptiFineCapeTransformer());
 
-        // Apply 1.21.9+ fixes if Loki.enable_vanilla_env is true (default), otherwise unset vanilla environment
-        if (enable_vanilla_env) {
-            LokiUtil.apply1219Fixes();
-        } else {
-            LokiUtil.unsetVanillaEnv();
-        }
+        // Apply 1.21.9+ fixes
+        LokiUtil.apply1219Fixes();
     }
 }

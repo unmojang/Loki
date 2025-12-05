@@ -3,12 +3,9 @@ package org.unmojang.loki;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManagerFactory;
-import java.io.BufferedReader;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateFactory;
@@ -76,7 +73,6 @@ public class LokiUtil {
         Loki.log.info("API Server: " + server);
         String authlibInjectorApiLocation = getAuthlibInjectorApiLocation(server);
         if (authlibInjectorApiLocation == null) authlibInjectorApiLocation = server;
-
         System.setProperty("minecraft.api.env", "custom");
         System.setProperty("minecraft.api.account.host", authlibInjectorApiLocation + "/api");
         System.setProperty("minecraft.api.auth.host", authlibInjectorApiLocation + "/authserver");
@@ -93,16 +89,5 @@ public class LokiUtil {
             Loki.log.info("Applying <1.21.9 fixes");
             System.setProperty("minecraft.api.account.host", RequestInterceptor.YGGDRASIL_MAP.get("api.mojang.com"));
         }
-    }
-
-    public static void unsetVanillaEnv() {
-        Loki.log.info("Clearing minecraft.api.*.host parameters");
-
-        System.clearProperty("minecraft.api.env");
-        System.clearProperty("minecraft.api.account.host");
-        System.clearProperty("minecraft.api.profiles.host");
-        System.clearProperty("minecraft.api.auth.host");
-        System.clearProperty("minecraft.api.session.host");
-        System.clearProperty("minecraft.api.services.host");
     }
 }

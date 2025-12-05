@@ -7,10 +7,11 @@ import java.lang.reflect.Field;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class RequestInterceptor {
     public static final Map<String, String> YGGDRASIL_MAP;
-    public static final Map<String, URLStreamHandler> DEFAULT_HANDLERS = new HashMap<>();
+    public static final Map<String, URLStreamHandler> DEFAULT_HANDLERS = new ConcurrentHashMap<>();
     private static final Set<String> INTERCEPTED_DOMAINS;
     private static final sun.misc.Unsafe unsafe = getUnsafe();
 
@@ -57,11 +58,15 @@ public class RequestInterceptor {
 
     public static void setURLFactory() {
         Loki.log.info("Arrived in setURLFactory");
+        if (isModernForge()) {
+            return;
+        }
         URL.setURLStreamHandlerFactory(protocol -> {
-            if (!"http".equals(protocol) && !"https".equals(protocol)) return null;
             URLStreamHandler delegate = DEFAULT_HANDLERS.get(protocol);
             if (delegate == null) return null;
-            return new URLStreamHandlerProxy(delegate);
+            return (protocol.equals("http") || protocol.equals("https"))
+                    ? new URLStreamHandlerProxy(delegate)
+                    : delegate;
         });
     }
 
@@ -232,6 +237,42 @@ public class RequestInterceptor {
                 URL delegated = new URL(null, url.toExternalForm(), parent);
                 return wrapConnection(url, delegated.openConnection());
             }
+        }
+    }
+
+    public static boolean isModernForge() {
+        String cp = System.getProperty("java.class.path");
+        if (cp == null) return false;
+        if (cp.equals(".")) {
+            Loki.log.info("Empty classpath, perhaps we are running from a 1.17+ Forge server? Not setting URL factory!");
+            return true;
+        }
+        for (String entry : cp.split(File.pathSeparator)) {
+            String fileName = new File(entry).getName();
+            if (fileName.startsWith("securejarhandler-") && fileName.endsWith(".jar")) {
+                Loki.log.info("Found SecureJarHandler, we must be on 1.17+ Forge, not setting URL factory!");
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static synchronized void registerExternalFactory(URLStreamHandlerFactory factory) {
+        if (factory == null) return;
+        try {
+            // Protocols that Loki needs to accept from external factories
+            String[] protos = new String[] {"http", "https", "modjar"};
+            for (String p : protos) {
+                try {
+                    URLStreamHandler h = factory.createURLStreamHandler(p);
+                    if (h != null) {
+                        DEFAULT_HANDLERS.put(p, h);
+                        Loki.log.info("Registered external handler for " + p + " from factory " + factory.getClass().getName());
+                    }
+                } catch (Throwable ignored) {}
+            }
+        } catch (Throwable t) {
+            Loki.log.error("registerExternalFactory failed: " + t);
         }
     }
 }
