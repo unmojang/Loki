@@ -250,7 +250,7 @@ public class RequestInterceptor {
         for (String entry : cp.split(File.pathSeparator)) {
             String fileName = new File(entry).getName();
             if (fileName.startsWith("securejarhandler-") && fileName.endsWith(".jar")) {
-                Loki.log.info("Found SecureJarHandler, we must be on 1.17+ Forge, not setting URL factory!");
+                Loki.log.info("Found SecureJarHandler, we must be on 1.17+ Forge. Not setting URL factory!");
                 return true;
             }
         }
@@ -272,7 +272,7 @@ public class RequestInterceptor {
                 } catch (Throwable ignored) {}
             }
         } catch (Throwable t) {
-            Loki.log.error("registerExternalFactory failed: " + t);
+            Loki.log.error("registerExternalFactory failed!", t);
         }
     }
 }
