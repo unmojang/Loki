@@ -7,7 +7,7 @@ import java.util.Date;
 
 public class AdHocLogImpl implements NilLogImpl {
 
-    private static final boolean DEBUG = Boolean.getBoolean("nil.debug");
+    private static final boolean DEBUG = Boolean.getBoolean("Loki.debug");
     private static final DateFormat fmt = new SimpleDateFormat("HH:mm:ss");
 
     private final PrintStream out = System.out;
@@ -31,7 +31,7 @@ public class AdHocLogImpl implements NilLogImpl {
         if (t != null) {
             t.printStackTrace(out);
         }
-        out.println(fmt.format(new Date())+" ["+tag+"] ["+name+"] "+message);
+        out.printf("[%s] [%s/%s]: %s%n", fmt.format(new Date()), name, tag, message);
     }
 
     @Override

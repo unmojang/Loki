@@ -37,7 +37,7 @@ public class OptiFineCapeTransformer implements ClassFileTransformer {
 
                     mn.instructions.add(new InsnNode(Opcodes.RETURN));
 
-                    Loki.log.info("Patching " + mn.name + " in " + className);
+                    Loki.log.debug("Patching " + mn.name + " in " + className);
                     changed = true;
                     break;
                 }

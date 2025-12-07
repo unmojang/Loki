@@ -60,7 +60,7 @@ public class AllowedDomainTransformer implements ClassFileTransformer {
 
                         mn.instructions.insertBefore(iret, insns);
 
-                        Loki.log.info("Patching " + mn.name + " in " + className);
+                        Loki.log.debug("Patching " + mn.name + " in " + className);
                         changed = true;
                         break;
                     }

@@ -152,7 +152,7 @@ public class ConcatenateURLTransformer implements ClassFileTransformer {
 
                     mn.instructions.insertBefore(aret, insns);
 
-                    Loki.log.info("Patching " + mn.name + " in " + className);
+                    Loki.log.debug("Patching " + mn.name + " in " + className);
                     changed = true;
                     break;
                 }

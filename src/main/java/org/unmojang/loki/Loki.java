@@ -7,20 +7,21 @@ import java.lang.instrument.Instrumentation;
 
 public class Loki {
     public static final NilLogger log = NilLogger.get("Loki");
-    public static final Boolean debug = System.getProperty("Loki.debug", "false").equalsIgnoreCase("true");
-    public static final Boolean enable_realms = !System.getProperty("Loki.enable_realms", "true").equalsIgnoreCase("false");
-    public static final Boolean enable_snooper =  System.getProperty("Loki.enable_snooper", "false").equalsIgnoreCase("true");
-    public static final Boolean modded_capes = System.getProperty("Loki.modded_capes", "false").equalsIgnoreCase("true");
+    public static final Boolean disable_realms = Boolean.getBoolean("Loki.disable_realms");
+    public static final Boolean enable_snooper =  Boolean.getBoolean("Loki.enable_snooper");
+    public static final Boolean modded_capes = Boolean.getBoolean("Loki.modded_capes");
 
     public static void premain(String agentArgs, Instrumentation inst) {
         log.info("Hello Loki " + Loki.class.getPackage().getImplementationVersion() + " World!");
-        // TLS fixes for Mojang's jre-legacy
-        LokiUtil.loadCacerts();
         // Authlib-Injector API
-        if (System.getProperty("Loki.url", null) != null) { // Prioritize Loki.url
-            LokiUtil.initAuthlibInjectorAPI(System.getProperty("Loki.url"));
-        } else if (agentArgs != null) {
-            LokiUtil.initAuthlibInjectorAPI(agentArgs);
+        String authlibInjectorURL = (System.getProperty("Loki.url") != null) // Prioritize Loki.url
+                ? System.getProperty("Loki.url") : agentArgs;
+        if(authlibInjectorURL != null) {
+            LokiUtil.tryOrDisableSSL(authlibInjectorURL);
+            LokiUtil.initAuthlibInjectorAPI(authlibInjectorURL);
+        } else {
+            LokiUtil.tryOrDisableSSL(System.getProperty("minecraft.api.session.host",
+                    "https://sessionserver.mojang.com")); // fallback
         }
         // Authentication & skins
         RequestInterceptor.setURLFactory();

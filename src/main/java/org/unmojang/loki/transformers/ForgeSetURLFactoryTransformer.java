@@ -38,7 +38,7 @@ public class ForgeSetURLFactoryTransformer implements ClassFileTransformer {
                                 false);
                         mn.instructions.set(min, replacement);
 
-                        Loki.log.info("Patching " + mn.name + " in " + className);
+                        Loki.log.debug("Patching " + mn.name + " in " + className);
                         changed = true;
                     }
                 }

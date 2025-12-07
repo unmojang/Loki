@@ -1,48 +1,62 @@
 package org.unmojang.loki;
 
-import javax.net.ssl.HttpsURLConnection;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManagerFactory;
-import java.io.InputStream;
+import javax.net.ssl.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.security.KeyStore;
-import java.security.cert.Certificate;
-import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 
 public class LokiUtil {
-    public static void loadCacerts() {
-        // Load cacert.pem from resources
-        try (InputStream is = LokiUtil.class.getResourceAsStream("/cacert.pem")) {
-            if (is == null) throw new RuntimeException("cacert.pem not found in resources");
-
-            CertificateFactory cf = CertificateFactory.getInstance("X.509");
-
-            KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
-            ks.load(null, null);
-
-            int certIndex = 0;
-            for (Certificate cert : cf.generateCertificates(is)) {
-                if (cert instanceof X509Certificate) {
-                    ks.setCertificateEntry("cert" + certIndex++, cert);
-                }
-            }
-
-            TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-            tmf.init(ks);
-
-            SSLContext sc = SSLContext.getInstance("TLS");
-            sc.init(null, tmf.getTrustManagers(), null);
-            HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
-
-            // Disable hostname verification
-            HttpsURLConnection.setDefaultHostnameVerifier((hostname, session) -> true);
+    private static boolean tryConnect(String url) {
+        try {
+            HttpsURLConnection conn = (HttpsURLConnection) new URL(url).openConnection();
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(5000);
+            conn.connect();
+            return true;
+        } catch (javax.net.ssl.SSLHandshakeException ignored) {
+            return false;
         } catch (Exception e) {
-            Loki.log.error("Failed to load CA certs from cacert.pem", e);
-            return;
+            Loki.log.error("Connection failed", e);
+            throw new RuntimeException(e);
         }
-        Loki.log.info("Loaded CA certs from cacert.pem");
+    }
+
+    private static String normalizeUrl(String url) {
+        String lowercased = url.toLowerCase();
+        if (!lowercased.startsWith("http://") && !lowercased.startsWith("https://")) {
+            url = "https://" + url;
+        }
+        return url;
+    }
+
+    public static void tryOrDisableSSL(String httpsUrl) {
+        if(httpsUrl == null || httpsUrl.isEmpty()) return;
+        if(httpsUrl.startsWith("http://")) return;
+        String url = normalizeUrl(httpsUrl);
+        try {
+            if(tryConnect(url)) {
+                Loki.log.debug("Java's truststore is recent enough to connect to the API server");
+                return;
+            }
+            Loki.log.warn("**** OUTDATED JAVA CERTIFICATE STORE DETECTED!");
+            Loki.log.warn("Certificate validation has been disabled to allow connections to the");
+            Loki.log.warn("API server. This allows Loki to function despite the old certificates,");
+            Loki.log.warn("but this is extremely insecure and may expose you to man-in-the-middle");
+            Loki.log.warn("attacks. You should upgrade to a more recent release of Java as soon");
+            Loki.log.warn("as possible to restore proper certificate validation.");
+            SSLContext sc = SSLContext.getInstance("TLS");
+            sc.init(null, new TrustManager[]{
+                    new X509TrustManager() {
+                        public X509Certificate[] getAcceptedIssuers() { return new X509Certificate[0]; }
+                        public void checkClientTrusted(X509Certificate[] certs, String authType) {}
+                        public void checkServerTrusted(X509Certificate[] certs, String authType) {}
+                    }
+            }, new java.security.SecureRandom());
+            HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
+        } catch (Exception e) {
+            Loki.log.error("Connection failed", e);
+            throw new RuntimeException(e);
+        }
     }
 
     public static String getAuthlibInjectorApiLocation(String server) {
@@ -59,18 +73,9 @@ public class LokiUtil {
         }
     }
 
-    private static String normalizeUrl(String url) {
-        String lowercased = url.toLowerCase();
-        if (!lowercased.startsWith("http://") && !lowercased.startsWith("https://")) {
-            url = "https://" + url;
-        }
-        return url;
-    }
-
     public static void initAuthlibInjectorAPI(String server) {
         server = normalizeUrl(server);
-        Loki.log.info("Using authlib-injector API");
-        Loki.log.info("API Server: " + server);
+        Loki.log.info("Using authlib-injector API Server: " + server);
         String authlibInjectorApiLocation = getAuthlibInjectorApiLocation(server);
         if (authlibInjectorApiLocation == null) authlibInjectorApiLocation = server;
         System.setProperty("minecraft.api.env", "custom");
@@ -83,10 +88,10 @@ public class LokiUtil {
 
     public static void apply1219Fixes() {
         if (System.getProperty("minecraft.api.profiles.host") == null) {
-            Loki.log.info("Applying 1.21.9+ fixes");
+            Loki.log.debug("Applying 1.21.9+ fixes");
             System.setProperty("minecraft.api.profiles.host", RequestInterceptor.YGGDRASIL_MAP.get("api.mojang.com"));
         } else if (System.getProperty("minecraft.api.account.host") == null) {
-            Loki.log.info("Applying <1.21.9 fixes");
+            Loki.log.debug("Applying <1.21.9 fixes");
             System.setProperty("minecraft.api.account.host", RequestInterceptor.YGGDRASIL_MAP.get("api.mojang.com"));
         }
     }

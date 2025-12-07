@@ -82,7 +82,7 @@ public class Ygglib {
         try {
             String uuid = getUUID(username);
             if (uuid == null) throw new RuntimeException("Couldn't find UUID of " + username);
-            Loki.log.info("UUID of " + username + ": " + uuid);
+            Loki.log.debug("UUID of " + username + ": " + uuid);
 
             String texturesProperty = getTexturesProperty(uuid, false);
             if (texturesProperty == null) throw new RuntimeException("textures property was null");
@@ -172,7 +172,7 @@ public class Ygglib {
 
             String accessToken = parts[1];
             String uuid = parts[2];
-            Loki.log.info("UUID of " + username + ": " + uuid);
+            Loki.log.debug("UUID of " + username + ": " + uuid);
 
             URL url = new URL("https://sessionserver.mojang.com/session/minecraft/join");
             url = getYggdrasilUrl(url, url.getHost());
@@ -288,7 +288,7 @@ public class Ygglib {
         try {
             String uuid = getUUID(username);
             if (uuid == null) throw new RuntimeException("Couldn't find UUID of " + username);
-            Loki.log.info("UUID of " + username + ": " + uuid);
+            Loki.log.debug("UUID of " + username + ": " + uuid);
 
             String profileJson = getTexturesProperty(uuid, true);
             if (profileJson == null) throw new RuntimeException("profile JSON was null");

@@ -31,7 +31,7 @@ public class RequestInterceptor {
                 "api.ashcon.app",
                 "mineskin.eu"
         ));
-        if (!Loki.enable_realms) {
+        if (Loki.disable_realms) {
             INTERCEPTED_DOMAINS.add("java.frontendlegacy.realms.minecraft-services.net");
             INTERCEPTED_DOMAINS.add("pc.realms.minecraft.net");
         }
@@ -57,8 +57,12 @@ public class RequestInterceptor {
     }
 
     public static void setURLFactory() {
-        Loki.log.info("Arrived in setURLFactory");
+        Loki.log.debug("Arrived in setURLFactory");
         if (isModernForge()) {
+            Loki.log.warn("This Forge environment does not support Loki's URL factory :(");
+            Loki.log.warn("minecraft.api.*.host parameters *must* be used, your API server won't");
+            Loki.log.warn("be queried by mods that utilize the Mojang API, or for constructing");
+            Loki.log.warn("the blocked servers list!");
             return;
         }
         URL.setURLStreamHandlerFactory(protocol -> {
@@ -86,19 +90,18 @@ public class RequestInterceptor {
         String path = originalUrl.getPath();
         String query = originalUrl.getQuery();
         HttpURLConnection httpConn = (HttpURLConnection) originalConn;
-        if (Loki.debug) {
-            Loki.log.info("Connection: " + httpConn.getRequestMethod() + " " + originalUrl);
-        }
+        Loki.log.debug("Connection: " + httpConn.getRequestMethod() + " " + originalUrl);
         if (YGGDRASIL_MAP.containsKey(host)) { // yggdrasil
             try {
                 final URL targetUrl = Ygglib.getYggdrasilUrl(originalUrl, originalUrl.getHost());
-                Loki.log.info("Intercepting: " + originalUrl + " -> " + targetUrl);
+                if (path.equals("/events") && !(Loki.enable_snooper)) { // Snooper (1.18+): https://api.minecraftservices.com/events
+                    Loki.log.info("Intercepting snooper request");
+                    return new Ygglib.FakeURLConnection(originalUrl, 403, ("Nice try ;)").getBytes(StandardCharsets.UTF_8));
+                }
+                Loki.log.info("Intercepting " + host + " request");
+                Loki.log.debug(originalUrl + " -> " + targetUrl);
                 if (path.startsWith("/session/minecraft/profile/")) { // ReIndev fix
                     return Ygglib.getSessionProfile(targetUrl, httpConn);
-                }
-                if (path.equals("/events") && !(Loki.enable_snooper)) { // Snooper (1.18+): https://api.minecraftservices.com/events
-                    Loki.log.info("Snooper request intercepted: " + originalUrl);
-                    return new Ygglib.FakeURLConnection(originalUrl, 403, ("Nice try ;)").getBytes(StandardCharsets.UTF_8));
                 }
                 return mirrorHttpURLConnection(targetUrl, httpConn);
             } catch (Exception e) {
@@ -108,49 +111,49 @@ public class RequestInterceptor {
         } else if (INTERCEPTED_DOMAINS.contains(host)) {
             // Authentication
             if (path.equals("/game/joinserver.jsp")) {
-                Loki.log.info("Intercepting joinServer: " + originalUrl);
+                Loki.log.info("Intercepting joinserver request");
                 return Ygglib.joinServer(originalUrl);
             } else if (path.equals("/game/checkserver.jsp")) {
-                Loki.log.info("Intercepting checkServer: " + originalUrl);
+                Loki.log.info("Intercepting checkserver request");
                 return Ygglib.checkServer(originalUrl);
             }
 
             // Textures
             if (path.startsWith("/MinecraftSkins") || path.startsWith("/skin")) {
-                Loki.log.info("Intercepting skin texture: " + originalUrl);
                 String username = Ygglib.getUsernameFromPath(path);
+                Loki.log.info("Intercepting skin lookup for " + username);
                 return Ygglib.getTexture(originalUrl, username, "SKIN");
             } else if (path.startsWith("/MinecraftCloaks")) {
-                Loki.log.info("Intercepting cape texture: " + originalUrl);
                 String username = Ygglib.getUsernameFromPath(path);
+                Loki.log.info("Intercepting cape lookup for " + username);
                 return Ygglib.getTexture(originalUrl, username, "CAPE");
             } else if (path.equals("/cloak/get.jsp")) {
-                Loki.log.info("Intercepting cape texture: " + originalUrl);
                 String username = Ygglib.queryStringParser(query).get("user");
+                Loki.log.info("Intercepting cape lookup for " + username);
                 return Ygglib.getTexture(originalUrl, username, "CAPE");
             }
 
             // Snooper
             if (host.equals("snoop.minecraft.net")) {
-                Loki.log.info("Snooper request intercepted: " + originalUrl);
+                Loki.log.info("Intercepting snooper request");
                 return new Ygglib.FakeURLConnection(originalUrl, 403, ("Nice try ;)").getBytes(StandardCharsets.UTF_8));
             }
 
             // Realms
             if (host.equals("java.frontendlegacy.realms.minecraft-services.net") || host.equals("pc.realms.minecraft.net")) {
-                Loki.log.info("Realms request intercepted: " + originalUrl);
+                Loki.log.info("Intercepting realms request");
                 return new Ygglib.FakeURLConnection(originalUrl, 403, ("Nice try ;)").getBytes(StandardCharsets.UTF_8));
             }
 
             // Misc
             if (host.equals("api.ashcon.app") && path.matches("^/mojang/[^/]+/user/.*")) {
-                Loki.log.info("Intercepting api.ashcon.app: " + originalUrl);
                 String username = Ygglib.getUsernameFromPath(originalUrl.getPath());
+                Loki.log.info("Intercepting api.ashcon.app lookup for " + username);
                 return Ygglib.getAshcon(originalUrl, username);
             }
 
             if (host.equals("api.betterthanadventure.net") && path.endsWith("/capes")) {
-                Loki.log.info("Intercepting api.betterthanadventure.net: " + originalUrl);
+                Loki.log.info("Intercepting BTA cape lookup");
                 return new Ygglib.FakeURLConnection(originalUrl, 403, ("Nice try ;)").getBytes(StandardCharsets.UTF_8));
             }
         }
@@ -243,21 +246,21 @@ public class RequestInterceptor {
     public static boolean isModernForge() {
         String cp = System.getProperty("java.class.path");
         if (cp == null) return false;
-        if(Loki.debug) Loki.log.info("Classpath: " + cp);
+        Loki.log.debug("Classpath: " + cp);
         if (cp.equals(".")) {
-            Loki.log.info("Empty classpath, perhaps we are running from a 1.17+ Forge server? Not setting URL factory!");
+            Loki.log.debug("Empty classpath, perhaps we are running from a 1.17+ Forge server? Not setting URL factory!");
             return true;
         }
         for (String entry : cp.split(File.pathSeparator)) {
             String fileName = new File(entry).getName();
             if (fileName.startsWith("securejarhandler-") && fileName.endsWith(".jar")) {
-                Loki.log.info("Found " + fileName + ", we must be on 1.17-1.20.2 LexForge or <1.21.9 NeoForge. Not setting URL factory!");
+                Loki.log.debug("Found " + fileName + ", we must be on 1.17-1.20.2 LexForge or <1.21.9 NeoForge. Not setting URL factory!");
                 return true;
             } else if (fileName.startsWith("fmlloader-")) {
                 checkFMLVersion(fileName);
             }
         }
-        Loki.log.info("We don't seem to be on 1.17-1.20.2 LexForge or <1.21.9 NeoForge, continuing to set URL factory.");
+        Loki.log.debug("We don't seem to be on 1.17-1.20.2 LexForge or <1.21.9 NeoForge, continuing to set URL factory.");
         return false;
     }
 
@@ -293,7 +296,7 @@ public class RequestInterceptor {
                     URLStreamHandler h = factory.createURLStreamHandler(p);
                     if (h != null) {
                         DEFAULT_HANDLERS.put(p, h);
-                        Loki.log.info("Registered external handler for " + p + " from factory " + factory.getClass().getName());
+                        Loki.log.debug("Registered external handler for " + p + " from factory " + factory.getClass().getName());
                     }
                 } catch (Throwable ignored) {}
             }

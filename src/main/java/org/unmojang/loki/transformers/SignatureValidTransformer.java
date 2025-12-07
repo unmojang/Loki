@@ -38,7 +38,7 @@ public class SignatureValidTransformer implements ClassFileTransformer {
                     mn.instructions.add(new InsnNode(Opcodes.ICONST_1));
                     mn.instructions.add(new InsnNode(Opcodes.IRETURN));
 
-                    Loki.log.info("Patching " + mn.name + " in " + className);
+                    Loki.log.debug("Patching " + mn.name + " in " + className);
                     changed = true;
                     break;
                 }

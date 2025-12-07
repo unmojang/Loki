@@ -248,7 +248,7 @@ public class ServicesKeyInfoTransformer implements ClassFileTransformer {
 
                     mn.instructions.insertBefore(ret, insns);
 
-                    Loki.log.info("Patching " + mn.name + " in " + className);
+                    Loki.log.debug("Patching " + mn.name + " in " + className);
                     changed = true;
                 } else if ("validateProperty".equals(mn.name) && "(Lcom/mojang/authlib/properties/Property;)Z".equals(mn.desc)) {
                     mn.instructions.clear();
@@ -261,7 +261,7 @@ public class ServicesKeyInfoTransformer implements ClassFileTransformer {
 
                     mn.instructions.add(insns);
 
-                    Loki.log.info("Patching " + mn.name + " in " + className);
+                    Loki.log.debug("Patching " + mn.name + " in " + className);
                     changed = true;
                 }
             }

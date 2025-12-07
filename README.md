@@ -44,7 +44,7 @@ Loki supports Java arguments to enable or disable some behaviour.
 
 - Disable realms APIs
   ```
-  -DLoki.enable_realms=false
+  -DLoki.disable_realms=true
   ```
 
 - Re-enable modded capes (OptiFine, etc)
