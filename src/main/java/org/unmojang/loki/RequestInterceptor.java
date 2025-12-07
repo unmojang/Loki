@@ -243,6 +243,7 @@ public class RequestInterceptor {
     public static boolean isModernForge() {
         String cp = System.getProperty("java.class.path");
         if (cp == null) return false;
+        if(Loki.debug) Loki.log.info("Classpath: " + cp);
         if (cp.equals(".")) {
             Loki.log.info("Empty classpath, perhaps we are running from a 1.17+ Forge server? Not setting URL factory!");
             return true;
@@ -250,11 +251,36 @@ public class RequestInterceptor {
         for (String entry : cp.split(File.pathSeparator)) {
             String fileName = new File(entry).getName();
             if (fileName.startsWith("securejarhandler-") && fileName.endsWith(".jar")) {
-                Loki.log.info("Found SecureJarHandler, we must be on 1.17+ Forge. Not setting URL factory!");
+                Loki.log.info("Found " + fileName + ", we must be on 1.17-1.20.2 LexForge or <1.21.9 NeoForge. Not setting URL factory!");
                 return true;
+            } else if (fileName.startsWith("fmlloader-")) {
+                checkFMLVersion(fileName);
             }
         }
+        Loki.log.info("We don't seem to be on 1.17-1.20.2 LexForge or <1.21.9 NeoForge, continuing to set URL factory.");
         return false;
+    }
+
+    public static void checkFMLVersion(String filename) {
+        if (!filename.endsWith(".jar")) return; // malformed
+
+        String[] parts = filename.substring(0, filename.length() - 4).split("-");
+        if (parts.length < 2) return; // malformed
+
+        String fmlVersionStr = parts[parts.length - 1];
+        String[] verParts = fmlVersionStr.split("\\.");
+        int major = verParts.length > 0 ? Integer.parseInt(verParts[0]) : 0;
+        int minor = verParts.length > 1 ? Integer.parseInt(verParts[1]) : 0;
+        int patch = verParts.length > 2 ? Integer.parseInt(verParts[2]) : 0;
+
+        // If major is 48, ensure we are running 48.0.31 or below
+        if (major == 48 && (minor > 0 || (minor == 0 && patch > 31))) {
+            Loki.log.error("LexForge version is not suported: " + fmlVersionStr);
+            Loki.log.error("Please downgrade to LexForge 48.0.31, or use NeoForge!");
+            Loki.log.error("Loki is terminating the game to prevent an imminent crash!");
+            Loki.log.error("More details here: https://github.com/unmojang/Loki/issues/7");
+            System.exit(1);
+        }
     }
 
     public static synchronized void registerExternalFactory(URLStreamHandlerFactory factory) {
