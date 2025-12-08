@@ -6,7 +6,6 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 
 public class AdHocLogImpl implements NilLogImpl {
-
     private static final boolean DEBUG = Boolean.getBoolean("Loki.debug");
     private static final DateFormat fmt = new SimpleDateFormat("HH:mm:ss");
 
@@ -15,11 +14,6 @@ public class AdHocLogImpl implements NilLogImpl {
 
     public AdHocLogImpl(String name) {
         this.name = name;
-    }
-
-    @Override
-    public String getImplementationName() {
-        return "System.out";
     }
 
     @Override
@@ -83,6 +77,4 @@ public class AdHocLogImpl implements NilLogImpl {
     public void error(String message, Throwable t) {
         log("ERROR", message, t);
     }
-
 }
-

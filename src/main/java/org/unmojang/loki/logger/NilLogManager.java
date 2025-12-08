@@ -1,12 +1,7 @@
 package org.unmojang.loki.logger;
 
-import java.util.ArrayList;
-import java.util.List;
-
 public class NilLogManager {
     private static final NilLogImpl IMPL;
-
-    static List<Runnable> initLogs = new ArrayList<>();
 
     static {
         /*

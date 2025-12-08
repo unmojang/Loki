@@ -286,6 +286,7 @@ public class RequestInterceptor {
         }
     }
 
+    @SuppressWarnings("unused")
     public static synchronized void registerExternalFactory(URLStreamHandlerFactory factory) {
         if (factory == null) return;
         try {

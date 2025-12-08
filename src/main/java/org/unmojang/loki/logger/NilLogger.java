@@ -4,6 +4,7 @@ import java.util.function.BiConsumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+@SuppressWarnings("unused")
 public class NilLogger {
     private static final Pattern BRACES_PATTERN = Pattern.compile("\\{}");
 
@@ -31,10 +32,6 @@ public class NilLogger {
         }
         m.appendTail(buf);
         impl.accept(buf.toString(), t);
-    }
-
-    public String getImplementationName() {
-        return impl.getImplementationName();
     }
 
     public boolean isTraceEnabled() {
@@ -156,5 +153,4 @@ public class NilLogger {
     public void error(String message, Object p0, Object p1, Object p2) {
         if (isErrorEnabled()) log(impl::error, message, p0, p1, p2);
     }
-
 }

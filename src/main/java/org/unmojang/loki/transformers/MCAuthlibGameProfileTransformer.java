@@ -10,6 +10,7 @@ import org.unmojang.loki.Loki;
 import java.lang.instrument.ClassFileTransformer;
 import java.security.ProtectionDomain;
 
+@SuppressWarnings({"CommentedOutCode", "GrazieInspection"})
 public class MCAuthlibGameProfileTransformer implements ClassFileTransformer {
     /*
         public void replaceKey() {

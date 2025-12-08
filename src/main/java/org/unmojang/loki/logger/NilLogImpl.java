@@ -1,8 +1,6 @@
 package org.unmojang.loki.logger;
 
 public interface NilLogImpl {
-    String getImplementationName();
-
     boolean isTraceEnabled();
     boolean isDebugEnabled();
     boolean isInfoEnabled();
