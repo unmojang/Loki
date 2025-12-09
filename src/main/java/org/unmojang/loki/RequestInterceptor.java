@@ -39,7 +39,8 @@ public class RequestInterceptor {
             INTERCEPTED_DOMAINS.add("snoop.minecraft.net");
         }
         if (!Loki.modded_capes) {
-            INTERCEPTED_DOMAINS.add("api.betterthanadventure.net");
+            INTERCEPTED_DOMAINS.add("s.optifine.net");
+            INTERCEPTED_DOMAINS.add("161.35.130.99"); // Cloaks+
         }
 
         String accountHost = System.getProperty("minecraft.api.account.host",
@@ -152,8 +153,14 @@ public class RequestInterceptor {
                 return Ygglib.getAshcon(originalUrl, username);
             }
 
-            if (host.equals("api.betterthanadventure.net") && path.endsWith("/capes")) {
-                Loki.log.info("Intercepting BTA cape lookup");
+            // Capes
+            if (host.equals("s.optifine.net") && path.startsWith("/capes")) {
+                Loki.log.info("Intercepting OptiFine cape lookup");
+                return new Ygglib.FakeURLConnection(originalUrl, 403, ("Nice try ;)").getBytes(StandardCharsets.UTF_8));
+            }
+
+            if (host.equals("161.35.130.99") && path.startsWith("/capes")) {
+                Loki.log.info("Intercepting Cloaks+ cape lookup");
                 return new Ygglib.FakeURLConnection(originalUrl, 403, ("Nice try ;)").getBytes(StandardCharsets.UTF_8));
             }
         }

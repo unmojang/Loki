@@ -47,7 +47,7 @@ Loki supports Java arguments to enable or disable some behaviour.
   -DLoki.disable_realms=true
   ```
 
-- Re-enable modded capes (OptiFine, etc)
+- Re-enable modded capes with username-based lookups (OptiFine, Cloaks+, etc.)
   ```
   -DLoki.modded_capes=true
   ```
