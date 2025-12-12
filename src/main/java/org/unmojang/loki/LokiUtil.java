@@ -1,6 +1,7 @@
 package org.unmojang.loki;
 
 import javax.net.ssl.*;
+import java.lang.instrument.Instrumentation;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.security.cert.X509Certificate;
@@ -93,6 +94,25 @@ public class LokiUtil {
         } else if (System.getProperty("minecraft.api.account.host") == null) {
             Loki.log.debug("Applying <1.21.9 fixes");
             System.setProperty("minecraft.api.account.host", RequestInterceptor.YGGDRASIL_MAP.get("api.mojang.com"));
+        }
+    }
+
+    public static void earlyInit(String agentArgs, Instrumentation inst) {
+        // Ensure retransformation is supported
+        if (!inst.isRetransformClassesSupported()) {
+            Loki.log.error("Retransforming classes is not supported?!");
+            throw new AssertionError();
+        }
+
+        // Authlib-Injector API
+        String authlibInjectorURL = (System.getProperty("Loki.url") != null) // Prioritize Loki.url
+                ? System.getProperty("Loki.url") : agentArgs;
+        if(authlibInjectorURL != null) {
+            LokiUtil.tryOrDisableSSL(authlibInjectorURL);
+            LokiUtil.initAuthlibInjectorAPI(authlibInjectorURL);
+        } else {
+            LokiUtil.tryOrDisableSSL(System.getProperty("minecraft.api.session.host",
+                    "https://sessionserver.mojang.com")); // fallback
         }
     }
 }

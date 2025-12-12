@@ -332,6 +332,45 @@ public class Ygglib {
         }
     }
 
+    public static HttpURLConnection getMinotar(URL originalUrl, String username, int res) {
+        try {
+            String uuid = getUUID(username);
+            if (uuid == null) throw new RuntimeException("Couldn't find UUID of " + username);
+            Loki.log.debug("UUID of " + username + ": " + uuid);
+
+            String texturesProperty = getTexturesProperty(uuid, false);
+            if (texturesProperty == null) throw new RuntimeException("textures property was null");
+            JsonObject texturePayloadObj = JsonParser.object().from(texturesProperty);
+            String textureUrl = texturePayloadObj.getObject("textures").getObject("SKIN").getString("url");
+            if (textureUrl == null) return new FakeURLConnection(originalUrl, 204, null);
+            URLConnection connection = new URL(textureUrl).openConnection();
+
+            try (InputStream in = connection.getInputStream()) {
+                BufferedImage image = ImageIO.read(in);
+                int headPx = Math.max(1, image.getWidth() / 8);
+                BufferedImage i1 = image.getSubimage(headPx, headPx, headPx, headPx);
+                BufferedImage headWithOverlay = new BufferedImage(headPx, headPx, BufferedImage.TYPE_INT_ARGB);
+                Graphics2D gHead = headWithOverlay.createGraphics();
+                gHead.setComposite(AlphaComposite.SrcOver);
+                gHead.drawImage(i1, 0, 0, null);
+                BufferedImage overlay = image.getSubimage(5 * headPx, headPx, headPx, headPx);
+                gHead.drawImage(overlay, 0, 0, null);
+                gHead.dispose();
+                BufferedImage i2 = new BufferedImage(res, res, BufferedImage.TYPE_INT_ARGB);
+                Graphics2D g2 = i2.createGraphics();
+                g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+                g2.drawImage(headWithOverlay, 0, 0, res, res, null);
+                g2.dispose();
+                ByteArrayOutputStream out = new ByteArrayOutputStream();
+                ImageIO.write(i2, "png", out);
+                return new FakeURLConnection(originalUrl, 200, out.toByteArray());
+            }
+        } catch (Exception e) {
+            Loki.log.error("getMinotar failed", e);
+            throw new RuntimeException(e);
+        }
+    }
+
     public static class FakeURLConnection extends HttpURLConnection {
         private final byte[] data;
         private final int code;

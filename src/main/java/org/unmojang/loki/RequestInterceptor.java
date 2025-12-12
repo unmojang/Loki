@@ -29,7 +29,8 @@ public class RequestInterceptor {
                 "session.minecraft.net",
                 "betacraft.uk",
                 "api.ashcon.app",
-                "mineskin.eu"
+                "mineskin.eu",
+                "minotar.net"
         ));
         if (Loki.disable_realms) {
             INTERCEPTED_DOMAINS.add("java.frontendlegacy.realms.minecraft-services.net");
@@ -151,6 +152,13 @@ public class RequestInterceptor {
                 String username = Ygglib.getUsernameFromPath(originalUrl.getPath());
                 Loki.log.info("Intercepting api.ashcon.app lookup for " + username);
                 return Ygglib.getAshcon(originalUrl, username);
+            }
+
+            if (host.equals("minotar.net") && path.startsWith("/helm")) {
+                String username = path.split("/")[2];
+                int res = Integer.parseInt(path.split("/")[3].replaceFirst("\\..*$", ""));
+                Loki.log.info(String.format("Intercepting minotar.net lookup for %s (%s px)", username, res));
+                return Ygglib.getMinotar(originalUrl, username, res);
             }
 
             // Capes

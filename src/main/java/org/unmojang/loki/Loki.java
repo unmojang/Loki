@@ -13,16 +13,7 @@ public class Loki {
 
     public static void premain(String agentArgs, Instrumentation inst) {
         log.info("Hello Loki " + Loki.class.getPackage().getImplementationVersion() + " World!");
-        // Authlib-Injector API
-        String authlibInjectorURL = (System.getProperty("Loki.url") != null) // Prioritize Loki.url
-                ? System.getProperty("Loki.url") : agentArgs;
-        if(authlibInjectorURL != null) {
-            LokiUtil.tryOrDisableSSL(authlibInjectorURL);
-            LokiUtil.initAuthlibInjectorAPI(authlibInjectorURL);
-        } else {
-            LokiUtil.tryOrDisableSSL(System.getProperty("minecraft.api.session.host",
-                    "https://sessionserver.mojang.com")); // fallback
-        }
+        LokiUtil.earlyInit(agentArgs, inst);
         // Authentication & skins
         RequestInterceptor.setURLFactory();
         inst.addTransformer(new SignatureValidTransformer());      /* Texture signatures (possibly unnecessary?)
