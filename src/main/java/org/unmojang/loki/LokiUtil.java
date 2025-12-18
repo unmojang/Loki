@@ -7,6 +7,8 @@ import java.net.URL;
 import java.security.cert.X509Certificate;
 
 public class LokiUtil {
+    public static final int JAVA_MAJOR = getJavaVersion();
+
     private static boolean tryConnect(String url) {
         try {
             HttpsURLConnection conn = (HttpsURLConnection) new URL(url).openConnection();
@@ -113,6 +115,23 @@ public class LokiUtil {
         } else {
             LokiUtil.tryOrDisableSSL(System.getProperty("minecraft.api.session.host",
                     "https://sessionserver.mojang.com")); // fallback
+        }
+    }
+
+    private static int getJavaVersion() {
+        String version = System.getProperty("java.version");
+        try {
+            // Pre-Java 9
+            if (version.startsWith("1.")) {
+                return Integer.parseInt(version.substring(2, 3));
+            } else {
+                int dotIndex = version.indexOf('.');
+                int dashIndex = version.indexOf('-');
+                int endIndex = (dotIndex > 0) ? dotIndex : (dashIndex > 0 ? dashIndex : version.length());
+                return Integer.parseInt(version.substring(0, endIndex));
+            }
+        } catch (Exception e) {
+            return -1;
         }
     }
 }

@@ -13,14 +13,15 @@ public class RequestInterceptor {
     public static final Map<String, String> YGGDRASIL_MAP;
     public static final Map<String, URLStreamHandler> DEFAULT_HANDLERS = new ConcurrentHashMap<>();
     private static final Set<String> INTERCEPTED_DOMAINS;
-    private static final sun.misc.Unsafe unsafe = getUnsafe();
 
     static {
-        try {
-            DEFAULT_HANDLERS.put("http", getSystemURLHandler("http"));
-            DEFAULT_HANDLERS.put("https", getSystemURLHandler("https"));
-        } catch (Exception e) {
-            Loki.log.error("Failed to get system URL handler", e);
+        if (LokiUtil.JAVA_MAJOR < 29) { // TODO correct the version which breaks it; 29 almost certainly will!
+            try {
+                DEFAULT_HANDLERS.put("http", getSystemURLHandler("http"));
+                DEFAULT_HANDLERS.put("https", getSystemURLHandler("https"));
+            } catch (Exception e) {
+                Loki.log.error("Failed to get system URL handler", e);
+            }
         }
         INTERCEPTED_DOMAINS = new HashSet<>(Arrays.asList(
                 "s3.amazonaws.com",
@@ -63,8 +64,13 @@ public class RequestInterceptor {
         if (isModernForge()) {
             Loki.log.warn("This Forge environment does not support Loki's URL factory :(");
             Loki.log.warn("minecraft.api.*.host parameters *must* be used, your API server won't");
-            Loki.log.warn("be queried by mods that utilize the Mojang API, or for constructing");
-            Loki.log.warn("the blocked servers list!");
+            Loki.log.warn("be queried by mods that utilize the Mojang API!");
+            return;
+        }
+        if (LokiUtil.JAVA_MAJOR >= 29) { // TODO correct the version which breaks it; 29 almost certainly will!
+            Loki.log.warn("This version of Java does not support Loki's URL factory :(");
+            Loki.log.warn("minecraft.api.*.host parameters *must* be used, your API server won't");
+            Loki.log.warn("be queried by mods that utilize the Mojang API!");
             return;
         }
         URL.setURLStreamHandlerFactory(protocol -> {
@@ -212,6 +218,7 @@ public class RequestInterceptor {
     private static URLStreamHandler getSystemURLHandler(String protocol) throws Exception {
         URL url = new URL(protocol + ":"); // create a temporary URL
         Field handlerField = URL.class.getDeclaredField("handler");
+        sun.misc.Unsafe unsafe = getUnsafe();
         long offset = unsafe.objectFieldOffset(handlerField);
         return (URLStreamHandler) unsafe.getObject(url, offset);
     }

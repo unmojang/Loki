@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "org.unmojang"
-version = "1.9.3"
+version = "1.9.4"
 
 base {
     archivesName.set("Loki")

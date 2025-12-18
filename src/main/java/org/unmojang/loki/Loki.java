@@ -16,7 +16,7 @@ public class Loki {
         LokiUtil.earlyInit(agentArgs, inst);
         // Authentication & skins
         RequestInterceptor.setURLFactory();
-        inst.addTransformer(new SignatureValidTransformer());      /* Texture signatures (possibly unnecessary?)
+        inst.addTransformer(new SignatureValidTransformer());    /* Texture signatures (possibly unnecessary?)
 		                                                                    1.7-1.18.2 (deprecated in 1.19) */
 
         // Allowed texture domains
@@ -24,6 +24,9 @@ public class Loki {
 
         // Public keys
         inst.addTransformer(new ServicesKeyInfoTransformer());  // 1.19+
+
+        // Patchy
+        inst.addTransformer(new PatchyTransformer());
 
         // Misc fixes
         inst.addTransformer(new ConcatenateURLTransformer()); // Prevent port number being ignored in old authlib, if you specified it
