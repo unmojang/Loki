@@ -37,6 +37,11 @@ Loki supports Java arguments to enable or disable some behaviour.
   -DLoki.debug=true
   ```
 
+- Disable the URL factory
+  ```
+  -DLoki.disable_factory=true
+  ```
+
 - Re-enable snooper
   ```
   -DLoki.enable_snooper=true

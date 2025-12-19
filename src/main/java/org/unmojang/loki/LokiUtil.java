@@ -24,9 +24,8 @@ public class LokiUtil {
         }
     }
 
-    private static String normalizeUrl(String url) {
-        String lowercased = url.toLowerCase();
-        if (!lowercased.startsWith("http://") && !lowercased.startsWith("https://")) {
+    public static String normalizeUrl(String url) {
+        if (!url.startsWith("http://") && !url.startsWith("https://")) {
             url = "https://" + url;
         }
         return url;
@@ -35,7 +34,7 @@ public class LokiUtil {
     public static void tryOrDisableSSL(String httpsUrl) {
         if(httpsUrl == null || httpsUrl.isEmpty()) return;
         if(httpsUrl.startsWith("http://")) return;
-        String url = normalizeUrl(httpsUrl);
+        String url = normalizeUrl(httpsUrl.toLowerCase());
         try {
             if(tryConnect(url)) {
                 Loki.log.debug("Java's truststore is recent enough to connect to the API server");
@@ -77,7 +76,7 @@ public class LokiUtil {
     }
 
     public static void initAuthlibInjectorAPI(String server) {
-        server = normalizeUrl(server);
+        server = normalizeUrl(server.toLowerCase());
         Loki.log.info("Using authlib-injector API Server: " + server);
         String authlibInjectorApiLocation = getAuthlibInjectorApiLocation(server);
         if (authlibInjectorApiLocation == null) authlibInjectorApiLocation = server;

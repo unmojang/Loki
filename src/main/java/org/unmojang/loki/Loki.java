@@ -10,12 +10,14 @@ public class Loki {
     public static final Boolean disable_realms = Boolean.getBoolean("Loki.disable_realms");
     public static final Boolean enable_snooper =  Boolean.getBoolean("Loki.enable_snooper");
     public static final Boolean modded_capes = Boolean.getBoolean("Loki.modded_capes");
+    public static Boolean disable_factory = Boolean.getBoolean("Loki.disable_factory");
 
     public static void premain(String agentArgs, Instrumentation inst) {
         log.info("Hello Loki " + Loki.class.getPackage().getImplementationVersion() + " World!");
         LokiUtil.earlyInit(agentArgs, inst);
-        // Authentication & skins
+        // Authentication & skins/capes
         RequestInterceptor.setURLFactory();
+        inst.addTransformer(new YggdrasilURLTransformer());
         inst.addTransformer(new SignatureValidTransformer());    /* Texture signatures (possibly unnecessary?)
 		                                                                    1.7-1.18.2 (deprecated in 1.19) */
 
