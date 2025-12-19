@@ -21,6 +21,7 @@ public class RequestInterceptor {
                 DEFAULT_HANDLERS.put("https", getSystemURLHandler("https"));
             } catch (Exception e) {
                 Loki.log.error("Failed to get system URL handler", e);
+                Loki.disable_factory = true;
             }
         }
         INTERCEPTED_DOMAINS = new HashSet<>(Arrays.asList(
@@ -62,7 +63,7 @@ public class RequestInterceptor {
     public static void setURLFactory() {
         Loki.log.debug("Arrived in setURLFactory");
         if (Loki.disable_factory) {
-            Loki.log.warn("You have disabled Loki's URL factory :(");
+            Loki.log.warn("Loki's URL factory is disabled :(");
             Loki.log.warn("Your API server may potentially not be queried by mods that utilize");
             Loki.log.warn("the Mojang API! If you are running a pre-Yggdrasil version without a");
             Loki.log.warn("Mojang API fixer mod, expect total catastrophic breakage!");
