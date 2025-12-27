@@ -34,7 +34,7 @@ public class Ygglib {
         return params;
     }
 
-    public static String getUUID(String username) {
+    public static String getUUID(String username) throws UnknownHostException {
         try {
             URL skinUrl = new URL("https://api.mojang.com/users/profiles/minecraft/" + URLEncoder.encode(username, "UTF-8"));
             skinUrl = getYggdrasilUrl(skinUrl, skinUrl.getHost());
@@ -48,6 +48,8 @@ public class Ygglib {
             String jsonText = reader.lines().collect(Collectors.joining());
             JsonObject obj = JsonParser.object().from(jsonText);
             return obj.getString("id");
+        } catch (UnknownHostException e) {
+            throw e;
         } catch (Exception e) {
             Loki.log.error("Failed to get UUID for " + username, e);
             return null;
@@ -78,7 +80,7 @@ public class Ygglib {
 
     // Credit: Prism Launcher legacy fixes
     // https://github.com/PrismLauncher/PrismLauncher/blob/develop/libraries/launcher/legacy/org/prismlauncher/legacy/fix/online/SkinFix.java
-    public static HttpURLConnection getTexture(URL originalUrl, String username, String type) {
+    public static HttpURLConnection getTexture(URL originalUrl, String username, String type) throws UnknownHostException {
         try {
             String uuid = getUUID(username);
             if (uuid == null) throw new RuntimeException("Couldn't find UUID of " + username);
@@ -141,6 +143,8 @@ public class Ygglib {
                 return (HttpURLConnection) new URL(textureUrl).openConnection();
             }
             throw new RuntimeException("Unexpected texture type. How did we get here?");
+        } catch (UnknownHostException e) {
+            throw e;
         } catch (Exception e) {
             Loki.log.error("getTexture failed", e);
             throw new RuntimeException(e);
@@ -284,7 +288,7 @@ public class Ygglib {
         }
     }
 
-    public static HttpURLConnection getAshcon(URL originalUrl, String username) {
+    public static HttpURLConnection getAshcon(URL originalUrl, String username) throws UnknownHostException {
         try {
             String uuid = getUUID(username);
             if (uuid == null) throw new RuntimeException("Couldn't find UUID of " + username);
@@ -326,13 +330,15 @@ public class Ygglib {
                     "  \"created_at\": null\n" +
                     "}";
             return new FakeURLConnection(originalUrl, 200, (responseJson).getBytes(StandardCharsets.UTF_8));
+        } catch (UnknownHostException e) {
+            throw e;
         } catch (Exception e) {
             Loki.log.error("getAshcon failed", e);
             throw new RuntimeException(e);
         }
     }
 
-    public static HttpURLConnection getMinotar(URL originalUrl, String username, int res) {
+    public static HttpURLConnection getMinotar(URL originalUrl, String username, int res) throws UnknownHostException {
         try {
             String uuid = getUUID(username);
             if (uuid == null) throw new RuntimeException("Couldn't find UUID of " + username);
@@ -365,6 +371,8 @@ public class Ygglib {
                 ImageIO.write(i2, "png", out);
                 return new FakeURLConnection(originalUrl, 200, out.toByteArray());
             }
+        } catch (UnknownHostException e) {
+            throw e;
         } catch (Exception e) {
             Loki.log.error("getMinotar failed", e);
             throw new RuntimeException(e);

@@ -4,12 +4,19 @@ import javax.net.ssl.*;
 import java.lang.instrument.Instrumentation;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.UnknownHostException;
 import java.security.cert.X509Certificate;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class LokiUtil {
+    private static final ExecutorService ASYNC_EXECUTOR =
+            Executors.newCachedThreadPool();
+
+    @SuppressWarnings("unused")
     public static final int JAVA_MAJOR = getJavaVersion();
 
-    private static boolean tryConnect(String url) {
+    private static boolean tryConnect(String url) throws UnknownHostException {
         try {
             HttpsURLConnection conn = (HttpsURLConnection) new URL(url).openConnection();
             conn.setConnectTimeout(5000);
@@ -18,6 +25,8 @@ public class LokiUtil {
             return true;
         } catch (javax.net.ssl.SSLHandshakeException ignored) {
             return false;
+        } catch (UnknownHostException e) {
+            throw e;
         } catch (Exception e) {
             Loki.log.error("Connection failed", e);
             throw new RuntimeException(e);
@@ -32,20 +41,29 @@ public class LokiUtil {
     }
 
     public static void tryOrDisableSSL(String httpsUrl) {
-        if(httpsUrl == null || httpsUrl.isEmpty()) return;
-        if(httpsUrl.startsWith("http://")) return;
+        ASYNC_EXECUTOR.submit(() -> doTryOrDisableSSL(httpsUrl));
+    }
+
+    private static void doTryOrDisableSSL(String httpsUrl) {
+        if(httpsUrl == null || httpsUrl.isEmpty() || httpsUrl.startsWith("http://")) return;
         String url = normalizeUrl(httpsUrl.toLowerCase());
         try {
-            if(tryConnect(url)) {
-                Loki.log.debug("Java's truststore is recent enough to connect to the API server");
-                return;
+            try {
+                boolean canConnect = tryConnect(url);
+                if (canConnect) {
+                    Loki.log.debug("Java's truststore is recent enough to connect to the API server");
+                    return;
+                } else {
+                    Loki.log.warn("**** OUTDATED JAVA CERTIFICATE STORE DETECTED!");
+                    Loki.log.warn("Certificate validation has been disabled to allow connections to the");
+                    Loki.log.warn("API server. This allows Loki to function despite the old certificates,");
+                    Loki.log.warn("but this is extremely insecure and may expose you to man-in-the-middle");
+                    Loki.log.warn("attacks. You should upgrade to a more recent release of Java as soon");
+                    Loki.log.warn("as possible to restore proper certificate validation.");
+                }
+            } catch (UnknownHostException e) {
+                Loki.log.error("Host lookup failed, are we offline? Disabling certificate validation!");
             }
-            Loki.log.warn("**** OUTDATED JAVA CERTIFICATE STORE DETECTED!");
-            Loki.log.warn("Certificate validation has been disabled to allow connections to the");
-            Loki.log.warn("API server. This allows Loki to function despite the old certificates,");
-            Loki.log.warn("but this is extremely insecure and may expose you to man-in-the-middle");
-            Loki.log.warn("attacks. You should upgrade to a more recent release of Java as soon");
-            Loki.log.warn("as possible to restore proper certificate validation.");
             SSLContext sc = SSLContext.getInstance("TLS");
             sc.init(null, new TrustManager[]{
                     new X509TrustManager() {

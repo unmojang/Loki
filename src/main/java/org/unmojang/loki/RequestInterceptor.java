@@ -15,14 +15,12 @@ public class RequestInterceptor {
     private static final Set<String> INTERCEPTED_DOMAINS;
 
     static {
-        if (LokiUtil.JAVA_MAJOR < 29) { // TODO correct the version which breaks it; 29 almost certainly will!
-            try {
-                DEFAULT_HANDLERS.put("http", getSystemURLHandler("http"));
-                DEFAULT_HANDLERS.put("https", getSystemURLHandler("https"));
-            } catch (Exception e) {
-                Loki.log.error("Failed to get system URL handler", e);
-                Loki.disable_factory = true;
-            }
+        try {
+            DEFAULT_HANDLERS.put("http", getSystemURLHandler("http"));
+            DEFAULT_HANDLERS.put("https", getSystemURLHandler("https"));
+        } catch (Exception e) {
+            Loki.log.error("Failed to get system URL handler", e);
+            Loki.disable_factory = true;
         }
         INTERCEPTED_DOMAINS = new HashSet<>(Arrays.asList(
                 "s3.amazonaws.com",
@@ -44,6 +42,7 @@ public class RequestInterceptor {
         if (!Loki.modded_capes) {
             INTERCEPTED_DOMAINS.add("s.optifine.net");
             INTERCEPTED_DOMAINS.add("161.35.130.99"); // Cloaks+
+            INTERCEPTED_DOMAINS.add("api.rumblecapes.xyz");
         }
 
         String accountHost = System.getProperty("minecraft.api.account.host",
@@ -76,14 +75,6 @@ public class RequestInterceptor {
             Loki.disable_factory = true;
             return;
         }
-        if (LokiUtil.JAVA_MAJOR >= 29) { // TODO correct the version which breaks it; 29 almost certainly will!
-            Loki.log.warn("This version of Java does not support Loki's URL factory :(");
-            Loki.log.warn("Your API server may potentially not be queried by mods that utilize");
-            Loki.log.warn("the Mojang API! If you are running a pre-Yggdrasil version without a");
-            Loki.log.warn("Mojang API fixer mod, expect total catastrophic breakage!");
-            Loki.disable_factory = true;
-            return;
-        }
         URL.setURLStreamHandlerFactory(protocol -> {
             URLStreamHandler delegate = DEFAULT_HANDLERS.get(protocol);
             if (delegate == null) return null;
@@ -103,7 +94,7 @@ public class RequestInterceptor {
         }
     }
 
-    private static URLConnection wrapConnection(java.net.URL originalUrl, java.net.URLConnection originalConn) {
+    private static URLConnection wrapConnection(java.net.URL originalUrl, java.net.URLConnection originalConn) throws UnknownHostException {
         if (!(originalConn instanceof HttpURLConnection)) return originalConn;
         String host = originalUrl.getHost();
         String path = originalUrl.getPath();

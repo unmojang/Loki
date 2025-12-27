@@ -36,7 +36,17 @@ public class Loki {
         inst.addTransformer(new ForgeSetURLFactoryTransformer(), true); // Fix 1.13-1.16 Forge
 
         // Intercept OptiFine capes to prevent collisions, for whatever reason it isn't caught by Loki's URL factory
-        if (!modded_capes) inst.addTransformer(new OptiFineCapeTransformer());
+        if (!modded_capes) {
+            inst.addTransformer(new OptiFineCapeTransformer());
+            inst.addTransformer(new InetAddressTransformer(), true);
+
+            try {
+                Class<?> inetClass = Class.forName("java.net.InetAddress");
+                inst.retransformClasses(inetClass);
+            } catch (Throwable t) {
+                Loki.log.error("InetAddress is not modifiable!");
+            }
+        }
 
         // Apply 1.21.9+ fixes
         LokiUtil.apply1219Fixes();
