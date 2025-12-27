@@ -7,6 +7,7 @@ import java.util.Date;
 
 public class AdHocLogImpl implements NilLogImpl {
     private static final boolean DEBUG = Boolean.getBoolean("Loki.debug");
+    private static final boolean TRACE = Boolean.getBoolean("Loki.trace");
     private static final DateFormat fmt = new SimpleDateFormat("HH:mm:ss");
 
     private final PrintStream out = System.out;
@@ -30,12 +31,12 @@ public class AdHocLogImpl implements NilLogImpl {
 
     @Override
     public boolean isTraceEnabled() {
-        return DEBUG;
+        return TRACE;
     }
 
     @Override
     public boolean isDebugEnabled() {
-        return DEBUG;
+        return DEBUG || TRACE;
     }
 
     @Override

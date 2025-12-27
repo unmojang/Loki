@@ -61,6 +61,7 @@ public class RequestInterceptor {
 
     public static void setURLFactory() {
         Loki.log.debug("Arrived in setURLFactory");
+        Loki.log.trace("Classpath: " + System.getProperty("java.class.path"));
         if (Loki.disable_factory) {
             Loki.log.warn("Loki's URL factory is disabled :(");
             Loki.log.warn("Your API server may potentially not be queried by mods that utilize");
@@ -270,7 +271,6 @@ public class RequestInterceptor {
     public static boolean isModernForge() {
         String cp = System.getProperty("java.class.path");
         if (cp == null) return false;
-        Loki.log.debug("Classpath: " + cp);
         if (cp.equals(".")) {
             Loki.log.debug("Empty classpath, perhaps we are running from a 1.17+ Forge server? Not setting URL factory!");
             return true;
