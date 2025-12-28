@@ -2,19 +2,41 @@ package org.unmojang.loki;
 
 import javax.net.ssl.*;
 import java.lang.instrument.Instrumentation;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.net.UnknownHostException;
+import java.net.*;
 import java.security.cert.X509Certificate;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 
 public class LokiUtil {
-    private static final ExecutorService ASYNC_EXECUTOR =
-            Executors.newCachedThreadPool();
+    private static boolean OFFLINE_MODE = false;
 
     @SuppressWarnings("unused")
     public static final int JAVA_MAJOR = getJavaVersion();
+
+    private static boolean areWeOnline(String host) {
+        int timeoutMs = 2000;
+
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        Future<Boolean> future = executor.submit(() -> {
+            try {
+                //noinspection ResultOfMethodCallIgnored
+                InetAddress.getByName(host);
+                return true;
+            } catch (UnknownHostException e) {
+                return false;
+            }
+        });
+
+        try {
+            return future.get(timeoutMs, TimeUnit.MILLISECONDS);
+        } catch (TimeoutException e) {
+            future.cancel(true);
+            return false;
+        } catch (InterruptedException | ExecutionException e) {
+            return false;
+        } finally {
+            executor.shutdownNow();
+        }
+    }
 
     private static boolean tryConnect(String url) throws UnknownHostException {
         try {
@@ -41,14 +63,14 @@ public class LokiUtil {
     }
 
     public static void tryOrDisableSSL(String httpsUrl) {
-        ASYNC_EXECUTOR.submit(() -> doTryOrDisableSSL(httpsUrl));
-    }
-
-    private static void doTryOrDisableSSL(String httpsUrl) {
         if(httpsUrl == null || httpsUrl.isEmpty() || httpsUrl.startsWith("http://")) return;
         String url = normalizeUrl(httpsUrl.toLowerCase());
         try {
-            try {
+            String host = new URL(url).getHost();
+            if (!areWeOnline(host)) {
+                Loki.log.warn(String.format("DNS lookup for %s timed out, are we offline? Disabling certificate validation!", host));
+                OFFLINE_MODE = true;
+            } else {
                 boolean canConnect = tryConnect(url);
                 if (canConnect) {
                     Loki.log.debug("Java's truststore is recent enough to connect to the API server");
@@ -61,9 +83,8 @@ public class LokiUtil {
                     Loki.log.warn("attacks. You should upgrade to a more recent release of Java as soon");
                     Loki.log.warn("as possible to restore proper certificate validation.");
                 }
-            } catch (UnknownHostException e) {
-                Loki.log.error("Host lookup failed, are we offline? Disabling certificate validation!");
             }
+
             SSLContext sc = SSLContext.getInstance("TLS");
             sc.init(null, new TrustManager[]{
                     new X509TrustManager() {
@@ -80,6 +101,17 @@ public class LokiUtil {
     }
 
     public static String getAuthlibInjectorApiLocation(String server) {
+        if (OFFLINE_MODE) {
+            try {
+                URL url = new URL(server);
+                String path = url.getPath();
+                if(path.isEmpty() || path.equals("/")) {
+                    server = server.replaceAll("/$", "") + "/authlib-injector";
+                    Loki.log.warn("Guessing Authlib-Injector API route: " + server);
+                }
+            } catch (MalformedURLException ignored) {}
+            return server;
+        }
         try {
             URL url = new URL(server);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -95,9 +127,9 @@ public class LokiUtil {
 
     public static void initAuthlibInjectorAPI(String server) {
         server = normalizeUrl(server.toLowerCase());
-        Loki.log.info("Using authlib-injector API Server: " + server);
         String authlibInjectorApiLocation = getAuthlibInjectorApiLocation(server);
         if (authlibInjectorApiLocation == null) authlibInjectorApiLocation = server;
+        Loki.log.info("Using authlib-injector API Server: " + authlibInjectorApiLocation);
         System.setProperty("minecraft.api.env", "custom");
         System.setProperty("minecraft.api.account.host", authlibInjectorApiLocation + "/api");
         System.setProperty("minecraft.api.auth.host", authlibInjectorApiLocation + "/authserver");
