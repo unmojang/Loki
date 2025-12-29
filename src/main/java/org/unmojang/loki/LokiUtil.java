@@ -136,14 +136,15 @@ public class LokiUtil {
         System.setProperty("minecraft.api.profiles.host", authlibInjectorApiLocation + "/api");
         System.setProperty("minecraft.api.session.host", authlibInjectorApiLocation + "/sessionserver");
         System.setProperty("minecraft.api.services.host", authlibInjectorApiLocation + "/minecraftservices");
+
+        // Velocity
+        System.setProperty("mojang.sessionserver", authlibInjectorApiLocation + "/sessionserver/session/minecraft/hasJoined");
     }
 
     public static void apply1219Fixes() {
         if (System.getProperty("minecraft.api.profiles.host") == null) {
-            Loki.log.debug("Applying 1.21.9+ fixes");
             System.setProperty("minecraft.api.profiles.host", RequestInterceptor.YGGDRASIL_MAP.get("api.mojang.com"));
         } else if (System.getProperty("minecraft.api.account.host") == null) {
-            Loki.log.debug("Applying <1.21.9 fixes");
             System.setProperty("minecraft.api.account.host", RequestInterceptor.YGGDRASIL_MAP.get("api.mojang.com"));
         }
     }
@@ -162,8 +163,10 @@ public class LokiUtil {
             LokiUtil.tryOrDisableSSL(authlibInjectorURL);
             LokiUtil.initAuthlibInjectorAPI(authlibInjectorURL);
         } else {
-            LokiUtil.tryOrDisableSSL(System.getProperty("minecraft.api.session.host",
-                    "https://sessionserver.mojang.com")); // fallback
+            String sessionHost = System.getProperty("minecraft.api.session.host",
+                    "https://sessionserver.mojang.com");
+            LokiUtil.tryOrDisableSSL(sessionHost);
+            System.setProperty("mojang.sessionserver", sessionHost + "/session/minecraft/hasJoined"); // Velocity
         }
     }
 

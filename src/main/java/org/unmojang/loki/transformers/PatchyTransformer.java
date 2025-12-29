@@ -52,8 +52,8 @@ public class PatchyTransformer implements ClassFileTransformer {
                                     if (cst.equals("https://sessionserver.mojang.com/blockedservers")) {
                                         ldc.cst = RequestInterceptor.YGGDRASIL_MAP.get("sessionserver.mojang.com")
                                                 + "/blockedservers";
-                                        changed = true;
                                         Loki.log.debug("Patching " + mn.name + " in " + className);
+                                        changed = true;
                                     }
                                 }
                             }
