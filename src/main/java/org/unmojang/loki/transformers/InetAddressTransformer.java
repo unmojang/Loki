@@ -30,12 +30,8 @@ public class InetAddressTransformer implements ClassFileTransformer {
     }
 
     @Override
-    public byte[] transform(
-            ClassLoader loader,
-            String className,
-            Class<?> classBeingRedefined,
-            ProtectionDomain protectionDomain,
-            byte[] classfileBuffer) {
+    public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,
+                            ProtectionDomain protectionDomain, byte[] classfileBuffer) {
 
         if (!"java/net/InetAddress".equals(className)) return null;
 

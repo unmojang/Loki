@@ -27,12 +27,8 @@ public class ConcatenateURLTransformer implements ClassFileTransformer {
         }
      */
     @Override
-    public byte[] transform(
-            ClassLoader loader,
-            String className,
-            Class<?> classBeingRedefined,
-            ProtectionDomain protectionDomain,
-            byte[] classfileBuffer) {
+    public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,
+                            ProtectionDomain protectionDomain, byte[] classfileBuffer) {
 
         if (!"com/mojang/authlib/HttpAuthenticationService".equals(className)) return null;
 

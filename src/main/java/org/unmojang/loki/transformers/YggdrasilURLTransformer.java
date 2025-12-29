@@ -15,12 +15,8 @@ import java.util.Map;
 public class YggdrasilURLTransformer implements ClassFileTransformer {
 
     @Override
-    public byte[] transform(
-            ClassLoader loader,
-            String className,
-            Class<?> classBeingRedefined,
-            ProtectionDomain protectionDomain,
-            byte[] classfileBuffer) {
+    public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,
+                            ProtectionDomain protectionDomain, byte[] classfileBuffer) {
 
         if (!Loki.disable_factory) return null; // nothing to do
         if (className.startsWith("org/unmojang/loki")) return null; // let's not patch ourselves

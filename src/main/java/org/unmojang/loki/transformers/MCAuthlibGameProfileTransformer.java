@@ -63,12 +63,8 @@ public class MCAuthlibGameProfileTransformer implements ClassFileTransformer {
      */
 
     @Override
-    public byte[] transform(
-            ClassLoader loader,
-            String className,
-            Class<?> classBeingRedefined,
-            ProtectionDomain protectionDomain,
-            byte[] classfileBuffer) {
+    public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,
+                            ProtectionDomain protectionDomain, byte[] classfileBuffer) {
 
         if (!"com/github/steveice10/mc/auth/data/GameProfile".equals(className)) return null;
 

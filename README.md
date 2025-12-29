@@ -62,6 +62,11 @@ Loki supports Java arguments to enable or disable some behaviour.
   -DLoki.modded_capes=true
   ```
 
+- Re-enable the username validation added in 1.18.2 that kicks usernames containing invalid characters
+  ```
+  -DLoki.username_validation=true
+  ```
+
 ## Troubleshooting
 
 ### I can't join the server/send chat messages due to profile public key-related errors

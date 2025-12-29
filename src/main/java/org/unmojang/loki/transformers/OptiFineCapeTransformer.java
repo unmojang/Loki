@@ -12,15 +12,12 @@ import java.lang.instrument.ClassFileTransformer;
 import java.security.ProtectionDomain;
 
 public class OptiFineCapeTransformer implements ClassFileTransformer {
-    @Override
-    public byte[] transform(
-            ClassLoader loader,
-            String className,
-            Class<?> classBeingRedefined,
-            ProtectionDomain protectionDomain,
-            byte[] classfileBuffer) {
 
-        if (!className.endsWith("CapeUtils")) return null;
+    @Override
+    public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,
+                            ProtectionDomain protectionDomain, byte[] classfileBuffer) {
+
+        if (Loki.modded_capes || !className.endsWith("CapeUtils")) return null;
 
         try {
             ClassNode cn = new ClassNode();

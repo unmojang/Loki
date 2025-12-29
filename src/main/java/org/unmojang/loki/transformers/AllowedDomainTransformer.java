@@ -25,12 +25,8 @@ public class AllowedDomainTransformer implements ClassFileTransformer {
     };
 
     @Override
-    public byte[] transform(
-            ClassLoader loader,
-            String className,
-            Class<?> classBeingRedefined,
-            ProtectionDomain protectionDomain,
-            byte[] classfileBuffer) {
+    public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,
+                            ProtectionDomain protectionDomain, byte[] classfileBuffer) {
 
         if (!TARGET_CLASSES.contains(className)) return null;
 

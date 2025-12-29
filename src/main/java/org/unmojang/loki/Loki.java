@@ -7,10 +7,11 @@ import java.lang.instrument.Instrumentation;
 
 public class Loki {
     public static final NilLogger log = NilLogger.get("Loki");
+    public static Boolean disable_factory = Boolean.getBoolean("Loki.disable_factory");
     public static final Boolean disable_realms = Boolean.getBoolean("Loki.disable_realms");
     public static final Boolean enable_snooper =  Boolean.getBoolean("Loki.enable_snooper");
     public static final Boolean modded_capes = Boolean.getBoolean("Loki.modded_capes");
-    public static Boolean disable_factory = Boolean.getBoolean("Loki.disable_factory");
+    public static final Boolean username_validation = Boolean.getBoolean("Loki.username_validation");
 
     public static void premain(String agentArgs, Instrumentation inst) {
         log.info("Hello Loki " + Loki.class.getPackage().getImplementationVersion() + " World!");
@@ -38,11 +39,11 @@ public class Loki {
         inst.addTransformer(new UsernameCharacterCheckTransformer()); // Support cursed usernames on 1.18.2+
 
         // Intercept OptiFine capes to prevent collisions, for whatever reason it isn't caught by Loki's URL factory
-        if (!modded_capes) {
-            inst.addTransformer(new OptiFineCapeTransformer());
-            inst.addTransformer(new InetAddressTransformer(), true);
-            LokiUtil.retransformClass("java.net.InetAddress", inst);
-        }
+        inst.addTransformer(new OptiFineCapeTransformer());
+
+        // Block some DNS lookups
+        inst.addTransformer(new InetAddressTransformer(), true);
+        LokiUtil.retransformClass("java.net.InetAddress", inst);
 
         // Apply 1.21.9+ fixes
         LokiUtil.apply1219Fixes();

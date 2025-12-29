@@ -10,9 +10,11 @@ import org.objectweb.asm.ClassWriter;
 import org.unmojang.loki.Loki;
 
 public class SetURLFactoryTransformer implements ClassFileTransformer {
+
     @Override
     public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,
                             ProtectionDomain protectionDomain, byte[] classfileBuffer) {
+
         if (!"net/minecraftforge/fml/loading/FMLLoader".equals(className) &&
                 !"uk/betacraft/legacyfix/LegacyFixLauncher".equals(className)) return null;
 
