@@ -9,11 +9,12 @@ import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
 import org.unmojang.loki.Loki;
 
-public class ForgeSetURLFactoryTransformer implements ClassFileTransformer {
+public class SetURLFactoryTransformer implements ClassFileTransformer {
     @Override
     public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,
                             ProtectionDomain protectionDomain, byte[] classfileBuffer) {
-        if (!"net/minecraftforge/fml/loading/FMLLoader".equals(className)) return null;
+        if (!"net/minecraftforge/fml/loading/FMLLoader".equals(className) &&
+                !"uk/betacraft/legacyfix/LegacyFixLauncher".equals(className)) return null;
 
         try {
             ClassNode cn = new ClassNode();
@@ -51,7 +52,7 @@ public class ForgeSetURLFactoryTransformer implements ClassFileTransformer {
             return cw.toByteArray();
 
         } catch (Throwable t) {
-            Loki.log.error("Failed to transform FMLLoader URL.setURLStreamHandlerFactory!", t);
+            Loki.log.error("Failed to transform URL.setURLStreamHandlerFactory!", t);
             return null;
         }
     }

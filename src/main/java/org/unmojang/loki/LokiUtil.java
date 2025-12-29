@@ -183,4 +183,13 @@ public class LokiUtil {
             return -1;
         }
     }
+
+    public static void retransformClass(String className, Instrumentation inst) {
+        try {
+            Class<?> inetClass = Class.forName(className);
+            inst.retransformClasses(inetClass);
+        } catch (ClassNotFoundException ignored) {} catch (Throwable t) {
+            Loki.log.error(String.format("Failed to retransform %s!", className));
+        }
+    }
 }

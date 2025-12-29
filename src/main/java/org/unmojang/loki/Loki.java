@@ -33,19 +33,14 @@ public class Loki {
         // Misc fixes
         inst.addTransformer(new ConcatenateURLTransformer()); // Prevent port number being ignored in old authlib, if you specified it
         inst.addTransformer(new MCAuthlibGameProfileTransformer()); // Primarily for MojangFix
-        inst.addTransformer(new ForgeSetURLFactoryTransformer(), true); // Fix 1.13-1.16 Forge
+        inst.addTransformer(new SetURLFactoryTransformer(), true); // Fix 1.13-1.16 Forge, LegacyFix agent
+        LokiUtil.retransformClass("uk.betacraft.legacyfix.LegacyFixLauncher", inst);
 
         // Intercept OptiFine capes to prevent collisions, for whatever reason it isn't caught by Loki's URL factory
         if (!modded_capes) {
             inst.addTransformer(new OptiFineCapeTransformer());
             inst.addTransformer(new InetAddressTransformer(), true);
-
-            try {
-                Class<?> inetClass = Class.forName("java.net.InetAddress");
-                inst.retransformClasses(inetClass);
-            } catch (Throwable t) {
-                Loki.log.error("InetAddress is not modifiable!");
-            }
+            LokiUtil.retransformClass("java.net.InetAddress", inst);
         }
 
         // Apply 1.21.9+ fixes
