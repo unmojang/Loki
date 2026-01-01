@@ -7,6 +7,7 @@ import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.InsnNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.unmojang.loki.Loki;
+import org.unmojang.loki.LokiUtil;
 
 import java.lang.instrument.ClassFileTransformer;
 import java.security.ProtectionDomain;
@@ -34,7 +35,7 @@ public class OptiFineCapeTransformer implements ClassFileTransformer {
 
                     mn.instructions.add(new InsnNode(Opcodes.RETURN));
 
-                    Loki.log.debug("Patching " + mn.name + " in " + className);
+                    Loki.log.debug("Patching " + LokiUtil.getFqmn(className, mn.name, mn.desc));
                     changed = true;
                     break;
                 }

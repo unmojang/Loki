@@ -8,6 +8,7 @@ import org.objectweb.asm.tree.*;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
 import org.unmojang.loki.Loki;
+import org.unmojang.loki.LokiUtil;
 
 public class SetURLFactoryTransformer implements ClassFileTransformer {
 
@@ -41,7 +42,7 @@ public class SetURLFactoryTransformer implements ClassFileTransformer {
                                 false);
                         mn.instructions.set(min, replacement);
 
-                        Loki.log.debug("Patching " + mn.name + " in " + className);
+                        Loki.log.debug("Patching " + LokiUtil.getFqmn(className, mn.name, mn.desc));
                         changed = true;
                     }
                 }

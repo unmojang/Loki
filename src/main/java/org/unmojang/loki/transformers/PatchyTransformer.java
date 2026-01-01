@@ -5,6 +5,7 @@ import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.*;
 import org.unmojang.loki.Loki;
+import org.unmojang.loki.LokiUtil;
 import org.unmojang.loki.RequestInterceptor;
 
 import java.lang.instrument.ClassFileTransformer;
@@ -49,7 +50,7 @@ public class PatchyTransformer implements ClassFileTransformer {
                                     if (cst.equals("https://sessionserver.mojang.com/blockedservers")) {
                                         ldc.cst = RequestInterceptor.YGGDRASIL_MAP.get("sessionserver.mojang.com")
                                                 + "/blockedservers";
-                                        Loki.log.debug("Patching " + mn.name + " in " + className);
+                                        Loki.log.debug("Patching " + LokiUtil.getFqmn(className, mn.name, mn.desc));
                                         changed = true;
                                     }
                                 }

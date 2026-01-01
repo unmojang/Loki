@@ -5,6 +5,7 @@ import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.*;
 import org.unmojang.loki.Loki;
+import org.unmojang.loki.LokiUtil;
 
 import java.lang.instrument.ClassFileTransformer;
 import java.security.ProtectionDomain;
@@ -148,7 +149,7 @@ public class ConcatenateURLTransformer implements ClassFileTransformer {
 
                     mn.instructions.insertBefore(aret, insns);
 
-                    Loki.log.debug("Patching " + mn.name + " in " + className);
+                    Loki.log.debug("Patching " + LokiUtil.getFqmn(className, mn.name, mn.desc));
                     changed = true;
                     break;
                 }

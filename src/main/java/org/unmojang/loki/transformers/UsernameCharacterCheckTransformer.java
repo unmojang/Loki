@@ -5,6 +5,7 @@ import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.*;
 import org.unmojang.loki.Loki;
+import org.unmojang.loki.LokiUtil;
 
 import java.lang.instrument.ClassFileTransformer;
 import java.security.ProtectionDomain;
@@ -40,7 +41,7 @@ public class UsernameCharacterCheckTransformer implements ClassFileTransformer {
                             mn.instructions.insertBefore(fi, patch);
                             mn.instructions.remove(fi);
 
-                            Loki.log.debug("Patching " + mn.name + " in " + className + " (Paper username check)");
+                            Loki.log.debug("Patching " + LokiUtil.getFqmn(className, mn.name, mn.desc) + " (Paper username check)");
                             changed = true;
                         }
                     }
@@ -79,7 +80,7 @@ public class UsernameCharacterCheckTransformer implements ClassFileTransformer {
                                 mn.instructions.insert(pop1, pop2);
                                 mn.instructions.insert(pop2, pop3);
 
-                                Loki.log.debug("Patching " + mn.name + " in " + className + " (username check)");
+                                Loki.log.debug("Patching " + LokiUtil.getFqmn(className, mn.name, mn.desc) + " (username check)");
                                 changed = true;
                             }
                         }

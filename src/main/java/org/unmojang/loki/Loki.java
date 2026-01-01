@@ -31,12 +31,15 @@ public class Loki {
         // Patchy
         inst.addTransformer(new PatchyTransformer());
 
+        // Usernames
+        inst.addTransformer(new UsernameCharacterCheckTransformer()); // Support cursed usernames on 1.18.2+
+        inst.addTransformer(new UsernameConstantTransformer());
+
         // Misc fixes
         inst.addTransformer(new ConcatenateURLTransformer()); // Prevent port number being ignored in old authlib, if you specified it
         inst.addTransformer(new MCAuthlibGameProfileTransformer()); // Primarily for MojangFix
         inst.addTransformer(new SetURLFactoryTransformer(), true); // Fix 1.13-1.16 Forge, LegacyFix agent
         LokiUtil.retransformClass("uk.betacraft.legacyfix.LegacyFixLauncher", inst);
-        inst.addTransformer(new UsernameCharacterCheckTransformer()); // Support cursed usernames on 1.18.2+
 
         // Intercept OptiFine capes to prevent collisions, for whatever reason it isn't caught by Loki's URL factory
         inst.addTransformer(new OptiFineCapeTransformer());

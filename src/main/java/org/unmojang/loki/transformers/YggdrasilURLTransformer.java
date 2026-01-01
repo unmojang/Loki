@@ -40,7 +40,7 @@ public class YggdrasilURLTransformer implements ClassFileTransformer {
                                 for (String domain : ygMap.keySet()) {
                                     if (s.contains(domain)) {
                                         ldc.cst = LokiUtil.normalizeUrl(ygMap.get(domain));
-                                        Loki.log.debug("Patching YggdrasilEnvironment.PROD URL for " + domain);
+                                        Loki.log.debug("Patching YggdrasilEnvironment.PROD URL for " + domain + " in " + LokiUtil.getFqmn(className, mn.name, mn.desc));
                                         changed = true;
                                         break;
                                     }
@@ -67,7 +67,7 @@ public class YggdrasilURLTransformer implements ClassFileTransformer {
                                             String prefix = "https://" + domain;
                                             if (s.startsWith(prefix)) {
                                                 ldc.cst = LokiUtil.normalizeUrl(ygMap.get(domain)) + s.substring(prefix.length());
-                                                Loki.log.debug("Patching dynamic Yggdrasil URL LDC in " + mn.name + " of " + className);
+                                                Loki.log.debug("Patching dynamic Yggdrasil URL LDC in " + LokiUtil.getFqmn(className, mn.name, mn.desc));
                                                 changed = true;
                                                 break;
                                             }
@@ -96,7 +96,7 @@ public class YggdrasilURLTransformer implements ClassFileTransformer {
                                 String prefix = "https://" + domain;
                                 if (s.startsWith(prefix)) {
                                     ldc.cst = LokiUtil.normalizeUrl(ygMap.get(domain)) + s.substring(prefix.length());
-                                    Loki.log.debug("Patching static Yggdrasil URL in " + mn.name + " of " + className);
+                                    Loki.log.debug("Patching static Yggdrasil URL in " + LokiUtil.getFqmn(className, mn.name, mn.desc));
                                     changed = true;
                                     break;
                                 }
@@ -119,7 +119,7 @@ public class YggdrasilURLTransformer implements ClassFileTransformer {
                                         String prefix = "https://" + domain;
                                         if (s.startsWith(prefix)) {
                                             ldc.cst = LokiUtil.normalizeUrl(ygMap.get(domain)) + s.substring(prefix.length());
-                                            Loki.log.debug("Patching HttpAuthenticationService URL in " + mn.name + " of " + className);
+                                            Loki.log.debug("Patching HttpAuthenticationService URL in " + LokiUtil.getFqmn(className, mn.name, mn.desc));
                                             changed = true;
                                             break;
                                         }

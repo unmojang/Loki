@@ -2,6 +2,7 @@ package org.unmojang.loki.transformers;
 
 import org.objectweb.asm.*;
 import org.unmojang.loki.Loki;
+import org.unmojang.loki.LokiUtil;
 
 import java.lang.instrument.ClassFileTransformer;
 import java.security.ProtectionDomain;
@@ -55,7 +56,7 @@ public class InetAddressTransformer implements ClassFileTransformer {
                         public void visitCode() {
                             Label continueLabel = new Label();
 
-                            Loki.log.debug("Patching " + name + " in " + className);
+                            Loki.log.debug("Patching " + LokiUtil.getFqmn(className, name, descriptor));
 
                             for (String target : TARGET_HOSTS) {
                                 mv.visitVarInsn(ALOAD, 0);

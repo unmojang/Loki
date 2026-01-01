@@ -1,5 +1,7 @@
 package org.unmojang.loki;
 
+import org.objectweb.asm.tree.MethodNode;
+
 import javax.net.ssl.*;
 import java.lang.instrument.Instrumentation;
 import java.net.*;
@@ -194,5 +196,9 @@ public class LokiUtil {
         } catch (ClassNotFoundException ignored) {} catch (Throwable t) {
             Loki.log.error(String.format("Failed to retransform %s!", className));
         }
+    }
+
+    public static String getFqmn(String className, String name, String desc) {
+        return className.replace('/', '.') + "::" + name + desc;
     }
 }

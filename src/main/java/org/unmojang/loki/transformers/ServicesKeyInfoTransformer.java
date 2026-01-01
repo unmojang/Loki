@@ -5,6 +5,7 @@ import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.*;
 import org.unmojang.loki.Loki;
+import org.unmojang.loki.LokiUtil;
 
 import java.lang.instrument.ClassFileTransformer;
 import java.security.ProtectionDomain;
@@ -245,7 +246,7 @@ public class ServicesKeyInfoTransformer implements ClassFileTransformer {
 
                     mn.instructions.insertBefore(ret, insns);
 
-                    Loki.log.debug("Patching " + mn.name + " in " + className);
+                    Loki.log.debug("Patching " + LokiUtil.getFqmn(className, mn.name, mn.desc));
                     changed = true;
                 } else if ("validateProperty".equals(mn.name) && "(Lcom/mojang/authlib/properties/Property;)Z".equals(mn.desc)) {
                     mn.instructions.clear();
@@ -258,7 +259,7 @@ public class ServicesKeyInfoTransformer implements ClassFileTransformer {
 
                     mn.instructions.add(insns);
 
-                    Loki.log.debug("Patching " + mn.name + " in " + className);
+                    Loki.log.debug("Patching " + LokiUtil.getFqmn(className, mn.name, mn.desc));
                     changed = true;
                 }
             }
