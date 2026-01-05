@@ -68,7 +68,7 @@ public class LokiUtil {
     }
 
     public static void tryOrDisableSSL(String httpsUrl) {
-        if (httpsUrl == null || httpsUrl.isEmpty() || httpsUrl.startsWith("http://")) return;
+        if (OFFLINE_MODE || httpsUrl == null || httpsUrl.isEmpty() || httpsUrl.startsWith("http://")) return;
         String url = normalizeUrl(httpsUrl.toLowerCase());
         try {
             String host = new URL(url).getHost();
