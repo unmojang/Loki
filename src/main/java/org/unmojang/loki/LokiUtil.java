@@ -1,15 +1,18 @@
 package org.unmojang.loki;
 
-import org.objectweb.asm.tree.MethodNode;
-
 import javax.net.ssl.*;
 import java.lang.instrument.Instrumentation;
+import java.lang.management.ManagementFactory;
 import java.net.*;
 import java.security.cert.X509Certificate;
+import java.util.Enumeration;
 import java.util.concurrent.*;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
 
 public class LokiUtil {
     private static boolean OFFLINE_MODE = false;
+    public static boolean FOUND_ALI = false;
 
     @SuppressWarnings("unused")
     public static final int JAVA_MAJOR = getJavaVersion();
@@ -65,7 +68,7 @@ public class LokiUtil {
     }
 
     public static void tryOrDisableSSL(String httpsUrl) {
-        if(httpsUrl == null || httpsUrl.isEmpty() || httpsUrl.startsWith("http://")) return;
+        if (httpsUrl == null || httpsUrl.isEmpty() || httpsUrl.startsWith("http://")) return;
         String url = normalizeUrl(httpsUrl.toLowerCase());
         try {
             String host = new URL(url).getHost();
@@ -107,7 +110,7 @@ public class LokiUtil {
             try {
                 URL url = new URL(server);
                 String path = url.getPath();
-                if(path.isEmpty() || path.equals("/")) {
+                if (path.isEmpty() || path.equals("/")) {
                     server = server.replaceAll("/$", "") + "/authlib-injector";
                     Loki.log.warn("Guessing Authlib-Injector API route: " + server);
                 }
@@ -151,6 +154,45 @@ public class LokiUtil {
         }
     }
 
+    private static String getALIAgentArgsURL() {
+        for (String arg : ManagementFactory.getRuntimeMXBean().getInputArguments()) {
+            if (!arg.startsWith("-javaagent:") || arg.indexOf('=') == -1) continue;
+
+            String jarPath = arg.substring("-javaagent:".length(), arg.indexOf('='));
+            String agentArg = arg.substring(arg.indexOf('=') + 1);
+
+            try (JarFile jarFile = new JarFile(jarPath)) {
+                Enumeration<JarEntry> entries = jarFile.entries();
+
+                while (entries.hasMoreElements()) {
+                    JarEntry entry = entries.nextElement();
+                    if (entry.getName().startsWith("moe/yushi/authlibinjector/") ||
+                            entry.getName().startsWith("org/to2mbn/authlibinjector/")) {
+
+                        return agentArg;
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
+        return null;
+    }
+
+    public static void hijackALIAgentArgs() {
+        Loki.log.warn("**** AUTHLIB-INJECTOR DETECTED!");
+        Loki.log.warn("Authlib-Injector is in use, which could potentially break Loki!");
+        Loki.log.warn("Loki has prevented Authlib-Injector from patching anything else, but");
+        Loki.log.warn("it may have ran before Loki and already caused some problems! You");
+        Loki.log.warn("are *strongly encouraged* to disable Authlib-Injector at this point!");
+
+        String aliAgentArgsURL = getALIAgentArgsURL();
+
+        if (aliAgentArgsURL != null) {
+            LokiUtil.tryOrDisableSSL(aliAgentArgsURL);
+            LokiUtil.initAuthlibInjectorAPI(aliAgentArgsURL);
+        }
+        FOUND_ALI = true;
+    }
+
     public static void earlyInit(String agentArgs, Instrumentation inst) {
         // Ensure retransformation is supported
         if (!inst.isRetransformClassesSupported()) {
@@ -161,7 +203,7 @@ public class LokiUtil {
         // Authlib-Injector API
         String authlibInjectorURL = (System.getProperty("Loki.url") != null) // Prioritize Loki.url
                 ? System.getProperty("Loki.url") : agentArgs;
-        if(authlibInjectorURL != null) {
+        if (authlibInjectorURL != null) {
             LokiUtil.tryOrDisableSSL(authlibInjectorURL);
             LokiUtil.initAuthlibInjectorAPI(authlibInjectorURL);
         } else {
@@ -194,7 +236,7 @@ public class LokiUtil {
             Class<?> targetClass = Class.forName(className);
             inst.retransformClasses(targetClass);
         } catch (ClassNotFoundException ignored) {} catch (Throwable t) {
-            Loki.log.error(String.format("Failed to retransform %s!", className));
+            Loki.log.error(String.format("Failed to retransform %s!", className), t);
         }
     }
 

@@ -16,6 +16,15 @@ public class Loki {
     public static void premain(String agentArgs, Instrumentation inst) {
         log.info("Hello Loki " + Loki.class.getPackage().getImplementationVersion() + " World!");
         LokiUtil.earlyInit(agentArgs, inst);
+
+        // Kill Authlib-Injector
+        inst.addTransformer(new AuthlibInjectorTransformer(), true);
+        LokiUtil.retransformClass("moe.yushi.authlibinjector.Premain", inst);
+        LokiUtil.retransformClass("moe.yushi.authlibinjector.javaagent.AuthlibInjectorPremain", inst);
+        LokiUtil.retransformClass("org.to2mbn.authlibinjector.javaagent.AuthlibInjectorPremain", inst);
+        LokiUtil.retransformClass("moe.yushi.authlibinjector.transform.ClassTransformer", inst);
+        LokiUtil.retransformClass("org.to2mbn.authlibinjector.transform.ClassTransformer", inst);
+
         // Authentication & skins/capes
         RequestInterceptor.setURLFactory();
         inst.addTransformer(new YggdrasilURLTransformer());
