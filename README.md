@@ -66,14 +66,3 @@ Loki supports Java arguments to enable or disable some behaviour.
   ```
   -DLoki.username_validation=true
   ```
-
-## Troubleshooting
-
-### I can't join the server/send chat messages due to profile public key-related errors
-
-If you get "Chat disabled due to missing profile public key" when you try to send chat messages, you'll need to set
-`enforce-secure-profile=false` in `server.properties`. This problem affects 1.19.3-1.21.8.
-
-If you are kicked for "Invalid signature for profile public key", follow the above step. Then, in addition to that,
-install the [No Chat Reports](https://modrinth.com/mod/no-chat-reports) mod on either the server or the client. This problem affects 1.19+, though it
-typically only occurs when joining from a fallback API server account (e.g. Mojang account fallback).
