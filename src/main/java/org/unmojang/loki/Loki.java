@@ -36,6 +36,7 @@ public class Loki {
 
         // Public keys
         inst.addTransformer(new ServicesKeyInfoTransformer());  // 1.19+
+        inst.addTransformer(new UserTypeTransformer()); // secure-profile breaks if userType is "mojang" on 1.19.3-1.21.8
 
         // Patchy
         inst.addTransformer(new PatchyTransformer());

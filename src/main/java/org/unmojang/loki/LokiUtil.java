@@ -1,6 +1,7 @@
 package org.unmojang.loki;
 
 import javax.net.ssl.*;
+import java.io.File;
 import java.lang.instrument.Instrumentation;
 import java.lang.management.ManagementFactory;
 import java.net.*;
@@ -211,6 +212,16 @@ public class LokiUtil {
                     "https://sessionserver.mojang.com");
             LokiUtil.tryOrDisableSSL(sessionHost);
             System.setProperty("mojang.sessionserver", sessionHost + "/session/minecraft/hasJoined"); // Velocity
+        }
+
+        // Append self to classpath
+        try {
+            File agentJar = new File(LokiUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath());
+            assert agentJar.exists();
+            inst.appendToBootstrapClassLoaderSearch(new JarFile(agentJar));
+        } catch (Exception e) {
+            Loki.log.error("Unable to append self to classpath", e);
+            throw new AssertionError(e);
         }
     }
 
