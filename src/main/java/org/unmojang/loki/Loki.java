@@ -9,6 +9,7 @@ public class Loki {
     public static final NilLogger log = NilLogger.get("Loki");
     public static Boolean disable_factory = Boolean.getBoolean("Loki.disable_factory");
     public static final Boolean disable_realms = Boolean.getBoolean("Loki.disable_realms");
+    public static final Boolean enable_patchy =  Boolean.getBoolean("Loki.enable_patchy");
     public static final Boolean enable_snooper =  Boolean.getBoolean("Loki.enable_snooper");
     public static final Boolean enforce_secure_profile = Boolean.getBoolean("Loki.enforce_secure_profile");
     public static final Boolean modded_capes = Boolean.getBoolean("Loki.modded_capes");

@@ -58,6 +58,11 @@ Loki supports JVM arguments to enable or disable some behaviour.
   -DLoki.disable_realms=true
   ```
 
+- Re-enable patchy (server blocking)
+  ```
+  -DLoki.enable_patchy=true
+  ```
+
 - Re-enable snooper
   ```
   -DLoki.enable_snooper=true

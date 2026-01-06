@@ -27,6 +27,20 @@ public class PatchyTransformer implements ClassFileTransformer {
             boolean changed = false;
 
             for (MethodNode mn : cn.methods) {
+                // Disable server blocking (isBlockedServer = false)
+                if (!Loki.enable_patchy && (mn.access & Opcodes.ACC_PUBLIC) != 0 && mn.desc.equals("(Ljava/lang/String;)Z")) {
+                    mn.instructions.clear();
+                    mn.tryCatchBlocks.clear();
+                    if (mn.localVariables != null) mn.localVariables.clear();
+
+                    mn.instructions.add(new InsnNode(Opcodes.ICONST_0));
+                    mn.instructions.add(new InsnNode(Opcodes.IRETURN));
+
+                    Loki.log.debug("Patching " + LokiUtil.getFqmn(className, mn.name, mn.desc));
+                    changed = true;
+                }
+
+                // Use correct API server for server blocking
                 for (AbstractInsnNode insn = mn.instructions.getFirst(); insn != null; insn = insn.getNext()) {
                     if (insn.getType() == AbstractInsnNode.TYPE_INSN) {
                         TypeInsnNode tin = (TypeInsnNode) insn;
