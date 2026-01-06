@@ -25,7 +25,7 @@ They should be, but if not, please file an issue.
 
 ## Does chat reporting/secure-profile work?
 
-It does, as long as you're on the same API server and your API server supports chat reporting. The secure profile is not however mandatory even with `enforce-secure-profile=true` in `server.properties`, unless you additionally set `-DLoki.enforce_secure_profile=true`. This will kick [fallback API server](https://github.com/unmojang/drasl/blob/master/doc/configuration.md) players however, and is discouraged (see "Chat validation error" Troubleshooting section below). You can even do chat reports across API servers, the API server will of course reject the attempt to make the report though.
+It does, as long as you're on the same API server and your API server supports chat reporting. While using Loki, the player signature is not validated, even with `enforce-secure-profile=true` in `server.properties` - it only requires that a signature is provided. In this state, [No Chat Reports](https://modrinth.com/mod/no-chat-reports) will not work, but signatures could potentially be forged unless you additionally set `-DLoki.enforce_secure_profile=true`. Doing this will, however, kick [fallback API server](https://github.com/unmojang/drasl/blob/master/doc/configuration.md) players, and is discouraged (see "Chat validation error" Troubleshooting section below). You can even do chat reports across API servers, the API server will of course reject the attempt to make the report though.
 
 ![Attempted cross-API server chat report](/img/chatreport.png)
 
