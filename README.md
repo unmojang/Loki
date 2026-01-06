@@ -23,9 +23,15 @@ little incentive to do so due to the availability of significantly better clones
 
 They should be, but if not, please file an issue.
 
-## Java arguments
+## Does chat reporting/secure-profile work?
 
-Loki supports Java arguments to enable or disable some behaviour.
+It does, as long as you're on the same API server and your API server supports chat reporting. The secure profile is not however mandatory even with `enforce-secure-profile=true` in `server.properties`, unless you additionally set `-DLoki.enforce_secure_profile=true`. This will kick [fallback API server](https://github.com/unmojang/drasl/blob/master/doc/configuration.md) players however, and is discouraged (see "Chat validation error" Troubleshooting section below). You can even do chat reports across API servers, the API server will of course reject the attempt to make the report though.
+
+![Attempted cross-API server chat report](/img/chatreport.png)
+
+## JVM arguments
+
+Loki supports JVM arguments to enable or disable some behaviour.
 
 - Use Authlib-Injector URL instead of `minecraft.api.*.host` parameters
   ```
@@ -47,14 +53,19 @@ Loki supports Java arguments to enable or disable some behaviour.
   -DLoki.disable_factory=true
   ```
 
+- Disable realms APIs
+  ```
+  -DLoki.disable_realms=true
+  ```
+
 - Re-enable snooper
   ```
   -DLoki.enable_snooper=true
   ```
 
-- Disable realms APIs
+- Require valid chat signatures on 1.19+ servers where `enforce-secure-profile=true` is set in `server.properties` [^1]
   ```
-  -DLoki.disable_realms=true
+  -DLoki.enforce_secure_profile=true
   ```
 
 - Re-enable modded capes with username-based lookups (OptiFine, Cloaks+, etc.)
@@ -66,3 +77,11 @@ Loki supports Java arguments to enable or disable some behaviour.
   ```
   -DLoki.username_validation=true
   ```
+
+## Troubleshooting
+
+### Fallback API server (Mojang, etc) players see "Chat validation error" in chat messages
+
+Whenever anyone from a different API server talks in chat, fallback API server players may see "Chat validation error" and be unable to send messages afterward until they relog. This is due to the vanilla 1.19+ game client performing signature checks on messages prior to accepting them. The solution is to either use Loki or authlib-injector on the client - which will most likely already be in use unless the fallback API server is Mojang - or to disable `enforce-secure-profile` in `server.properties` on the server.
+
+[^1]: This option is **NOT** necessary to ensure the integrity of chat reports made to the API server from clients, and will kick [fallback API server](https://github.com/unmojang/drasl/blob/master/doc/configuration.md) players.

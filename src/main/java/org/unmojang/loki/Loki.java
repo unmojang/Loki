@@ -10,6 +10,7 @@ public class Loki {
     public static Boolean disable_factory = Boolean.getBoolean("Loki.disable_factory");
     public static final Boolean disable_realms = Boolean.getBoolean("Loki.disable_realms");
     public static final Boolean enable_snooper =  Boolean.getBoolean("Loki.enable_snooper");
+    public static final Boolean enforce_secure_profile = Boolean.getBoolean("Loki.enforce_secure_profile");
     public static final Boolean modded_capes = Boolean.getBoolean("Loki.modded_capes");
     public static final Boolean username_validation = Boolean.getBoolean("Loki.username_validation");
 

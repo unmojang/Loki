@@ -262,6 +262,8 @@ public class ServicesKeyInfoTransformer implements ClassFileTransformer {
                     Loki.log.debug("Patching " + LokiUtil.getFqmn(className, mn.name, mn.desc));
                     changed = true;
                 } else if ("signature".equals(mn.name) && "()Ljava/security/Signature;".equals(mn.desc)) {
+                    if (Loki.enforce_secure_profile) continue; // preserve signature
+
                     mn.instructions.clear();
                     mn.tryCatchBlocks.clear();
                     if (mn.localVariables != null) mn.localVariables.clear();
