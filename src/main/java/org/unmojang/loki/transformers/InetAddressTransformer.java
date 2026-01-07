@@ -56,8 +56,6 @@ public class InetAddressTransformer implements ClassFileTransformer {
                         public void visitCode() {
                             Label continueLabel = new Label();
 
-                            Loki.log.debug("Patching " + LokiUtil.getFqmn(className, name, descriptor));
-
                             for (String target : TARGET_HOSTS) {
                                 mv.visitVarInsn(ALOAD, 0);
                                 mv.visitLdcInsn(target);
@@ -85,6 +83,8 @@ public class InetAddressTransformer implements ClassFileTransformer {
 
                                 mv.visitLabel(nextLabel);
                             }
+
+                            Loki.log.debug("Patching " + LokiUtil.getFqmn(className, name, descriptor));
 
                             mv.visitLabel(continueLabel);
                             super.visitCode();
