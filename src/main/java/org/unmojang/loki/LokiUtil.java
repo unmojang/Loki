@@ -1,22 +1,42 @@
 package org.unmojang.loki;
 
 import javax.net.ssl.*;
-import java.io.File;
+import java.io.*;
 import java.lang.instrument.Instrumentation;
 import java.lang.management.ManagementFactory;
 import java.net.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.security.CodeSource;
 import java.security.cert.X509Certificate;
 import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.*;
-import java.util.jar.JarEntry;
-import java.util.jar.JarFile;
+import java.util.jar.*;
 
 public class LokiUtil {
     private static boolean OFFLINE_MODE = false;
     public static boolean FOUND_ALI = false;
+    public static final Map<String, String> MANIFEST_ATTRIBUTES = new HashMap<>();
 
     @SuppressWarnings("unused")
     public static final int JAVA_MAJOR = getJavaVersion();
+
+    public static void initManifestAttributes() {
+        try {
+            CodeSource codeSource = LokiUtil.class.getProtectionDomain().getCodeSource();
+            if (codeSource != null && codeSource.getLocation() != null) {
+                try (JarFile jar = new JarFile(new File(codeSource.getLocation().toURI()))) {
+                    for (Map.Entry<Object, Object> entry : jar.getManifest().getMainAttributes().entrySet()) {
+                        MANIFEST_ATTRIBUTES.put(entry.getKey().toString(), entry.getValue().toString());
+                    }
+                }
+            }
+        } catch (Throwable t) {
+            Loki.log.error("Failed to read manifest attributes", t);
+        }
+    }
 
     private static boolean areWeOnline(String host) {
         int timeoutMs = 2000;
@@ -194,6 +214,41 @@ public class LokiUtil {
         FOUND_ALI = true;
     }
 
+    private static void appendHooksToClasspath(Instrumentation inst) {
+        try {
+            File agentJar = new File(LokiUtil.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+            if (!agentJar.exists()) throw new AssertionError("Agent JAR not found");
+
+            Path tmpJar = Files.createTempFile("Loki-hooks", ".jar");
+            tmpJar.toFile().deleteOnExit();
+
+            try (JarInputStream jis = new JarInputStream(Files.newInputStream(agentJar.toPath()));
+                 JarOutputStream jos = new JarOutputStream(Files.newOutputStream(tmpJar.toFile().toPath()))) {
+
+                JarEntry entry;
+                while ((entry = jis.getNextJarEntry()) != null) {
+                    String name = entry.getName();
+                    if (name.startsWith("org/unmojang/loki/hooks/") && name.endsWith(".class")) {
+                        JarEntry newEntry = new JarEntry(name);
+                        jos.putNextEntry(newEntry);
+
+                        byte[] buffer = new byte[8192];
+                        int read;
+                        while ((read = jis.read(buffer)) != -1) {
+                            jos.write(buffer, 0, read);
+                        }
+                        jos.closeEntry();
+                    }
+                }
+            }
+
+            inst.appendToBootstrapClassLoaderSearch(new JarFile(tmpJar.toFile()));
+
+        } catch (IOException | URISyntaxException e) {
+            throw new AssertionError("Failed to append hooks to bootstrap", e);
+        }
+    }
+
     public static void earlyInit(String agentArgs, Instrumentation inst) {
         // Ensure retransformation is supported
         if (!inst.isRetransformClassesSupported()) {
@@ -201,28 +256,23 @@ public class LokiUtil {
             throw new AssertionError();
         }
 
+        initManifestAttributes();
+
         // Authlib-Injector API
         String authlibInjectorURL = (System.getProperty("Loki.url") != null) // Prioritize Loki.url
-                ? System.getProperty("Loki.url") : agentArgs;
-        if (authlibInjectorURL != null) {
+                ? System.getProperty("Loki.url") : (agentArgs != null && !agentArgs.isEmpty())
+                ? agentArgs
+                : MANIFEST_ATTRIBUTES.get("AuthlibInjectorAPIServer");
+        if (authlibInjectorURL != null && !authlibInjectorURL.isEmpty()) {
             LokiUtil.tryOrDisableSSL(authlibInjectorURL);
             LokiUtil.initAuthlibInjectorAPI(authlibInjectorURL);
         } else {
-            String sessionHost = System.getProperty("minecraft.api.session.host",
-                    "https://sessionserver.mojang.com");
+            String sessionHost = System.getProperty("minecraft.api.session.host", MANIFEST_ATTRIBUTES.get("SessionHost"));
             LokiUtil.tryOrDisableSSL(sessionHost);
             System.setProperty("mojang.sessionserver", sessionHost + "/session/minecraft/hasJoined"); // Velocity
         }
 
-        // Append self to classpath
-        try {
-            File agentJar = new File(LokiUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath());
-            assert agentJar.exists();
-            inst.appendToBootstrapClassLoaderSearch(new JarFile(agentJar));
-        } catch (Exception e) {
-            Loki.log.error("Unable to append self to classpath", e);
-            throw new AssertionError(e);
-        }
+        appendHooksToClasspath(inst);
     }
 
     private static int getJavaVersion() {

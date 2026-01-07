@@ -52,10 +52,10 @@ public class RequestInterceptor {
         String servicesHost = System.getProperty("minecraft.api.services.host");
 
         Map<String, String> tmp = new HashMap<>();
-        tmp.put("authserver.mojang.com", authHost != null ? authHost : "https://authserver.mojang.com");
-        tmp.put("api.mojang.com", accountHost != null ? accountHost : "https://api.mojang.com");
-        tmp.put("api.minecraftservices.com", servicesHost != null ? servicesHost : "https://api.minecraftservices.com");
-        tmp.put("sessionserver.mojang.com", sessionHost != null ? sessionHost : "https://sessionserver.mojang.com");
+        tmp.put("authserver.mojang.com", authHost != null ? authHost : LokiUtil.MANIFEST_ATTRIBUTES.get("AuthHost"));
+        tmp.put("api.mojang.com", accountHost != null ? accountHost : LokiUtil.MANIFEST_ATTRIBUTES.get("AccountHost"));
+        tmp.put("sessionserver.mojang.com", sessionHost != null ? sessionHost : LokiUtil.MANIFEST_ATTRIBUTES.get("SessionHost"));
+        tmp.put("api.minecraftservices.com", servicesHost != null ? servicesHost : LokiUtil.MANIFEST_ATTRIBUTES.get("ServicesHost"));
         YGGDRASIL_MAP = Collections.unmodifiableMap(tmp);
     }
 

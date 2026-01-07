@@ -8,6 +8,12 @@ plugins {
 group = "org.unmojang"
 version = "2.0.1"
 
+val authlibInjectorAPIServer: String by project
+val authHost: String by project
+val accountHost: String by project
+val sessionHost: String by project
+val servicesHost: String by project
+
 base {
     archivesName.set("Loki")
 }
@@ -54,6 +60,12 @@ tasks.named<ShadowJar>("shadowJar") {
             "Implementation-Version" to project.version,
             "Can-Redefine-Classes" to "true",
             "Can-Retransform-Classes" to "true",
+
+            "AuthlibInjectorAPIServer" to authlibInjectorAPIServer,
+            "AuthHost" to authHost,
+            "AccountHost" to accountHost,
+            "SessionHost" to sessionHost,
+            "ServicesHost" to servicesHost
         )
     }
 }
