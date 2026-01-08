@@ -1,5 +1,6 @@
 package org.unmojang.loki;
 
+import org.unmojang.loki.hooks.Hooks;
 import sun.misc.Unsafe;
 
 import java.io.*;
@@ -7,17 +8,15 @@ import java.lang.reflect.Field;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class RequestInterceptor {
     public static final Map<String, String> YGGDRASIL_MAP;
-    public static final Map<String, URLStreamHandler> DEFAULT_HANDLERS = new ConcurrentHashMap<>();
     private static final Set<String> INTERCEPTED_DOMAINS;
 
     static {
         try {
-            DEFAULT_HANDLERS.put("http", getSystemURLHandler("http"));
-            DEFAULT_HANDLERS.put("https", getSystemURLHandler("https"));
+            Hooks.DEFAULT_HANDLERS.put("http", getSystemURLHandler("http"));
+            Hooks.DEFAULT_HANDLERS.put("https", getSystemURLHandler("https"));
         } catch (Exception e) {
             Loki.log.error("Failed to get system URL handler", e);
             Loki.disable_factory = true;
@@ -52,10 +51,10 @@ public class RequestInterceptor {
         String servicesHost = System.getProperty("minecraft.api.services.host");
 
         Map<String, String> tmp = new HashMap<>();
-        tmp.put("authserver.mojang.com", authHost != null ? authHost : LokiUtil.MANIFEST_ATTRIBUTES.get("AuthHost"));
-        tmp.put("api.mojang.com", accountHost != null ? accountHost : LokiUtil.MANIFEST_ATTRIBUTES.get("AccountHost"));
-        tmp.put("sessionserver.mojang.com", sessionHost != null ? sessionHost : LokiUtil.MANIFEST_ATTRIBUTES.get("SessionHost"));
-        tmp.put("api.minecraftservices.com", servicesHost != null ? servicesHost : LokiUtil.MANIFEST_ATTRIBUTES.get("ServicesHost"));
+        tmp.put("authserver.mojang.com", authHost != null ? authHost : LokiUtil.MANIFEST_ATTRS.get("AuthHost"));
+        tmp.put("api.mojang.com", accountHost != null ? accountHost : LokiUtil.MANIFEST_ATTRS.get("AccountHost"));
+        tmp.put("sessionserver.mojang.com", sessionHost != null ? sessionHost : LokiUtil.MANIFEST_ATTRS.get("SessionHost"));
+        tmp.put("api.minecraftservices.com", servicesHost != null ? servicesHost : LokiUtil.MANIFEST_ATTRS.get("ServicesHost"));
         YGGDRASIL_MAP = Collections.unmodifiableMap(tmp);
     }
 
@@ -77,7 +76,7 @@ public class RequestInterceptor {
             return;
         }
         URL.setURLStreamHandlerFactory(protocol -> {
-            URLStreamHandler delegate = DEFAULT_HANDLERS.get(protocol);
+            URLStreamHandler delegate = Hooks.DEFAULT_HANDLERS.get(protocol);
             if (delegate == null) return null;
             return (protocol.equals("http") || protocol.equals("https"))
                     ? new URLStreamHandlerProxy(delegate)
@@ -186,7 +185,7 @@ public class RequestInterceptor {
     }
 
     public static HttpURLConnection mirrorHttpURLConnection(URL targetUrl, HttpURLConnection httpConn) throws IOException {
-        URLStreamHandler handler = DEFAULT_HANDLERS.get(targetUrl.getProtocol());
+        URLStreamHandler handler = Hooks.DEFAULT_HANDLERS.get(targetUrl.getProtocol());
         final HttpURLConnection targetConn = openWithParent(targetUrl, handler);
 
         // Mirror HTTP method
@@ -307,26 +306,6 @@ public class RequestInterceptor {
             Loki.log.error("Loki is terminating the game to prevent an imminent crash!");
             Loki.log.error("More details here: https://github.com/unmojang/Loki/issues/7");
             System.exit(1);
-        }
-    }
-
-    @SuppressWarnings("unused")
-    public static synchronized void registerExternalFactory(URLStreamHandlerFactory factory) {
-        if (factory == null) return;
-        try {
-            // Protocols that Loki needs to accept from external factories
-            String[] protos = new String[] {"http", "https", "modjar"};
-            for (String p : protos) {
-                try {
-                    URLStreamHandler h = factory.createURLStreamHandler(p);
-                    if (h != null) {
-                        DEFAULT_HANDLERS.put(p, h);
-                        Loki.log.debug("Registered external handler for " + p + " from factory " + factory.getClass().getName());
-                    }
-                } catch (Throwable ignored) {}
-            }
-        } catch (Throwable t) {
-            Loki.log.error("registerExternalFactory failed!", t);
         }
     }
 }

@@ -7,6 +7,7 @@ import java.lang.instrument.Instrumentation;
 
 public class Loki {
     public static final NilLogger log = NilLogger.get("Loki");
+
     public static Boolean disable_factory = Boolean.getBoolean("Loki.disable_factory");
     public static final Boolean disable_realms = Boolean.getBoolean("Loki.disable_realms");
     public static final Boolean enable_patchy =  Boolean.getBoolean("Loki.enable_patchy");

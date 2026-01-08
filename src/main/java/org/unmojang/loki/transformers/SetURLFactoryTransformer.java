@@ -36,7 +36,7 @@ public class SetURLFactoryTransformer implements ClassFileTransformer {
                             && "(Ljava/net/URLStreamHandlerFactory;)V".equals(min.desc)) {
                         MethodInsnNode replacement = new MethodInsnNode(
                                 Opcodes.INVOKESTATIC,
-                                "org/unmojang/loki/RequestInterceptor",
+                                "org/unmojang/loki/hooks/Hooks",
                                 "registerExternalFactory",
                                 "(Ljava/net/URLStreamHandlerFactory;)V",
                                 false);

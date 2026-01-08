@@ -4,6 +4,7 @@ import com.grack.nanojson.JsonArray;
 import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonParser;
 import com.grack.nanojson.JsonWriter;
+import org.unmojang.loki.hooks.Hooks;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
@@ -38,7 +39,7 @@ public class Ygglib {
         try {
             URL skinUrl = new URL("https://api.mojang.com/users/profiles/minecraft/" + URLEncoder.encode(username, "UTF-8"));
             skinUrl = getYggdrasilUrl(skinUrl, skinUrl.getHost());
-            URLStreamHandler handler = RequestInterceptor.DEFAULT_HANDLERS.get(skinUrl.getProtocol());
+            URLStreamHandler handler = Hooks.DEFAULT_HANDLERS.get(skinUrl.getProtocol());
             HttpURLConnection conn = RequestInterceptor.openWithParent(skinUrl, handler);
             conn.setRequestMethod("GET");
             conn.setConnectTimeout(5000);
@@ -60,7 +61,7 @@ public class Ygglib {
         try {
             URL textureUrl = new URL("https://sessionserver.mojang.com/session/minecraft/profile/" + URLEncoder.encode(uuid, "UTF-8") + "?unsigned=false");
             textureUrl = getYggdrasilUrl(textureUrl, textureUrl.getHost());
-            URLStreamHandler handler = RequestInterceptor.DEFAULT_HANDLERS.get(textureUrl.getProtocol());
+            URLStreamHandler handler = Hooks.DEFAULT_HANDLERS.get(textureUrl.getProtocol());
             HttpURLConnection conn = RequestInterceptor.openWithParent(textureUrl, handler);
             conn.setRequestMethod("GET");
             conn.setConnectTimeout(5000);
@@ -180,7 +181,7 @@ public class Ygglib {
 
             URL url = new URL("https://sessionserver.mojang.com/session/minecraft/join");
             url = getYggdrasilUrl(url, url.getHost());
-            URLStreamHandler handler = RequestInterceptor.DEFAULT_HANDLERS.get(url.getProtocol());
+            URLStreamHandler handler = Hooks.DEFAULT_HANDLERS.get(url.getProtocol());
             HttpURLConnection conn = RequestInterceptor.openWithParent(url, handler);
             conn.setDoOutput(true);
             conn.setRequestMethod("POST");
@@ -223,7 +224,7 @@ public class Ygglib {
 
             URL url = new URL("https://sessionserver.mojang.com/session/minecraft/hasJoined?username=" + user + "&serverId=" + serverId + (ip != null ? "&ip=" + ip : ""));
             url = getYggdrasilUrl(url, url.getHost());
-            URLStreamHandler handler = RequestInterceptor.DEFAULT_HANDLERS.get(url.getProtocol());
+            URLStreamHandler handler = Hooks.DEFAULT_HANDLERS.get(url.getProtocol());
             HttpURLConnection conn = RequestInterceptor.openWithParent(url, handler);
             conn.setDoInput(true);
             conn.setDoOutput(false);

@@ -1,19 +1,24 @@
 package org.unmojang.loki.hooks;
 
+import org.unmojang.loki.logger.NilLogger;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.URL;
+import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @SuppressWarnings("unused")
 public class Hooks {
+    public static final Map<String, URLStreamHandler> DEFAULT_HANDLERS = new ConcurrentHashMap<>();
+    private static final NilLogger log = NilLogger.get("Loki");
+
     // thanks yushijinhun!
     // https://github.com/yushijinhun/authlib-injector/blob/aff141877cccaec8c5ffe7a542efa139cc64bcde/src/main/java/moe/yushi/authlibinjector/transform/support/ConcatenateURLTransformUnit.java
     // https://github.com/yushijinhun/authlib-injector/issues/126
@@ -99,5 +104,24 @@ public class Hooks {
         int end = jsonText.indexOf("\"", start);
         if (end == -1) throw new IllegalStateException("publicKey value not terminated");
         return jsonText.substring(start, end);
+    }
+
+    public static synchronized void registerExternalFactory(URLStreamHandlerFactory factory) {
+        if (factory == null) return;
+        try {
+            // Protocols that Loki needs to accept from external factories
+            String[] protos = new String[] {"http", "https", "modjar"};
+            for (String p : protos) {
+                try {
+                    URLStreamHandler h = factory.createURLStreamHandler(p);
+                    if (h != null) {
+                        DEFAULT_HANDLERS.put(p, h);
+                        log.debug("Registered external handler for " + p + " from factory " + factory.getClass().getName());
+                    }
+                } catch (Throwable ignored) {}
+            }
+        } catch (Throwable t) {
+            log.error("registerExternalFactory failed!", t);
+        }
     }
 }

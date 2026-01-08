@@ -10,7 +10,6 @@ import java.nio.file.Path;
 import java.security.CodeSource;
 import java.security.cert.X509Certificate;
 import java.util.Enumeration;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.*;
 import java.util.jar.*;
@@ -18,7 +17,7 @@ import java.util.jar.*;
 public class LokiUtil {
     private static boolean OFFLINE_MODE = false;
     public static boolean FOUND_ALI = false;
-    public static final Map<String, String> MANIFEST_ATTRIBUTES = new HashMap<>();
+    public static final Map<String, String> MANIFEST_ATTRS = new ConcurrentHashMap<>();
 
     @SuppressWarnings("unused")
     public static final int JAVA_MAJOR = getJavaVersion();
@@ -29,7 +28,7 @@ public class LokiUtil {
             if (codeSource != null && codeSource.getLocation() != null) {
                 try (JarFile jar = new JarFile(new File(codeSource.getLocation().toURI()))) {
                     for (Map.Entry<Object, Object> entry : jar.getManifest().getMainAttributes().entrySet()) {
-                        MANIFEST_ATTRIBUTES.put(entry.getKey().toString(), entry.getValue().toString());
+                        MANIFEST_ATTRS.put(entry.getKey().toString(), entry.getValue().toString());
                     }
                 }
             }
@@ -228,7 +227,7 @@ public class LokiUtil {
                 JarEntry entry;
                 while ((entry = jis.getNextJarEntry()) != null) {
                     String name = entry.getName();
-                    if (name.startsWith("org/unmojang/loki/hooks/") && name.endsWith(".class")) {
+                    if ((name.contains("/hooks/") || name.contains("/logger/")) && name.endsWith(".class")) {
                         JarEntry newEntry = new JarEntry(name);
                         jos.putNextEntry(newEntry);
 
@@ -262,12 +261,12 @@ public class LokiUtil {
         String authlibInjectorURL = (System.getProperty("Loki.url") != null) // Prioritize Loki.url
                 ? System.getProperty("Loki.url") : (agentArgs != null && !agentArgs.isEmpty())
                 ? agentArgs
-                : MANIFEST_ATTRIBUTES.get("AuthlibInjectorAPIServer");
+                : MANIFEST_ATTRS.get("AuthlibInjectorAPIServer");
         if (authlibInjectorURL != null && !authlibInjectorURL.isEmpty()) {
             LokiUtil.tryOrDisableSSL(authlibInjectorURL);
             LokiUtil.initAuthlibInjectorAPI(authlibInjectorURL);
         } else {
-            String sessionHost = System.getProperty("minecraft.api.session.host", MANIFEST_ATTRIBUTES.get("SessionHost"));
+            String sessionHost = System.getProperty("minecraft.api.session.host", MANIFEST_ATTRS.get("SessionHost"));
             LokiUtil.tryOrDisableSSL(sessionHost);
             System.setProperty("mojang.sessionserver", sessionHost + "/session/minecraft/hasJoined"); // Velocity
         }
