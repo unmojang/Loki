@@ -1,6 +1,7 @@
 package org.unmojang.loki.hooks;
 
 import org.unmojang.loki.logger.NilLogger;
+import sun.misc.Unsafe;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -9,6 +10,7 @@ import java.lang.reflect.Field;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
+import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
 import java.util.Map;
@@ -59,17 +61,28 @@ public class Hooks {
         return sig;
     }
 
-    public static void replaceKey(Object target) {
+    public static void replaceMCAuthlibGameProfileSignature(Class<?> gameProfileClass) {
         try {
-            String baseUrl = System.getProperty("minecraft.api.services.host", "https://api.minecraftservices.com");
-            URL url = new URL(baseUrl + "/publickeys");
-            String base64Key = getBase64Key(url);
+            PublicKey publicKey = getPublicKey();
 
-            // Convert Base64 -> PublicKey
-            byte[] keyBytes = Base64.getDecoder().decode(base64Key);
-            X509EncodedKeySpec spec = new X509EncodedKeySpec(keyBytes);
-            KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-            PublicKey publicKey = keyFactory.generatePublic(spec);
+            Field pubKeyField = gameProfileClass.getDeclaredField("SIGNATURE_KEY");;
+            pubKeyField.setAccessible(true);
+
+            Field unsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
+            unsafeField.setAccessible(true);
+            Unsafe unsafe = (sun.misc.Unsafe) unsafeField.get(null);
+
+            Object staticBase = unsafe.staticFieldBase(pubKeyField);
+            long staticOffset = unsafe.staticFieldOffset(pubKeyField);
+            unsafe.putObject(staticBase, staticOffset, publicKey);
+        } catch (Exception e) {
+            throw new AssertionError("Failed to fetch yggdrasil public key!", e);
+        }
+    }
+
+    public static void replaceYggdrasilServicesKeyInfoSignature(Object target) {
+        try {
+            PublicKey publicKey = getPublicKey();
 
             Field pubKeyField = target.getClass().getDeclaredField("publicKey");
             pubKeyField.setAccessible(true);
@@ -79,7 +92,9 @@ public class Hooks {
         }
     }
 
-    private static String getBase64Key(URL url) throws IOException {
+    private static PublicKey getPublicKey() throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
+        String baseUrl = System.getProperty("minecraft.api.services.host", "https://api.minecraftservices.com");
+        URL url = new URL(baseUrl + "/publickeys");
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("GET");
         conn.setDoInput(true);
@@ -103,7 +118,12 @@ public class Hooks {
         start += "\"profilePropertyKeys\":[{\"publicKey\":\"".length();
         int end = jsonText.indexOf("\"", start);
         if (end == -1) throw new IllegalStateException("publicKey value not terminated");
-        return jsonText.substring(start, end);
+        String base64Key = jsonText.substring(start, end);
+        byte[] keyBytes = Base64.getDecoder().decode(base64Key);
+
+        X509EncodedKeySpec spec = new X509EncodedKeySpec(keyBytes);
+        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+        return keyFactory.generatePublic(spec);
     }
 
     public static synchronized void registerExternalFactory(URLStreamHandlerFactory factory) {

@@ -2,12 +2,15 @@ package org.unmojang.loki;
 
 import javax.net.ssl.*;
 import java.io.*;
+import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.lang.management.ManagementFactory;
+import java.lang.reflect.Method;
 import java.net.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.CodeSource;
+import java.security.ProtectionDomain;
 import java.security.cert.X509Certificate;
 import java.util.Enumeration;
 import java.util.Map;
@@ -213,6 +216,33 @@ public class LokiUtil {
         FOUND_ALI = true;
     }
 
+    private static void hookFutureClassLoaders(Instrumentation inst, Path jarPath) throws Exception {
+        final URL jarUrl = jarPath.toUri().toURL();
+        Map<ClassLoader, Boolean> injectedLoaders = new ConcurrentHashMap<>();
+        //noinspection Convert2Lambda
+        ClassFileTransformer injector = new ClassFileTransformer() {
+            @Override
+            public byte[] transform(ClassLoader loader, String name, Class<?> c, ProtectionDomain pd, byte[] bytes) {
+                if (loader == null || injectedLoaders.containsKey(loader)) return null;
+                try {
+                    if (loader instanceof URLClassLoader) {
+                        Method m = URLClassLoader.class.getDeclaredMethod("addURL", URL.class);
+                        m.setAccessible(true);
+                        m.invoke(loader, jarUrl);
+                    } else {
+                        Method fwd = loader.getClass().getMethod("addUrlFwd", URL.class);
+                        fwd.setAccessible(true);
+                        fwd.invoke(loader, jarUrl);
+                    }
+                } catch (Throwable ignored) {}
+                injectedLoaders.put(loader, true);
+                return null;
+            }
+        };
+
+        inst.addTransformer(injector, true);
+    }
+
     private static void appendHooksToClasspath(Instrumentation inst) {
         try {
             File agentJar = new File(LokiUtil.class.getProtectionDomain().getCodeSource().getLocation().toURI());
@@ -242,9 +272,11 @@ public class LokiUtil {
             }
 
             inst.appendToBootstrapClassLoaderSearch(new JarFile(tmpJar.toFile()));
-
-        } catch (IOException | URISyntaxException e) {
-            throw new AssertionError("Failed to append hooks to bootstrap", e);
+            inst.appendToSystemClassLoaderSearch(new JarFile(tmpJar.toFile()));
+            hookFutureClassLoaders(inst, tmpJar);
+            Loki.log.debug("Appended hooks to classpath");
+        } catch (Exception e) {
+            throw new AssertionError("Failed to append hooks to classpath", e);
         }
     }
 

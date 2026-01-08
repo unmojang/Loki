@@ -17,8 +17,8 @@ public class UserTypeTransformer implements ClassFileTransformer {
         if (!"net/minecraft/client/main/Main".equals(className)) return null;
 
         try {
-            ClassReader cr = new ClassReader(classfileBuffer);
             ClassNode cn = new ClassNode();
+            ClassReader cr = new ClassReader(classfileBuffer);
             cr.accept(cn, 0);
 
             boolean changed = false;

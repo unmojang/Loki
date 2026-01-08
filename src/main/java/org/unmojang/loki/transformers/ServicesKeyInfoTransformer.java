@@ -40,7 +40,7 @@ public class ServicesKeyInfoTransformer implements ClassFileTransformer {
                     insns.add(new MethodInsnNode(
                             Opcodes.INVOKESTATIC,
                             "org/unmojang/loki/hooks/Hooks",
-                            "replaceKey",
+                            "replaceYggdrasilServicesKeyInfoSignature",
                             "(Ljava/lang/Object;)V",
                             false
                     ));

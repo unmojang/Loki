@@ -17,7 +17,8 @@ public class UsernameConstantTransformer implements ClassFileTransformer {
 
         try {
             ClassNode cn = new ClassNode();
-            new ClassReader(classfileBuffer).accept(cn, ClassReader.EXPAND_FRAMES);
+            ClassReader cr = new ClassReader(classfileBuffer);
+            cr.accept(cn, 0);
 
             boolean changed = false;
 
