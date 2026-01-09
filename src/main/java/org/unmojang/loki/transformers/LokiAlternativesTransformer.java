@@ -13,7 +13,7 @@ import org.unmojang.loki.LokiUtil;
 import java.lang.instrument.ClassFileTransformer;
 import java.security.ProtectionDomain;
 
-public class AuthlibInjectorTransformer implements ClassFileTransformer {
+public class LokiAlternativesTransformer implements ClassFileTransformer {
 
     @Override
     public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,
@@ -23,7 +23,8 @@ public class AuthlibInjectorTransformer implements ClassFileTransformer {
                 !className.equals("org/to2mbn/authlibinjector/transform/ClassTransformer") &&
                 !className.equals("moe/yushi/authlibinjector/Premain") &&
                 !className.equals("moe/yushi/authlibinjector/javaagent/AuthlibInjectorPremain") &&
-                !className.equals("org/to2mbn/authlibinjector/javaagent/AuthlibInjectorPremain")) return null;
+                !className.equals("org/to2mbn/authlibinjector/javaagent/AuthlibInjectorPremain") &&
+                !className.startsWith("org/prismlauncher/legacy/fix/online/")) return null;
 
         try {
             ClassNode cn = new ClassNode();
@@ -71,7 +72,8 @@ public class AuthlibInjectorTransformer implements ClassFileTransformer {
                 }
 
                 Loki.log.debug("Patching " + LokiUtil.getFqmn(className, mn.name, mn.desc));
-                if (!LokiUtil.FOUND_ALI) {
+                if (!LokiUtil.FOUND_ALI && (className.startsWith("org/to2mbn/authlibinjector") ||
+                        className.startsWith("moe/yushi/authlibinjector"))) {
                     LokiUtil.hijackALIAgentArgs();
                 }
                 changed = true;

@@ -20,8 +20,8 @@ public class Loki {
         log.info("Hello Loki " + Loki.class.getPackage().getImplementationVersion() + " World!");
         LokiUtil.earlyInit(agentArgs, inst);
 
-        // Kill Authlib-Injector
-        inst.addTransformer(new AuthlibInjectorTransformer(), true);
+        // Kill Loki alternatives so that Loki won't break
+        inst.addTransformer(new LokiAlternativesTransformer(), true);
         LokiUtil.retransformClass("moe.yushi.authlibinjector.Premain", inst);
         LokiUtil.retransformClass("moe.yushi.authlibinjector.javaagent.AuthlibInjectorPremain", inst);
         LokiUtil.retransformClass("org.to2mbn.authlibinjector.javaagent.AuthlibInjectorPremain", inst);
