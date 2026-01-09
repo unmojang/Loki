@@ -65,7 +65,7 @@ public class Hooks {
         try {
             PublicKey publicKey = getPublicKey();
 
-            Field pubKeyField = gameProfileClass.getDeclaredField("SIGNATURE_KEY");;
+            Field pubKeyField = gameProfileClass.getDeclaredField("SIGNATURE_KEY");
             pubKeyField.setAccessible(true);
 
             Field unsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
