@@ -22,7 +22,7 @@ jobs:
           distribution: 'temurin'
 
       - name: Build
-        run: ./gradlew build
+        run: ./gradlew build --no-daemon
 
       - name: Strip 'v' from tag
         id: strip_tag
