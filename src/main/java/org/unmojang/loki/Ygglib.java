@@ -7,11 +7,13 @@ import com.grack.nanojson.JsonWriter;
 import org.unmojang.loki.hooks.Hooks;
 
 import javax.imageio.ImageIO;
+import javax.net.ssl.HttpsURLConnection;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
+import java.security.cert.Certificate;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -81,7 +83,7 @@ public class Ygglib {
 
     // Credit: Prism Launcher legacy fixes
     // https://github.com/PrismLauncher/PrismLauncher/blob/develop/libraries/launcher/legacy/org/prismlauncher/legacy/fix/online/SkinFix.java
-    public static HttpURLConnection getTexture(URL originalUrl, String username, String type) throws UnknownHostException {
+    public static URLConnection getTexture(URL originalUrl, URLConnection originalConn, String username, String type) throws UnknownHostException {
         try {
             String uuid = getUUID(username);
             if (uuid == null) throw new RuntimeException("Couldn't find UUID of " + username);
@@ -92,7 +94,7 @@ public class Ygglib {
             JsonObject texturePayloadObj = JsonParser.object().from(texturesProperty);
             JsonObject skinOrCape = texturePayloadObj.getObject("textures").getObject(type);
             String textureUrl = skinOrCape.getString("url");
-            if (textureUrl == null) return new FakeURLConnection(originalUrl, 204, null);
+            if (textureUrl == null) return FakeURLConnection(originalUrl, originalConn, 204, null);
 
             if (type.equals("SKIN")) {
                 boolean isSlim = false;
@@ -138,10 +140,10 @@ public class Ygglib {
                     image = image.getSubimage(0, 0, 64, 32);
                     ImageIO.write(image, "png", out);
 
-                    return new FakeURLConnection(originalUrl, 200, out.toByteArray());
+                    return FakeURLConnection(originalUrl, originalConn, 200, out.toByteArray());
                 }
             } else if (type.equals("CAPE")) {
-                return (HttpURLConnection) new URL(textureUrl).openConnection();
+                return new URL(textureUrl).openConnection();
             }
             throw new RuntimeException("Unexpected texture type. How did we get here?");
         } catch (UnknownHostException e) {
@@ -154,7 +156,7 @@ public class Ygglib {
 
     // Credit: Fjord Launcher legacy fixes
     // https://github.com/unmojang/FjordLauncher/blob/develop/libraries/launcher/legacy/org/prismlauncher/legacy/fix/online/OnlineModeFix.java
-    public static HttpURLConnection joinServer(URL originalUrl) {
+    public static URLConnection joinServer(URL originalUrl, URLConnection originalConn) {
         try {
             Map<String, String> params = queryStringParser(originalUrl.getQuery());
             String username = params.get("user");
@@ -201,9 +203,9 @@ public class Ygglib {
             }
 
             if (conn.getResponseCode() == 204) {
-                return new FakeURLConnection(originalUrl, 200, "OK".getBytes(StandardCharsets.UTF_8));
+                return FakeURLConnection(originalUrl, originalConn, 200, "OK".getBytes(StandardCharsets.UTF_8));
             }
-            return new FakeURLConnection(originalUrl, 200, "Bad login".getBytes(StandardCharsets.UTF_8));
+            return FakeURLConnection(originalUrl, originalConn, 200, "Bad login".getBytes(StandardCharsets.UTF_8));
         } catch (Exception e) {
             Loki.log.error("joinServer failed", e);
             throw new RuntimeException(e);
@@ -213,7 +215,7 @@ public class Ygglib {
     // Credit: OnlineModeFix
     // https://github.com/craftycodie/OnlineModeFix/blob/main/src/gg/codie/mineonline/protocol/CheckServerURLConnection.java
     // https://github.com/craftycodie/OnlineModeFix/blob/main/src/gg/codie/minecraft/api/SessionServer.java
-    public static HttpURLConnection checkServer(URL originalUrl) {
+    public static URLConnection checkServer(URL originalUrl, URLConnection originalConn) {
         try {
             Map<String, String> params = queryStringParser(originalUrl.getQuery());
             String user = params.get("user");
@@ -232,9 +234,9 @@ public class Ygglib {
             conn.connect();
 
             if (conn.getResponseCode() == 200) {
-                return new FakeURLConnection(originalUrl, 200, "YES".getBytes(StandardCharsets.UTF_8));
+                return FakeURLConnection(originalUrl, originalConn, 200, "YES".getBytes(StandardCharsets.UTF_8));
             }
-            return new FakeURLConnection(originalUrl, 200, "Bad login".getBytes(StandardCharsets.UTF_8));
+            return FakeURLConnection(originalUrl, originalConn, 200, "Bad login".getBytes(StandardCharsets.UTF_8));
         } catch (Exception e) {
             Loki.log.error("checkServer failed", e);
             throw new RuntimeException(e);
@@ -258,9 +260,9 @@ public class Ygglib {
         return new URL(finalUrlStr);
     }
 
-    public static HttpURLConnection getSessionProfile(URL originalUrl, HttpURLConnection originalHttpConn) {
+    public static URLConnection getSessionProfile(URL originalUrl, URLConnection originalConn) {
         try {
-            HttpURLConnection conn = RequestInterceptor.mirrorHttpURLConnection(originalUrl, originalHttpConn);
+            HttpURLConnection conn = RequestInterceptor.mirrorHttpURLConnection(originalUrl, (HttpURLConnection) originalConn);
             BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
             String profileJson = reader.lines().collect(Collectors.joining());
             JsonObject profileObj = JsonParser.object().from(profileJson);
@@ -282,14 +284,14 @@ public class Ygglib {
                 }
             }
             profileJson = JsonWriter.string(profileObj);
-            return new FakeURLConnection(originalUrl, 200, profileJson.getBytes(StandardCharsets.UTF_8));
+            return FakeURLConnection(originalUrl, originalConn, 200, profileJson.getBytes(StandardCharsets.UTF_8));
         } catch (Exception e) {
             Loki.log.error("getSessionProfile failed", e);
             throw new RuntimeException(e);
         }
     }
 
-    public static HttpURLConnection getAshcon(URL originalUrl, String username) throws UnknownHostException {
+    public static URLConnection getAshcon(URL originalUrl, URLConnection originalConn, String username) throws UnknownHostException {
         try {
             String uuid = getUUID(username);
             if (uuid == null) throw new RuntimeException("Couldn't find UUID of " + username);
@@ -330,7 +332,7 @@ public class Ygglib {
                     "  },\n" +
                     "  \"created_at\": null\n" +
                     "}";
-            return new FakeURLConnection(originalUrl, 200, (responseJson).getBytes(StandardCharsets.UTF_8));
+            return FakeURLConnection(originalUrl, originalConn, 200, (responseJson).getBytes(StandardCharsets.UTF_8));
         } catch (UnknownHostException e) {
             throw e;
         } catch (Exception e) {
@@ -339,7 +341,7 @@ public class Ygglib {
         }
     }
 
-    public static HttpURLConnection getMinotar(URL originalUrl, String username, int res) throws UnknownHostException {
+    public static URLConnection getMinotar(URL originalUrl, URLConnection originalConn, String username, int res) throws UnknownHostException {
         try {
             String uuid = getUUID(username);
             if (uuid == null) throw new RuntimeException("Couldn't find UUID of " + username);
@@ -349,7 +351,7 @@ public class Ygglib {
             if (texturesProperty == null) throw new RuntimeException("textures property was null");
             JsonObject texturePayloadObj = JsonParser.object().from(texturesProperty);
             String textureUrl = texturePayloadObj.getObject("textures").getObject("SKIN").getString("url");
-            if (textureUrl == null) return new FakeURLConnection(originalUrl, 204, null);
+            if (textureUrl == null) return FakeURLConnection(originalUrl, originalConn, 204, null);
             URLConnection connection = new URL(textureUrl).openConnection();
 
             try (InputStream in = connection.getInputStream()) {
@@ -370,7 +372,7 @@ public class Ygglib {
                 g2.dispose();
                 ByteArrayOutputStream out = new ByteArrayOutputStream();
                 ImageIO.write(i2, "png", out);
-                return new FakeURLConnection(originalUrl, 200, out.toByteArray());
+                return FakeURLConnection(originalUrl, originalConn, 200, out.toByteArray());
             }
         } catch (UnknownHostException e) {
             throw e;
@@ -380,19 +382,24 @@ public class Ygglib {
         }
     }
 
-    public static class FakeURLConnection extends HttpURLConnection {
+    public static URLConnection FakeURLConnection(URL url, URLConnection originalConn, int code, byte[] data) {
+        return (originalConn instanceof HttpsURLConnection)
+                ? new FakeHttpsURLConnection(url, code, data)
+                : new FakeHttpURLConnection(url, code, data);
+    }
+
+    public static class FakeHttpURLConnection extends HttpURLConnection {
         private final byte[] data;
         private final int code;
 
-        public FakeURLConnection(URL url, int code, byte[] data) {
+        public FakeHttpURLConnection(URL url, int code, byte[] data) {
             super(url);
             this.code = code;
             this.data = data;
         }
 
         @Override
-        public void connect() {
-        }
+        public void connect() {}
 
         @Override
         public InputStream getInputStream() {
@@ -410,13 +417,63 @@ public class Ygglib {
         }
 
         @Override
-        public void disconnect() {
-
-        }
+        public void disconnect() {}
 
         @Override
         public boolean usingProxy() {
             return false;
+        }
+    }
+
+    public static class FakeHttpsURLConnection extends HttpsURLConnection {
+        private final byte[] data;
+        private final int code;
+
+        public FakeHttpsURLConnection(URL url, int code, byte[] data) {
+            super(url);
+            this.code = code;
+            this.data = data;
+        }
+
+        @Override
+        public void connect() {}
+
+        @Override
+        public InputStream getInputStream() {
+            return new ByteArrayInputStream(data);
+        }
+
+        @Override
+        public int getContentLength() {
+            return data.length;
+        }
+
+        @Override
+        public int getResponseCode() {
+            return code;
+        }
+
+        @Override
+        public void disconnect() {}
+
+        @Override
+        public boolean usingProxy() {
+            return false;
+        }
+
+        @Override
+        public String getCipherSuite() {
+            return "";
+        }
+
+        @Override
+        public Certificate[] getLocalCertificates() {
+            return new Certificate[0];
+        }
+
+        @Override
+        public Certificate[] getServerCertificates() {
+            return new Certificate[0];
         }
     }
 }

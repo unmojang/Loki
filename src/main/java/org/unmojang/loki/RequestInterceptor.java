@@ -99,21 +99,20 @@ public class RequestInterceptor {
         String host = originalUrl.getHost();
         String path = originalUrl.getPath();
         String query = originalUrl.getQuery();
-        HttpURLConnection httpConn = (HttpURLConnection) originalConn;
-        Loki.log.debug("Connection: " + httpConn.getRequestMethod() + " " + originalUrl);
+        Loki.log.debug("Connection: " + ((HttpURLConnection) originalConn).getRequestMethod() + " " + originalUrl);
         if (YGGDRASIL_MAP.containsKey(host)) { // yggdrasil
             try {
                 final URL targetUrl = Ygglib.getYggdrasilUrl(originalUrl, originalUrl.getHost());
                 if (path.equals("/events") && !(Loki.enable_snooper)) { // Snooper (1.18+): https://api.minecraftservices.com/events
                     Loki.log.info("Intercepting snooper request");
-                    return new Ygglib.FakeURLConnection(originalUrl, 403, ("Nice try ;)").getBytes(StandardCharsets.UTF_8));
+                    return Ygglib.FakeURLConnection(originalUrl, originalConn, 403, ("Nice try ;)").getBytes(StandardCharsets.UTF_8));
                 }
                 Loki.log.info("Intercepting " + host + " request");
                 Loki.log.debug(originalUrl + " -> " + targetUrl);
                 if (path.startsWith("/session/minecraft/profile/")) { // ReIndev fix
-                    return Ygglib.getSessionProfile(targetUrl, httpConn);
+                    return Ygglib.getSessionProfile(targetUrl, originalConn);
                 }
-                return mirrorHttpURLConnection(targetUrl, httpConn);
+                return mirrorHttpURLConnection(targetUrl, (HttpURLConnection) originalConn);
             } catch (Exception e) {
                 Loki.log.error("Failed to intercept " + originalUrl, e);
                 return originalConn;
@@ -122,62 +121,62 @@ public class RequestInterceptor {
             // Authentication
             if (path.equals("/game/joinserver.jsp")) {
                 Loki.log.info("Intercepting joinserver request");
-                return Ygglib.joinServer(originalUrl);
+                return Ygglib.joinServer(originalUrl, originalConn);
             } else if (path.equals("/game/checkserver.jsp")) {
                 Loki.log.info("Intercepting checkserver request");
-                return Ygglib.checkServer(originalUrl);
+                return Ygglib.checkServer(originalUrl, originalConn);
             }
 
             // Textures
             if (path.startsWith("/MinecraftSkins") || path.startsWith("/skin")) {
                 String username = Ygglib.getUsernameFromPath(path);
                 Loki.log.info("Intercepting skin lookup for " + username);
-                return Ygglib.getTexture(originalUrl, username, "SKIN");
+                return Ygglib.getTexture(originalUrl, originalConn, username, "SKIN");
             } else if (path.startsWith("/MinecraftCloaks")) {
                 String username = Ygglib.getUsernameFromPath(path);
                 Loki.log.info("Intercepting cape lookup for " + username);
-                return Ygglib.getTexture(originalUrl, username, "CAPE");
+                return Ygglib.getTexture(originalUrl, originalConn, username, "CAPE");
             } else if (path.equals("/cloak/get.jsp")) {
                 String username = Ygglib.queryStringParser(query).get("user");
                 Loki.log.info("Intercepting cape lookup for " + username);
-                return Ygglib.getTexture(originalUrl, username, "CAPE");
+                return Ygglib.getTexture(originalUrl, originalConn, username, "CAPE");
             }
 
             // Snooper
             if (host.equals("snoop.minecraft.net")) {
                 Loki.log.info("Intercepting snooper request");
-                return new Ygglib.FakeURLConnection(originalUrl, 403, ("Nice try ;)").getBytes(StandardCharsets.UTF_8));
+                return Ygglib.FakeURLConnection(originalUrl, originalConn, 403, ("Nice try ;)").getBytes(StandardCharsets.UTF_8));
             }
 
             // Realms
             if (host.equals("java.frontendlegacy.realms.minecraft-services.net") || host.equals("pc.realms.minecraft.net")) {
                 Loki.log.info("Intercepting realms request");
-                return new Ygglib.FakeURLConnection(originalUrl, 403, ("Nice try ;)").getBytes(StandardCharsets.UTF_8));
+                return Ygglib.FakeURLConnection(originalUrl, originalConn, 403, ("Nice try ;)").getBytes(StandardCharsets.UTF_8));
             }
 
             // Misc
             if (host.equals("api.ashcon.app") && path.matches("^/mojang/[^/]+/user/.*")) {
                 String username = Ygglib.getUsernameFromPath(originalUrl.getPath());
                 Loki.log.info("Intercepting api.ashcon.app lookup for " + username);
-                return Ygglib.getAshcon(originalUrl, username);
+                return Ygglib.getAshcon(originalUrl, originalConn, username);
             }
 
             if (host.equals("minotar.net") && path.startsWith("/helm")) {
                 String username = path.split("/")[2];
                 int res = Integer.parseInt(path.split("/")[3].replaceFirst("\\..*$", ""));
                 Loki.log.info(String.format("Intercepting minotar.net lookup for %s (%s px)", username, res));
-                return Ygglib.getMinotar(originalUrl, username, res);
+                return Ygglib.getMinotar(originalUrl, originalConn, username, res);
             }
 
             // Capes
             if (host.equals("s.optifine.net") && path.startsWith("/capes")) {
                 Loki.log.info("Intercepting OptiFine cape lookup");
-                return new Ygglib.FakeURLConnection(originalUrl, 403, ("Nice try ;)").getBytes(StandardCharsets.UTF_8));
+                return Ygglib.FakeURLConnection(originalUrl, originalConn, 403, ("Nice try ;)").getBytes(StandardCharsets.UTF_8));
             }
 
             if (host.equals("161.35.130.99") && path.startsWith("/capes")) {
                 Loki.log.info("Intercepting Cloaks+ cape lookup");
-                return new Ygglib.FakeURLConnection(originalUrl, 403, ("Nice try ;)").getBytes(StandardCharsets.UTF_8));
+                return Ygglib.FakeURLConnection(originalUrl, originalConn, 403, ("Nice try ;)").getBytes(StandardCharsets.UTF_8));
             }
         }
 
