@@ -1,4 +1,4 @@
-package org.unmojang.loki.logger;
+package org.unmojang.loki.util.logger;
 
 public class NilLogManager {
     private static final NilLogImpl IMPL;

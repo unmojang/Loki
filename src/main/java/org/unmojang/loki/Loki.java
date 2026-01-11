@@ -1,6 +1,6 @@
 package org.unmojang.loki;
 
-import org.unmojang.loki.logger.NilLogger;
+import org.unmojang.loki.util.logger.NilLogger;
 import org.unmojang.loki.transformers.*;
 
 import java.lang.instrument.Instrumentation;

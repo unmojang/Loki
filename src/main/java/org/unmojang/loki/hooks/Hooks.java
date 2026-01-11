@@ -1,6 +1,7 @@
 package org.unmojang.loki.hooks;
 
-import org.unmojang.loki.logger.NilLogger;
+import org.unmojang.loki.util.Json;
+import org.unmojang.loki.util.logger.NilLogger;
 import sun.misc.Unsafe;
 
 import java.io.ByteArrayOutputStream;
@@ -92,6 +93,7 @@ public class Hooks {
         }
     }
 
+    @SuppressWarnings("ExtractMethodRecommender")
     private static PublicKey getPublicKey() throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
         String baseUrl = System.getProperty("minecraft.api.services.host", "https://api.minecraftservices.com");
         URL url = new URL(baseUrl + "/publickeys");
@@ -110,17 +112,17 @@ public class Hooks {
             jsonText = new String(buffer.toByteArray(), StandardCharsets.UTF_8);
         }
 
-        jsonText = jsonText.replaceAll("\\s+", "");
+        Json.JSONObject jsonObject = new Json.JSONObject(jsonText);
+        Json.JSONArray profilePropertyKeys = jsonObject.getJSONArray("profilePropertyKeys");
+        if (profilePropertyKeys == null || profilePropertyKeys.isEmpty()) {
+            throw new IllegalStateException("profilePropertyKeys not found in response");
+        }
+        Object keyElement = profilePropertyKeys.getJSONObject(0).get("publicKey");
+        if (keyElement == null) {
+            throw new IllegalStateException("publicKey not found in response");
+        }
 
-        // Expecting: "profilePropertyKeys":[{"publicKey":"..."}]
-        int start = jsonText.indexOf("\"profilePropertyKeys\":[{\"publicKey\":\"");
-        if (start == -1) throw new IllegalStateException("publicKey not found in response");
-        start += "\"profilePropertyKeys\":[{\"publicKey\":\"".length();
-        int end = jsonText.indexOf("\"", start);
-        if (end == -1) throw new IllegalStateException("publicKey value not terminated");
-        String base64Key = jsonText.substring(start, end);
-        byte[] keyBytes = Base64.getDecoder().decode(base64Key);
-
+        byte[] keyBytes = Base64.getDecoder().decode(keyElement.toString());
         X509EncodedKeySpec spec = new X509EncodedKeySpec(keyBytes);
         KeyFactory keyFactory = KeyFactory.getInstance("RSA");
         return keyFactory.generatePublic(spec);

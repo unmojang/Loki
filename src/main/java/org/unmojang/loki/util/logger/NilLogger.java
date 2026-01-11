@@ -1,4 +1,4 @@
-package org.unmojang.loki.logger;
+package org.unmojang.loki.util.logger;
 
 import java.util.function.BiConsumer;
 import java.util.regex.Matcher;

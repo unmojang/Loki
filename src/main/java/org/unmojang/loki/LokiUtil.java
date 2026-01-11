@@ -257,7 +257,7 @@ public class LokiUtil {
                 JarEntry entry;
                 while ((entry = jis.getNextJarEntry()) != null) {
                     String name = entry.getName();
-                    if ((name.contains("/hooks/") || name.contains("/logger/")) && name.endsWith(".class")) {
+                    if ((name.contains("/hooks/") || name.contains("/util/")) && name.endsWith(".class")) {
                         JarEntry newEntry = new JarEntry(name);
                         jos.putNextEntry(newEntry);
 

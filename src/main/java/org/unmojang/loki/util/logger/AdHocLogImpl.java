@@ -1,4 +1,4 @@
-package org.unmojang.loki.logger;
+package org.unmojang.loki.util.logger;
 
 import java.io.PrintStream;
 import java.text.DateFormat;

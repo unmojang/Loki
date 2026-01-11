@@ -28,7 +28,6 @@ repositories {
 }
 
 dependencies {
-    implementation("com.grack:nanojson:1.10")
     implementation("org.ow2.asm:asm:9.9")
     implementation("org.ow2.asm:asm-tree:9.9")
 }
@@ -44,14 +43,12 @@ tasks.named<ShadowJar>("shadowJar") {
     isReproducibleFileOrder = true
     archiveClassifier.set("") // remove '-all' suffix
     dependencies {
-        include(dependency("com.grack:nanojson"))
         include(dependency("org.ow2.asm:asm"))
         include(dependency("org.ow2.asm:asm-tree"))
     }
     minimize()
     exclude("META-INF/maven/**")
 
-    relocate("com.grack.nanojson", "org.unmojang.loki.internal.nanojson")
     relocate("org.objectweb.asm", "org.unmojang.loki.internal.asm")
 
     manifest {

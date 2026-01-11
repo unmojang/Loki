@@ -1,10 +1,7 @@
 package org.unmojang.loki;
 
-import com.grack.nanojson.JsonArray;
-import com.grack.nanojson.JsonObject;
-import com.grack.nanojson.JsonParser;
-import com.grack.nanojson.JsonWriter;
 import org.unmojang.loki.hooks.Hooks;
+import org.unmojang.loki.util.Json;
 
 import javax.imageio.ImageIO;
 import javax.net.ssl.HttpsURLConnection;
@@ -49,7 +46,7 @@ public class Ygglib {
 
             BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
             String jsonText = reader.lines().collect(Collectors.joining());
-            JsonObject obj = JsonParser.object().from(jsonText);
+            Json.JSONObject obj = new Json.JSONObject(jsonText);
             return obj.getString("id");
         } catch (UnknownHostException e) {
             throw e;
@@ -72,8 +69,8 @@ public class Ygglib {
             BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
             String profileJson = reader.lines().collect(Collectors.joining());
             if (returnProfileJson) return profileJson;
-            JsonObject profileObj = JsonParser.object().from(profileJson);
-            String texturesBase64 = profileObj.getArray("properties").getObject(0).getString("value");
+            Json.JSONObject profileObj = new Json.JSONObject(profileJson);
+            String texturesBase64 = profileObj.getJSONArray("properties").getJSONObject(0).getString("value");
             return new String(Base64.getDecoder().decode(texturesBase64), StandardCharsets.UTF_8);
         } catch (Exception e) {
             Loki.log.error("Failed to get textures property for " + uuid, e);
@@ -91,16 +88,16 @@ public class Ygglib {
 
             String texturesProperty = getTexturesProperty(uuid, false);
             if (texturesProperty == null) throw new RuntimeException("textures property was null");
-            JsonObject texturePayloadObj = JsonParser.object().from(texturesProperty);
-            JsonObject skinOrCape = texturePayloadObj.getObject("textures").getObject(type);
+            Json.JSONObject texturePayloadObj = new Json.JSONObject(texturesProperty);
+            Json.JSONObject skinOrCape = texturePayloadObj.getJSONObject("textures").getJSONObject(type);
             String textureUrl = skinOrCape.getString("url");
             if (textureUrl == null) return FakeURLConnection(originalUrl, originalConn, 204, null);
 
             if (type.equals("SKIN")) {
                 boolean isSlim = false;
                 if (skinOrCape.has("metadata")) {
-                    JsonObject metadata = skinOrCape.getObject("metadata");
-                    if ("slim".equals(metadata.getString("model", ""))) {
+                    Json.JSONObject metadata = skinOrCape.getJSONObject("metadata");
+                    if ("slim".equals(metadata.getString("model"))) {
                         isSlim = true;
                     }
                 }
@@ -265,16 +262,16 @@ public class Ygglib {
             HttpURLConnection conn = RequestInterceptor.mirrorHttpURLConnection(originalUrl, (HttpURLConnection) originalConn);
             BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
             String profileJson = reader.lines().collect(Collectors.joining());
-            JsonObject profileObj = JsonParser.object().from(profileJson);
-            JsonArray properties = profileObj.getArray("properties");
+            Json.JSONObject profileObj = new Json.JSONObject(profileJson);
+            Json.JSONArray properties = profileObj.getJSONArray("properties");
             if (properties == null) throw new RuntimeException("properties was null");
 
             // Use iterator to safely remove elements
             Iterator<Object> iter = properties.iterator();
             while (iter.hasNext()) {
                 Object elem = iter.next();
-                if (elem instanceof JsonObject) {
-                    JsonObject prop = (JsonObject) elem;
+                if (elem instanceof Json.JSONObject) {
+                    Json.JSONObject prop = (Json.JSONObject) elem;
                     String name = prop.getString("name");
                     if (!"textures".equals(name)) {
                         iter.remove(); // remove uploadableTextures entry
@@ -283,7 +280,7 @@ public class Ygglib {
                     throw new RuntimeException("elem was not an instance of JsonObject");
                 }
             }
-            profileJson = JsonWriter.string(profileObj);
+            profileJson = profileObj.toString();
             return FakeURLConnection(originalUrl, originalConn, 200, profileJson.getBytes(StandardCharsets.UTF_8));
         } catch (Exception e) {
             Loki.log.error("getSessionProfile failed", e);
@@ -299,17 +296,17 @@ public class Ygglib {
 
             String profileJson = getTexturesProperty(uuid, true);
             if (profileJson == null) throw new RuntimeException("profile JSON was null");
-            JsonObject profileObj = JsonParser.object().from(profileJson);
-            JsonObject properties = profileObj.getArray("properties").getObject(0);
+            Json.JSONObject profileObj = new Json.JSONObject(profileJson);
+            Json.JSONObject properties = profileObj.getJSONArray("properties").getJSONObject(0);
             String texturesBase64 = properties.getString("value");
             String signaturesBase64 = properties.getString("signature");
             String texturePayload = new String(Base64.getDecoder().decode(texturesBase64), StandardCharsets.UTF_8);
-            JsonObject texturePayloadObj = JsonParser.object().from(texturePayload);
-            JsonObject skinObj = texturePayloadObj.getObject("textures").getObject("SKIN");
+            Json.JSONObject texturePayloadObj = new Json.JSONObject(texturePayload);
+            Json.JSONObject skinObj = texturePayloadObj.getJSONObject("textures").getJSONObject("SKIN");
             boolean isSlim = false;
             if (skinObj.has("metadata")) {
-                JsonObject metadata = skinObj.getObject("metadata");
-                if ("slim".equals(metadata.getString("model", ""))) {
+                Json.JSONObject metadata = skinObj.getJSONObject("metadata");
+                if ("slim".equals(metadata.getString("model"))) {
                     isSlim = true;
                 }
             }
@@ -349,8 +346,8 @@ public class Ygglib {
 
             String texturesProperty = getTexturesProperty(uuid, false);
             if (texturesProperty == null) throw new RuntimeException("textures property was null");
-            JsonObject texturePayloadObj = JsonParser.object().from(texturesProperty);
-            String textureUrl = texturePayloadObj.getObject("textures").getObject("SKIN").getString("url");
+            Json.JSONObject texturePayloadObj = new Json.JSONObject(texturesProperty);
+            String textureUrl = texturePayloadObj.getJSONObject("textures").getJSONObject("SKIN").getString("url");
             if (textureUrl == null) return FakeURLConnection(originalUrl, originalConn, 204, null);
             URLConnection connection = new URL(textureUrl).openConnection();
 
