@@ -13,11 +13,10 @@ import java.security.ProtectionDomain;
 
 public class ConcatenateURLTransformer implements ClassFileTransformer {
 
-    @Override
     public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,
                             ProtectionDomain protectionDomain, byte[] classfileBuffer) {
 
-        if (!"com/mojang/authlib/HttpAuthenticationService".equals(className)) return null;
+        if (!"com/mojang/authlib/HttpAuthenticationService".equals(className) || LokiUtil.JAVA_MAJOR <= 5) return null;
 
         try {
             ClassNode cn = new ClassNode();

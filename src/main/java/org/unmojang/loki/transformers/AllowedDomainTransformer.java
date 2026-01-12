@@ -15,7 +15,7 @@ import java.util.Set;
 
 
 public class AllowedDomainTransformer implements ClassFileTransformer {
-    private static final Set<String> TARGET_CLASSES = new HashSet<>(Arrays.asList(
+    private static final Set<String> TARGET_CLASSES = new HashSet<String>(Arrays.asList(
             "com/mojang/authlib/yggdrasil/YggdrasilMinecraftSessionService",
             "com/mojang/authlib/yggdrasil/TextureUrlChecker",
             "com/github/steveice10/mc/auth/data/GameProfile"
@@ -25,8 +25,7 @@ public class AllowedDomainTransformer implements ClassFileTransformer {
             "isAllowedTextureDomain(Ljava/lang/String;)Z"
     };
 
-    @Override
-    public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,
+    public byte[] transform(final ClassLoader loader, String className, Class<?> classBeingRedefined,
                             ProtectionDomain protectionDomain, byte[] classfileBuffer) {
 
         if (!TARGET_CLASSES.contains(className)) return null;

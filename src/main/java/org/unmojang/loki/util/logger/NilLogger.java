@@ -1,11 +1,12 @@
 package org.unmojang.loki.util.logger;
 
-import java.util.function.BiConsumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-@SuppressWarnings("unused")
+@SuppressWarnings({"unused"})
 public class NilLogger {
+    private interface BiConsumer<T, U> { void accept(T t, U u); }
+
     private static final Pattern BRACES_PATTERN = Pattern.compile("\\{}");
 
     private final NilLogImpl impl;
@@ -59,19 +60,43 @@ public class NilLogger {
     }
 
     public void trace(String message, Object... params) {
-        if (isTraceEnabled()) log(impl::trace, message, params);
+        if (isTraceEnabled()) {
+            log(new BiConsumer<String, Throwable>() {
+                public void accept(String msg, Throwable t) {
+                    impl.trace(msg, t);
+                }
+            }, message, params);
+        }
     }
 
     public void trace(String message, Object p0) {
-        if (isTraceEnabled()) log(impl::trace, message, p0);
+        if (isTraceEnabled()) {
+            log(new BiConsumer<String, Throwable>() {
+                public void accept(String msg, Throwable t) {
+                    impl.trace(msg, t);
+                }
+            }, message, p0);
+        }
     }
 
     public void trace(String message, Object p0, Object p1) {
-        if (isTraceEnabled()) log(impl::trace, message, p0, p1);
+        if (isTraceEnabled()) {
+            log(new BiConsumer<String, Throwable>() {
+                public void accept(String msg, Throwable t) {
+                    impl.trace(msg, t);
+                }
+            }, message, p0, p1);
+        }
     }
 
     public void trace(String message, Object p0, Object p1, Object p2) {
-        if (isTraceEnabled()) log(impl::trace, message, p0, p1, p2);
+        if (isTraceEnabled()) {
+            log(new BiConsumer<String, Throwable>() {
+                public void accept(String msg, Throwable t) {
+                    impl.trace(msg, t);
+                }
+            }, message, p0, p1, p2);
+        }
     }
 
     public void debug(String message) {
@@ -79,19 +104,43 @@ public class NilLogger {
     }
 
     public void debug(String message, Object... params) {
-        if (isDebugEnabled()) log(impl::debug, message, params);
+        if (isDebugEnabled()) {
+            log(new BiConsumer<String, Throwable>() {
+                public void accept(String msg, Throwable t) {
+                    impl.debug(msg, t);
+                }
+            }, message, params);
+        }
     }
 
     public void debug(String message, Object p0) {
-        if (isDebugEnabled()) log(impl::debug, message, p0);
+        if (isDebugEnabled()) {
+            log(new BiConsumer<String, Throwable>() {
+                public void accept(String msg, Throwable t) {
+                    impl.debug(msg, t);
+                }
+            }, message, p0);
+        }
     }
 
     public void debug(String message, Object p0, Object p1) {
-        if (isDebugEnabled()) log(impl::debug, message, p0, p1);
+        if (isDebugEnabled()) {
+            log(new BiConsumer<String, Throwable>() {
+                public void accept(String msg, Throwable t) {
+                    impl.debug(msg, t);
+                }
+            }, message, p0, p1);
+        }
     }
 
     public void debug(String message, Object p0, Object p1, Object p2) {
-        if (isDebugEnabled()) log(impl::debug, message, p0, p1, p2);
+        if (isDebugEnabled()) {
+            log(new BiConsumer<String, Throwable>() {
+                public void accept(String msg, Throwable t) {
+                    impl.debug(msg, t);
+                }
+            }, message, p0, p1, p2);
+        }
     }
 
     public void info(String message) {
@@ -99,19 +148,43 @@ public class NilLogger {
     }
 
     public void info(String message, Object... params) {
-        if (isInfoEnabled()) log(impl::info, message, params);
+        if (isInfoEnabled()) {
+            log(new BiConsumer<String, Throwable>() {
+                public void accept(String msg, Throwable t) {
+                    impl.info(msg, t);
+                }
+            }, message, params);
+        }
     }
 
     public void info(String message, Object p0) {
-        if (isInfoEnabled()) log(impl::info, message, p0);
+        if (isInfoEnabled()) {
+            log(new BiConsumer<String, Throwable>() {
+                public void accept(String msg, Throwable t) {
+                    impl.info(msg, t);
+                }
+            }, message, p0);
+        }
     }
 
     public void info(String message, Object p0, Object p1) {
-        if (isInfoEnabled()) log(impl::info, message, p0, p1);
+        if (isInfoEnabled()) {
+            log(new BiConsumer<String, Throwable>() {
+                public void accept(String msg, Throwable t) {
+                    impl.info(msg, t);
+                }
+            }, message, p0, p1);
+        }
     }
 
     public void info(String message, Object p0, Object p1, Object p2) {
-        if (isInfoEnabled()) log(impl::info, message, p0, p1, p2);
+        if (isInfoEnabled()) {
+            log(new BiConsumer<String, Throwable>() {
+                public void accept(String msg, Throwable t) {
+                    impl.info(msg, t);
+                }
+            }, message, p0, p1, p2);
+        }
     }
 
     public void warn(String message) {
@@ -119,19 +192,43 @@ public class NilLogger {
     }
 
     public void warn(String message, Object... params) {
-        if (isWarnEnabled()) log(impl::warn, message, params);
+        if (isWarnEnabled()) {
+            log(new BiConsumer<String, Throwable>() {
+                public void accept(String msg, Throwable t) {
+                    impl.warn(msg, t);
+                }
+            }, message, params);
+        }
     }
 
     public void warn(String message, Object p0) {
-        if (isWarnEnabled()) log(impl::warn, message, p0);
+        if (isWarnEnabled()) {
+            log(new BiConsumer<String, Throwable>() {
+                public void accept(String msg, Throwable t) {
+                    impl.warn(msg, t);
+                }
+            }, message, p0);
+        }
     }
 
     public void warn(String message, Object p0, Object p1) {
-        if (isWarnEnabled()) log(impl::warn, message, p0, p1);
+        if (isWarnEnabled()) {
+            log(new BiConsumer<String, Throwable>() {
+                public void accept(String msg, Throwable t) {
+                    impl.warn(msg, t);
+                }
+            }, message, p0, p1);
+        }
     }
 
     public void warn(String message, Object p0, Object p1, Object p2) {
-        if (isWarnEnabled()) log(impl::warn, message, p0, p1, p2);
+        if (isWarnEnabled()) {
+            log(new BiConsumer<String, Throwable>() {
+                public void accept(String msg, Throwable t) {
+                    impl.warn(msg, t);
+                }
+            }, message, p0, p1, p2);
+        }
     }
 
     public void error(String message) {
@@ -139,18 +236,42 @@ public class NilLogger {
     }
 
     public void error(String message, Object... params) {
-        if (isErrorEnabled()) log(impl::error, message, params);
+        if (isErrorEnabled()) {
+            log(new BiConsumer<String, Throwable>() {
+                public void accept(String msg, Throwable t) {
+                    impl.error(msg, t);
+                }
+            }, message, params);
+        }
     }
 
     public void error(String message, Object p0) {
-        if (isErrorEnabled()) log(impl::error, message, p0);
+        if (isErrorEnabled()) {
+            log(new BiConsumer<String, Throwable>() {
+                public void accept(String msg, Throwable t) {
+                    impl.error(msg, t);
+                }
+            }, message, p0);
+        }
     }
 
     public void error(String message, Object p0, Object p1) {
-        if (isErrorEnabled()) log(impl::error, message, p0, p1);
+        if (isErrorEnabled()) {
+            log(new BiConsumer<String, Throwable>() {
+                public void accept(String msg, Throwable t) {
+                    impl.error(msg, t);
+                }
+            }, message, p0, p1);
+        }
     }
 
     public void error(String message, Object p0, Object p1, Object p2) {
-        if (isErrorEnabled()) log(impl::error, message, p0, p1, p2);
+        if (isErrorEnabled()) {
+            log(new BiConsumer<String, Throwable>() {
+                public void accept(String msg, Throwable t) {
+                    impl.error(msg, t);
+                }
+            }, message, p0, p1, p2);
+        }
     }
 }

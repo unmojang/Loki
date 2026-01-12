@@ -6,7 +6,6 @@ import sun.misc.Unsafe;
 import java.io.*;
 import java.lang.reflect.Field;
 import java.net.*;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public class RequestInterceptor {
@@ -21,7 +20,7 @@ public class RequestInterceptor {
             Loki.log.error("Failed to get system URL handler", e);
             Loki.disable_factory = true;
         }
-        INTERCEPTED_DOMAINS = new HashSet<>(Arrays.asList(
+        INTERCEPTED_DOMAINS = new HashSet<String>(Arrays.asList(
                 "s3.amazonaws.com",
                 "www.minecraft.net",
                 "skins.minecraft.net",
@@ -50,7 +49,7 @@ public class RequestInterceptor {
         String sessionHost = System.getProperty("minecraft.api.session.host");
         String servicesHost = System.getProperty("minecraft.api.services.host");
 
-        Map<String, String> tmp = new HashMap<>();
+        Map<String, String> tmp = new HashMap<String, String>();
         tmp.put("authserver.mojang.com", authHost != null ? authHost : LokiUtil.MANIFEST_ATTRS.get("AuthHost"));
         tmp.put("api.mojang.com", accountHost != null ? accountHost : LokiUtil.MANIFEST_ATTRS.get("AccountHost"));
         tmp.put("sessionserver.mojang.com", sessionHost != null ? sessionHost : LokiUtil.MANIFEST_ATTRS.get("SessionHost"));
@@ -75,12 +74,14 @@ public class RequestInterceptor {
             Loki.disable_factory = true;
             return;
         }
-        URL.setURLStreamHandlerFactory(protocol -> {
-            URLStreamHandler delegate = Hooks.DEFAULT_HANDLERS.get(protocol);
-            if (delegate == null) return null;
-            return (protocol.equals("http") || protocol.equals("https"))
-                    ? new URLStreamHandlerProxy(delegate)
-                    : delegate;
+        URL.setURLStreamHandlerFactory(new URLStreamHandlerFactory() {
+            public URLStreamHandler createURLStreamHandler(String protocol) {
+                URLStreamHandler delegate = Hooks.DEFAULT_HANDLERS.get(protocol);
+                if (delegate == null) return null;
+                return (protocol.equals("http") || protocol.equals("https"))
+                        ? new URLStreamHandlerProxy(delegate)
+                        : delegate;
+            }
         });
     }
 
@@ -90,11 +91,11 @@ public class RequestInterceptor {
             URL delegated = new URL(null, url.toExternalForm(), handler);
             return (HttpURLConnection) delegated.openConnection();
         } catch (ClassCastException e) {
-            throw new IOException("Handler did not return HttpURLConnection", e);
+            throw new RuntimeException("Handler did not return HttpURLConnection", e);
         }
     }
 
-    private static URLConnection wrapConnection(java.net.URL originalUrl, java.net.URLConnection originalConn) throws UnknownHostException {
+    private static URLConnection wrapConnection(java.net.URL originalUrl, java.net.URLConnection originalConn) throws UnknownHostException, UnsupportedEncodingException {
         if (!(originalConn instanceof HttpURLConnection)) return originalConn;
         String host = originalUrl.getHost();
         String path = originalUrl.getPath();
@@ -105,7 +106,7 @@ public class RequestInterceptor {
                 final URL targetUrl = Ygglib.getYggdrasilUrl(originalUrl, originalUrl.getHost());
                 if (path.equals("/events") && !(Loki.enable_snooper)) { // Snooper (1.18+): https://api.minecraftservices.com/events
                     Loki.log.info("Intercepting snooper request");
-                    return Ygglib.FakeURLConnection(originalUrl, originalConn, 403, ("Nice try ;)").getBytes(StandardCharsets.UTF_8));
+                    return Ygglib.FakeURLConnection(originalUrl, originalConn, 403, ("Nice try ;)").getBytes("UTF-8"));
                 }
                 Loki.log.info("Intercepting " + host + " request");
                 Loki.log.debug(originalUrl + " -> " + targetUrl);
@@ -145,13 +146,13 @@ public class RequestInterceptor {
             // Snooper
             if (host.equals("snoop.minecraft.net")) {
                 Loki.log.info("Intercepting snooper request");
-                return Ygglib.FakeURLConnection(originalUrl, originalConn, 403, ("Nice try ;)").getBytes(StandardCharsets.UTF_8));
+                return Ygglib.FakeURLConnection(originalUrl, originalConn, 403, ("Nice try ;)").getBytes("UTF-8"));
             }
 
             // Realms
             if (host.equals("java.frontendlegacy.realms.minecraft-services.net") || host.equals("pc.realms.minecraft.net")) {
                 Loki.log.info("Intercepting realms request");
-                return Ygglib.FakeURLConnection(originalUrl, originalConn, 403, ("Nice try ;)").getBytes(StandardCharsets.UTF_8));
+                return Ygglib.FakeURLConnection(originalUrl, originalConn, 403, ("Nice try ;)").getBytes("UTF-8"));
             }
 
             // Misc
@@ -171,12 +172,12 @@ public class RequestInterceptor {
             // Capes
             if (host.equals("s.optifine.net") && path.startsWith("/capes")) {
                 Loki.log.info("Intercepting OptiFine cape lookup");
-                return Ygglib.FakeURLConnection(originalUrl, originalConn, 403, ("Nice try ;)").getBytes(StandardCharsets.UTF_8));
+                return Ygglib.FakeURLConnection(originalUrl, originalConn, 403, ("Nice try ;)").getBytes("UTF-8"));
             }
 
             if (host.equals("161.35.130.99") && path.startsWith("/capes")) {
                 Loki.log.info("Intercepting Cloaks+ cape lookup");
-                return Ygglib.FakeURLConnection(originalUrl, originalConn, 403, ("Nice try ;)").getBytes(StandardCharsets.UTF_8));
+                return Ygglib.FakeURLConnection(originalUrl, originalConn, 403, ("Nice try ;)").getBytes("UTF-8"));
             }
         }
 
@@ -206,11 +207,17 @@ public class RequestInterceptor {
         // Mirror body if present
         if (httpConn.getDoOutput()) {
             targetConn.setDoOutput(true);
-            try (InputStream is = httpConn.getInputStream();
-                 OutputStream os = targetConn.getOutputStream()) {
+            InputStream is = null;
+            OutputStream os = null;
+            try {
+                is = httpConn.getInputStream();
+                os = targetConn.getOutputStream();
                 byte[] buf = new byte[8192];
                 int r;
                 while ((r = is.read(buf)) != -1) os.write(buf, 0, r);
+            } finally {
+                if (is != null) is.close();
+                if (os != null) os.close();
             }
         }
         return targetConn;

@@ -7,16 +7,11 @@ Patch (nearly) any Minecraft version to use custom API servers
 
 ## Supported versions
 
-Skins/capes: c0.0.18a and above
-
-Authentication: a1.0.16 and above
-
-Skin support was added to the game in c0.0.18a. Although multiplayer was reintroduced in a1.0.15, a1.0.16 implemented
-online mode functionality. This means that Loki effectively supports every Minecraft version.
+Loki supports every Minecraft version.
 
 ## Wait, what about classic servers?
 
-Classic servers use the [Classic Protocol](https://minecraft.wiki/w/Minecraft_Wiki:Projects/wiki.vg_merge/Classic_Protocol), and while this may be supported in the future, as of now there is
+Minecraft Classic servers use the [Classic Protocol](https://minecraft.wiki/w/Minecraft_Wiki:Projects/wiki.vg_merge/Classic_Protocol), and while this may be supported in the future, as of now there is
 little incentive to do so due to the availability of significantly better clones like [ClassiCube](https://www.classicube.net/).
 
 ## Are total conversion mods or obscure mod loaders supported?
@@ -28,6 +23,10 @@ They should be, but if not, please file an issue.
 It does, as long as you're on the same API server and your API server supports chat reporting. While using Loki, the player signature is not validated, even with `enforce-secure-profile=true` in `server.properties` - it only requires that a signature is provided. In this state, [No Chat Reports](https://modrinth.com/mod/no-chat-reports) will not work, but signatures could potentially be forged unless you additionally set `-DLoki.enforce_secure_profile=true`. Doing this will, however, kick [fallback API server](https://github.com/unmojang/drasl/blob/master/doc/configuration.md) players, and is discouraged (see "Chat validation error" Troubleshooting section below). You can even do chat reports across API servers, the API server will of course reject the attempt to make the report though.
 
 ![Attempted cross-API server chat report](/img/chatreport.png)
+
+## I'd like to use this on Windows 2000 or PowerPC MacOS, does it support Java 5?
+
+Loki supports Java 5 and above. However, Java 5 lacks some functionality and may have issues in some modded environments. If you are using Java 6 or later, there should be no issues.
 
 ## JVM arguments
 
@@ -90,3 +89,6 @@ Loki supports JVM arguments to enable or disable some behaviour.
 Whenever anyone from a different API server talks in chat, fallback API server players may see "Chat validation error" and be unable to send messages afterward until they relog. This is due to the vanilla 1.19+ game client performing signature checks on messages prior to accepting them. The solution is to either use Loki or authlib-injector on the client - which will most likely already be in use unless the fallback API server is Mojang - or to disable `enforce-secure-profile` in `server.properties` on the server.
 
 [^1]: This option is **NOT** necessary to ensure the integrity of chat reports made to the API server from clients, and will kick [fallback API server](https://github.com/unmojang/drasl/blob/master/doc/configuration.md) players.
+
+## Building
+Loki needs to be built with Java 8. Gradle should find and build with a Java 8 JDK automatically for you, so there is no need to adjust your `JAVA_HOME`, but you must have a Java 8 JDK installed.

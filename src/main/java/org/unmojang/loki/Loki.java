@@ -21,7 +21,7 @@ public class Loki {
         LokiUtil.earlyInit(agentArgs, inst);
 
         // Kill Loki alternatives so that Loki won't break
-        inst.addTransformer(new LokiAlternativesTransformer(), true);
+        LokiUtil.addRetransformTransformer(new LokiAlternativesTransformer(), inst);
         LokiUtil.retransformClass("moe.yushi.authlibinjector.Premain", inst);
         LokiUtil.retransformClass("moe.yushi.authlibinjector.javaagent.AuthlibInjectorPremain", inst);
         LokiUtil.retransformClass("org.to2mbn.authlibinjector.javaagent.AuthlibInjectorPremain", inst);
@@ -51,14 +51,14 @@ public class Loki {
         // Misc fixes
         inst.addTransformer(new ConcatenateURLTransformer()); // Prevent port number being ignored in old authlib, if you specified it
         inst.addTransformer(new MCAuthlibGameProfileTransformer()); // Primarily for MojangFix
-        inst.addTransformer(new SetURLFactoryTransformer(), true); // Fix 1.13-1.16 Forge, LegacyFix agent
+        LokiUtil.addRetransformTransformer(new SetURLFactoryTransformer(), inst); // Fix 1.13-1.16 Forge, LegacyFix agent
         LokiUtil.retransformClass("uk.betacraft.legacyfix.LegacyFixLauncher", inst);
 
         // Intercept OptiFine capes to prevent collisions, for whatever reason it isn't caught by Loki's URL factory
         inst.addTransformer(new OptiFineCapeTransformer());
 
         // Block some DNS lookups
-        inst.addTransformer(new InetAddressTransformer(), true);
+        LokiUtil.addRetransformTransformer(new InetAddressTransformer(), inst);
         LokiUtil.retransformClass("java.net.InetAddress", inst);
 
         // Apply 1.21.9+ fixes

@@ -11,10 +11,10 @@ import java.security.ProtectionDomain;
 
 public class UsernameConstantTransformer implements ClassFileTransformer {
 
-    @Override
     public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,
                             ProtectionDomain protectionDomain, byte[] classfileBuffer) {
 
+        if (className.startsWith("java/") || className.startsWith("javax/")) return null;
         try {
             ClassNode cn = new ClassNode();
             ClassReader cr = new ClassReader(classfileBuffer);

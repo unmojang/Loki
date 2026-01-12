@@ -13,7 +13,7 @@ import static org.objectweb.asm.Opcodes.*;
 
 public class InetAddressTransformer implements ClassFileTransformer {
 
-    private static final List<String> TARGET_HOSTS = new ArrayList<>();
+    private static final List<String> TARGET_HOSTS = new ArrayList<String>();
 
     static {
         if (!Loki.modded_capes) {
@@ -30,21 +30,20 @@ public class InetAddressTransformer implements ClassFileTransformer {
         }
     }
 
-    @Override
-    public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,
+    public byte[] transform(ClassLoader loader, final String className, Class<?> classBeingRedefined,
                             ProtectionDomain protectionDomain, byte[] classfileBuffer) {
 
-        if (!"java/net/InetAddress".equals(className)) return null;
+        if (!"java/net/InetAddress".equals(className) || LokiUtil.JAVA_MAJOR <= 5) return null;
 
         ClassReader cr = new ClassReader(classfileBuffer);
         ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
         ClassVisitor cv = new ClassVisitor(ASM9, cw) {
             @Override
-            public MethodVisitor visitMethod(int access, String name, String descriptor,
+            public MethodVisitor visitMethod(int access, final String name, final String descriptor,
                                              String signature, String[] exceptions) {
                 MethodVisitor mv = super.visitMethod(access, name, descriptor, signature, exceptions);
 
-                boolean hookGetByName = "getByName".equals(name) && "(Ljava/lang/String;)Ljava/net/InetAddress;".equals(descriptor);
+                final boolean hookGetByName = "getByName".equals(name) && "(Ljava/lang/String;)Ljava/net/InetAddress;".equals(descriptor);
                 boolean hookGetAllByName = "getAllByName".equals(name) && "(Ljava/lang/String;)[Ljava/net/InetAddress;".equals(descriptor);
                 boolean hookGetAllByName0_1 = "getAllByName0".equals(name) && "(Ljava/lang/String;Z)[Ljava/net/InetAddress;".equals(descriptor);
                 boolean hookGetAllByName0_2 = "getAllByName0".equals(name) && "(Ljava/lang/String;ZZ)[Ljava/net/InetAddress;".equals(descriptor);

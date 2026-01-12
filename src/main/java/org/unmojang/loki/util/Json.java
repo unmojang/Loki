@@ -3018,7 +3018,6 @@ public class Json {
             }
         }
 
-        @Override
         public Iterator<Object> iterator() {
             return this.myArrayList.iterator();
         }

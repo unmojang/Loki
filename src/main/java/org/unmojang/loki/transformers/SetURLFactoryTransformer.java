@@ -12,12 +12,11 @@ import org.unmojang.loki.LokiUtil;
 
 public class SetURLFactoryTransformer implements ClassFileTransformer {
 
-    @Override
     public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,
                             ProtectionDomain protectionDomain, byte[] classfileBuffer) {
 
-        if (!"net/minecraftforge/fml/loading/FMLLoader".equals(className) &&
-                !"uk/betacraft/legacyfix/LegacyFixLauncher".equals(className)) return null;
+        if ((!"net/minecraftforge/fml/loading/FMLLoader".equals(className) &&
+                !"uk/betacraft/legacyfix/LegacyFixLauncher".equals(className)) || LokiUtil.JAVA_MAJOR <= 5) return null;
 
         try {
             ClassNode cn = new ClassNode();

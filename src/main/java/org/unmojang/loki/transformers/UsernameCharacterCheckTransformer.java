@@ -12,11 +12,10 @@ import java.security.ProtectionDomain;
 
 public class UsernameCharacterCheckTransformer implements ClassFileTransformer {
 
-    @Override
-    public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,
+    public byte[] transform(final ClassLoader loader, String className, Class<?> classBeingRedefined,
                             ProtectionDomain protectionDomain, byte[] classfileBuffer) {
 
-        if (Loki.username_validation) return null;
+        if (Loki.username_validation || className.startsWith("java/") || className.startsWith("javax/")) return null;
 
         try {
             ClassNode cn = new ClassNode();

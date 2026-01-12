@@ -1,5 +1,6 @@
 package org.unmojang.loki.hooks;
 
+import org.unmojang.loki.util.Base64;
 import org.unmojang.loki.util.Json;
 import org.unmojang.loki.util.logger.NilLogger;
 import sun.misc.Unsafe;
@@ -9,17 +10,15 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.net.*;
-import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
-import java.util.Base64;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 @SuppressWarnings("unused")
 public class Hooks {
-    public static final Map<String, URLStreamHandler> DEFAULT_HANDLERS = new ConcurrentHashMap<>();
+    public static final Map<String, URLStreamHandler> DEFAULT_HANDLERS = new ConcurrentHashMap<String, URLStreamHandler>();
     private static final NilLogger log = NilLogger.get("Loki");
 
     // thanks yushijinhun!
@@ -27,7 +26,7 @@ public class Hooks {
     // https://github.com/yushijinhun/authlib-injector/issues/126
     public static URL concatenateURL(URL url, String query) {
         try {
-            if (url.getQuery() != null && !url.getQuery().isEmpty()) {
+            if (url.getQuery() != null && url.getQuery().length() != 0) {
                 return new URL(url.getProtocol(), url.getHost(), url.getPort(), url.getFile() + "&" + query);
             } else {
                 return new URL(url.getProtocol(), url.getHost(), url.getPort(), url.getFile() + "?" + query);
@@ -77,7 +76,7 @@ public class Hooks {
             long staticOffset = unsafe.staticFieldOffset(pubKeyField);
             unsafe.putObject(staticBase, staticOffset, publicKey);
         } catch (Exception e) {
-            throw new AssertionError("Failed to fetch yggdrasil public key!", e);
+            throw new RuntimeException("Failed to fetch yggdrasil public key!", e);
         }
     }
 
@@ -89,7 +88,7 @@ public class Hooks {
             pubKeyField.setAccessible(true);
             pubKeyField.set(target, publicKey);
         } catch (Exception e) {
-            throw new AssertionError("Failed to fetch yggdrasil public key!", e);
+            throw new RuntimeException("Failed to fetch yggdrasil public key!", e);
         }
     }
 
@@ -102,14 +101,18 @@ public class Hooks {
         conn.setDoInput(true);
 
         String jsonText;
-        try (InputStream is = conn.getInputStream()) {
+        InputStream is = null;
+        try {
+            is = conn.getInputStream();
             ByteArrayOutputStream buffer = new ByteArrayOutputStream();
             byte[] data = new byte[8192];
             int nRead;
             while ((nRead = is.read(data, 0, data.length)) != -1) {
                 buffer.write(data, 0, nRead);
             }
-            jsonText = new String(buffer.toByteArray(), StandardCharsets.UTF_8);
+            jsonText = buffer.toString("UTF-8");
+        } finally {
+            if (is != null) is.close();
         }
 
         Json.JSONObject jsonObject = new Json.JSONObject(jsonText);
@@ -122,7 +125,7 @@ public class Hooks {
             throw new IllegalStateException("publicKey not found in response");
         }
 
-        byte[] keyBytes = Base64.getDecoder().decode(keyElement.toString());
+        byte[] keyBytes = Base64.decode(keyElement.toString());
         X509EncodedKeySpec spec = new X509EncodedKeySpec(keyBytes);
         KeyFactory keyFactory = KeyFactory.getInstance("RSA");
         return keyFactory.generatePublic(spec);

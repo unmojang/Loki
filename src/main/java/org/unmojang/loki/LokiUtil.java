@@ -7,8 +7,6 @@ import java.lang.instrument.Instrumentation;
 import java.lang.management.ManagementFactory;
 import java.lang.reflect.Method;
 import java.net.*;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.security.CodeSource;
 import java.security.ProtectionDomain;
 import java.security.cert.X509Certificate;
@@ -20,19 +18,22 @@ import java.util.jar.*;
 public class LokiUtil {
     private static boolean OFFLINE_MODE = false;
     public static boolean FOUND_ALI = false;
-    public static final Map<String, String> MANIFEST_ATTRS = new ConcurrentHashMap<>();
+    public static final Map<String, String> MANIFEST_ATTRS = new ConcurrentHashMap<String, String>();
 
-    @SuppressWarnings("unused")
     public static final int JAVA_MAJOR = getJavaVersion();
 
     public static void initManifestAttributes() {
         try {
             CodeSource codeSource = LokiUtil.class.getProtectionDomain().getCodeSource();
             if (codeSource != null && codeSource.getLocation() != null) {
-                try (JarFile jar = new JarFile(new File(codeSource.getLocation().toURI()))) {
+                JarFile jar = null;
+                try {
+                    jar = new JarFile(new File(codeSource.getLocation().toURI()));
                     for (Map.Entry<Object, Object> entry : jar.getManifest().getMainAttributes().entrySet()) {
                         MANIFEST_ATTRS.put(entry.getKey().toString(), entry.getValue().toString());
                     }
+                } finally {
+                    if (jar != null) jar.close();
                 }
             }
         } catch (Throwable t) {
@@ -40,17 +41,19 @@ public class LokiUtil {
         }
     }
 
-    private static boolean areWeOnline(String host) {
+    private static boolean areWeOnline(final String host) {
         int timeoutMs = 2000;
 
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        Future<Boolean> future = executor.submit(() -> {
-            try {
-                //noinspection ResultOfMethodCallIgnored
-                InetAddress.getByName(host);
-                return true;
-            } catch (UnknownHostException e) {
-                return false;
+        Future<Boolean> future = executor.submit(new Callable<Boolean>() {
+            public Boolean call() {
+                try {
+                    //noinspection ResultOfMethodCallIgnored
+                    InetAddress.getByName(host);
+                    return true;
+                } catch (UnknownHostException e) {
+                    return false;
+                }
             }
         });
 
@@ -59,7 +62,9 @@ public class LokiUtil {
         } catch (TimeoutException e) {
             future.cancel(true);
             return false;
-        } catch (InterruptedException | ExecutionException e) {
+        } catch (ExecutionException e) {
+            return false;
+        } catch (InterruptedException e) {
             return false;
         } finally {
             executor.shutdownNow();
@@ -91,7 +96,7 @@ public class LokiUtil {
     }
 
     public static void tryOrDisableSSL(String httpsUrl) {
-        if (OFFLINE_MODE || httpsUrl == null || httpsUrl.isEmpty() || httpsUrl.startsWith("http://")) return;
+        if (OFFLINE_MODE || httpsUrl == null || httpsUrl.length() == 0 || httpsUrl.startsWith("http://")) return;
         String url = normalizeUrl(httpsUrl.toLowerCase());
         try {
             String host = new URL(url).getHost();
@@ -133,7 +138,7 @@ public class LokiUtil {
             try {
                 URL url = new URL(server);
                 String path = url.getPath();
-                if (path.isEmpty() || path.equals("/")) {
+                if (path.length() == 0 || path.equals("/")) {
                     server = server.replaceAll("/$", "") + "/authlib-injector";
                     Loki.log.warn("Guessing Authlib-Injector API route: " + server);
                 }
@@ -146,7 +151,9 @@ public class LokiUtil {
             conn.setRequestMethod("GET");
             conn.setDoInput(true);
             conn.connect();
-            return conn.getHeaderField("X-Authlib-Injector-Api-Location");
+            String apiLocation = conn.getHeaderField("X-Authlib-Injector-Api-Location");
+            if (server.startsWith("http://")) return apiLocation.replaceFirst("^https://", "http://");
+            return apiLocation;
         } catch (Exception e) {
             Loki.log.error("Failed to get authlib-injector API location", e);
             return null;
@@ -184,7 +191,9 @@ public class LokiUtil {
             String jarPath = arg.substring("-javaagent:".length(), arg.indexOf('='));
             String agentArg = arg.substring(arg.indexOf('=') + 1);
 
-            try (JarFile jarFile = new JarFile(jarPath)) {
+            JarFile jarFile = null;
+            try {
+                jarFile = new JarFile(jarPath);
                 Enumeration<JarEntry> entries = jarFile.entries();
 
                 while (entries.hasMoreElements()) {
@@ -195,7 +204,9 @@ public class LokiUtil {
                         return agentArg;
                     }
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {} finally {
+                if (jarFile != null) try { jarFile.close(); } catch (IOException ignored) {}
+            }
         }
         return null;
     }
@@ -216,12 +227,10 @@ public class LokiUtil {
         FOUND_ALI = true;
     }
 
-    private static void hookFutureClassLoaders(Instrumentation inst, Path jarPath) throws Exception {
-        final URL jarUrl = jarPath.toUri().toURL();
-        Map<ClassLoader, Boolean> injectedLoaders = new ConcurrentHashMap<>();
-        //noinspection Convert2Lambda
+    private static void hookFutureClassLoaders(Instrumentation inst, File jarFile) throws Exception {
+        final URL jarUrl = jarFile.toURI().toURL();
+        final Map<ClassLoader, Boolean> injectedLoaders = new ConcurrentHashMap<ClassLoader, Boolean>();
         ClassFileTransformer injector = new ClassFileTransformer() {
-            @Override
             public byte[] transform(ClassLoader loader, String name, Class<?> c, ProtectionDomain pd, byte[] bytes) {
                 if (loader == null || injectedLoaders.containsKey(loader)) return null;
                 try {
@@ -240,7 +249,7 @@ public class LokiUtil {
             }
         };
 
-        inst.addTransformer(injector, true);
+        addRetransformTransformer(injector, inst);
     }
 
     private static void appendHooksToClasspath(Instrumentation inst) {
@@ -248,12 +257,14 @@ public class LokiUtil {
             File agentJar = new File(LokiUtil.class.getProtectionDomain().getCodeSource().getLocation().toURI());
             if (!agentJar.exists()) throw new AssertionError("Agent JAR not found");
 
-            Path tmpJar = Files.createTempFile("Loki-hooks", ".jar");
-            tmpJar.toFile().deleteOnExit();
+            File tmpJar = File.createTempFile("Loki-hooks", ".jar");
+            tmpJar.deleteOnExit();
 
-            try (JarInputStream jis = new JarInputStream(Files.newInputStream(agentJar.toPath()));
-                 JarOutputStream jos = new JarOutputStream(Files.newOutputStream(tmpJar.toFile().toPath()))) {
-
+            JarInputStream jis = null;
+            JarOutputStream jos = null;
+            try {
+                jis = new JarInputStream(new FileInputStream(agentJar));
+                jos = new JarOutputStream(new FileOutputStream(tmpJar));
                 JarEntry entry;
                 while ((entry = jis.getNextJarEntry()) != null) {
                     String name = entry.getName();
@@ -269,32 +280,67 @@ public class LokiUtil {
                         jos.closeEntry();
                     }
                 }
+            } finally {
+                if (jis != null) jis.close();
+                if (jos != null) jos.close();
             }
 
-            inst.appendToBootstrapClassLoaderSearch(new JarFile(tmpJar.toFile()));
-            inst.appendToSystemClassLoaderSearch(new JarFile(tmpJar.toFile()));
+            //inst.appendToBootstrapClassLoaderSearch(new JarFile(tmpJar));
+            try {
+                Method m = Instrumentation.class.getMethod("appendToBootstrapClassLoaderSearch", JarFile.class);
+                m.invoke(inst, new JarFile(tmpJar));
+            } catch (NoSuchMethodException ignored) {}
+
+            //inst.appendToSystemClassLoaderSearch(new JarFile(tmpJar));
+            try {
+                Method m = Instrumentation.class.getMethod("appendToSystemClassLoaderSearch", JarFile.class);
+                m.invoke(inst, new JarFile(tmpJar));
+            } catch (NoSuchMethodException ignored) {}
             hookFutureClassLoaders(inst, tmpJar);
             Loki.log.debug("Appended hooks to classpath");
         } catch (Exception e) {
-            throw new AssertionError("Failed to append hooks to classpath", e);
+            Loki.log.error("Failed to append hooks to classpath", e);
+            System.exit(1);
         }
     }
 
+    public static boolean isRetransformSupported(Instrumentation inst) {
+        try {
+            Method m = Instrumentation.class.getMethod("isRetransformClassesSupported");
+            Object result = m.invoke(inst);
+            if (result instanceof Boolean) {
+                return (Boolean) result;
+            }
+        } catch (Throwable ignored) {}
+
+        return false;
+    }
+
     public static void earlyInit(String agentArgs, Instrumentation inst) {
-        // Ensure retransformation is supported
-        if (!inst.isRetransformClassesSupported()) {
-            Loki.log.error("Retransforming classes is not supported?!");
-            throw new AssertionError();
+        if (!isRetransformSupported(inst)) {
+            Loki.log.warn("**** RETRANSFORMATION IS NOT SUPPORTED!");
+            if (JAVA_MAJOR == 5) {
+                Loki.log.warn("Class retransformation is not supported on Java 5.");
+            } else {
+                Loki.log.warn("Class retransformation is not supported in this environment.");
+            }
+            Loki.log.warn("Domain blocking, the Authlib-Injector killer, Chat signing (1.19+),");
+            Loki.log.warn("and many other features will be unavailable!");
+            if (JAVA_MAJOR == 5) Loki.log.warn("If possible, upgrade to at least Java 6 to restore this functionality!");
+            Loki.log.warn("Forge 1.13+ support can be fixed by setting the JVM argument");
+            Loki.log.warn("`-DLoki.disable_factory=true`");
+            // fallback to fix Fabric
+            System.setProperty("fabric.debug.disableClassPathIsolation", "true");
         }
 
         initManifestAttributes();
 
         // Authlib-Injector API
         String authlibInjectorURL = (System.getProperty("Loki.url") != null) // Prioritize Loki.url
-                ? System.getProperty("Loki.url") : (agentArgs != null && !agentArgs.isEmpty())
+                ? System.getProperty("Loki.url") : (agentArgs != null && agentArgs.length() != 0)
                 ? agentArgs
                 : MANIFEST_ATTRS.get("AuthlibInjectorAPIServer");
-        if (authlibInjectorURL != null && !authlibInjectorURL.isEmpty()) {
+        if (authlibInjectorURL != null && authlibInjectorURL.length() != 0) {
             LokiUtil.tryOrDisableSSL(authlibInjectorURL);
             LokiUtil.initAuthlibInjectorAPI(authlibInjectorURL);
         } else {
@@ -323,10 +369,26 @@ public class LokiUtil {
         }
     }
 
+    public static void addRetransformTransformer(ClassFileTransformer transformer, Instrumentation inst) {
+        try {
+            try {
+                Method m = Instrumentation.class.getMethod("addTransformer", ClassFileTransformer.class, boolean.class);
+                m.invoke(inst, transformer, Boolean.TRUE);
+            } catch (NoSuchMethodException e) {
+                inst.addTransformer(transformer); // fallback for Java 5
+            }
+        } catch (Throwable t) {
+            Loki.log.error("Failed to add retransform transformer!", t);
+        }
+    }
+
     public static void retransformClass(String className, Instrumentation inst) {
         try {
             Class<?> targetClass = Class.forName(className);
-            inst.retransformClasses(targetClass);
+            try {
+                Method m = Instrumentation.class.getMethod("retransformClasses", Class[].class);
+                m.invoke(inst, new Object[] { new Class<?>[] { targetClass } });
+            } catch (NoSuchMethodException ignored) {}
         } catch (ClassNotFoundException ignored) {} catch (Throwable t) {
             Loki.log.error(String.format("Failed to retransform %s!", className), t);
         }

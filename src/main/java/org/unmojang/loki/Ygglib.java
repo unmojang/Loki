@@ -1,6 +1,7 @@
 package org.unmojang.loki;
 
 import org.unmojang.loki.hooks.Hooks;
+import org.unmojang.loki.util.Base64;
 import org.unmojang.loki.util.Json;
 
 import javax.imageio.ImageIO;
@@ -9,21 +10,29 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.*;
 import java.net.*;
-import java.nio.charset.StandardCharsets;
 import java.security.cert.Certificate;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 public class Ygglib {
+    public static String readStream(InputStream in) throws IOException {
+        BufferedReader reader = new BufferedReader(new InputStreamReader(in, "UTF-8"));
+        StringBuilder sb = new StringBuilder();
+        String line;
+        while ((line = reader.readLine()) != null) {
+            sb.append(line);
+        }
+        reader.close();
+        return sb.toString();
+    }
+
     public static String getUsernameFromPath(String path) {
         return path.substring(path.lastIndexOf('/') + 1).replaceFirst("\\.png$", "");
     }
 
     public static Map<String, String> queryStringParser(String query) {
-        Map<String, String> params = new HashMap<>();
+        Map<String, String> params = new HashMap<String, String>();
         String[] entries = query.split("&");
         for (String entry : entries) {
             String[] pair = entry.split("=");
@@ -44,8 +53,7 @@ public class Ygglib {
             conn.setConnectTimeout(5000);
             conn.setReadTimeout(5000);
 
-            BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
-            String jsonText = reader.lines().collect(Collectors.joining());
+            String jsonText = readStream(conn.getInputStream());
             Json.JSONObject obj = new Json.JSONObject(jsonText);
             return obj.getString("id");
         } catch (UnknownHostException e) {
@@ -66,12 +74,11 @@ public class Ygglib {
             conn.setConnectTimeout(5000);
             conn.setReadTimeout(5000);
 
-            BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
-            String profileJson = reader.lines().collect(Collectors.joining());
+            String profileJson = readStream(conn.getInputStream());
             if (returnProfileJson) return profileJson;
             Json.JSONObject profileObj = new Json.JSONObject(profileJson);
             String texturesBase64 = profileObj.getJSONArray("properties").getJSONObject(0).getString("value");
-            return new String(Base64.getDecoder().decode(texturesBase64), StandardCharsets.UTF_8);
+            return new String(Base64.decode(texturesBase64), "UTF-8");
         } catch (Exception e) {
             Loki.log.error("Failed to get textures property for " + uuid, e);
             return null;
@@ -92,6 +99,9 @@ public class Ygglib {
             Json.JSONObject skinOrCape = texturePayloadObj.getJSONObject("textures").getJSONObject(type);
             String textureUrl = skinOrCape.getString("url");
             if (textureUrl == null) return FakeURLConnection(originalUrl, originalConn, 204, null);
+            if (RequestInterceptor.YGGDRASIL_MAP.get("sessionserver.mojang.com").startsWith("http://")) {
+                textureUrl = textureUrl.replaceFirst("^https://", "http://");
+            }
 
             if (type.equals("SKIN")) {
                 boolean isSlim = false;
@@ -102,10 +112,12 @@ public class Ygglib {
                     }
                 }
                 URLConnection connection = new URL(textureUrl).openConnection();
-                try (InputStream in = connection.getInputStream()) {
+                InputStream in = null;
+                try {
                     // thank you ahnewark!
                     // this is heavily based on
                     // https://github.com/ahnewark/MineOnline/blob/4f4f86f9d051e0a6fd7ff0b95b2a05f7437683d7/src/main/java/gg/codie/mineonline/gui/textures/TextureHelper.java#L17
+                    in = connection.getInputStream();
                     BufferedImage image = ImageIO.read(in);
                     Graphics2D graphics = image.createGraphics();
                     graphics.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER));
@@ -138,6 +150,8 @@ public class Ygglib {
                     ImageIO.write(image, "png", out);
 
                     return FakeURLConnection(originalUrl, originalConn, 200, out.toByteArray());
+                } finally {
+                    if (in != null) in.close();
                 }
             } else if (type.equals("CAPE")) {
                 return new URL(textureUrl).openConnection();
@@ -159,8 +173,9 @@ public class Ygglib {
             String username = params.get("user");
             if (username == null) throw new RuntimeException("missing user");
             String serverId = params.get("serverId");
-            String sessionId = params.getOrDefault("sessionId", params.get("session"));
-            if (sessionId == null || sessionId.isEmpty()) throw new RuntimeException("missing session/sessionId");
+            String sessionId = params.get("sessionId");
+            if (sessionId == null) sessionId = params.get("session");
+            if (sessionId == null || sessionId.length() == 0) throw new RuntimeException("missing session/sessionId");
 
             // sessionId has the form:
             // token:<accessToken>:<player UUID>
@@ -170,7 +185,7 @@ public class Ygglib {
                 throw new RuntimeException("invalid sessionId");
             }
             String[] parts = sessionId.split(sessionId.contains(":") ? ":" : "%3A");
-            if (parts.length < 3 || parts[1].isEmpty() || parts[2].isEmpty()) {
+            if (parts.length < 3 || parts[1].length() == 0 || parts[2].length() == 0) {
                 throw new RuntimeException("invalid sessionId");
             }
 
@@ -186,7 +201,9 @@ public class Ygglib {
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Content-Type", "application/json");
             conn.setRequestProperty("Accept", "application/json");
-            try (OutputStream os = conn.getOutputStream()) {
+            OutputStream os = null;
+            try {
+                os = conn.getOutputStream();
                 StringBuilder payload = new StringBuilder();
                 payload.append("{")
                         .append("\"accessToken\": \"").append(accessToken).append("\",")
@@ -196,13 +213,15 @@ public class Ygglib {
                     payload.append(",\"serverId\": \"").append(serverId).append("\"");
                 }
                 payload.append("}");
-                os.write(payload.toString().getBytes(StandardCharsets.UTF_8));
+                os.write(payload.toString().getBytes("UTF-8"));
+            } finally {
+                if (os != null) os.close();
             }
 
             if (conn.getResponseCode() == 204) {
-                return FakeURLConnection(originalUrl, originalConn, 200, "OK".getBytes(StandardCharsets.UTF_8));
+                return FakeURLConnection(originalUrl, originalConn, 200, "OK".getBytes("UTF-8"));
             }
-            return FakeURLConnection(originalUrl, originalConn, 200, "Bad login".getBytes(StandardCharsets.UTF_8));
+            return FakeURLConnection(originalUrl, originalConn, 200, "Bad login".getBytes("UTF-8"));
         } catch (Exception e) {
             Loki.log.error("joinServer failed", e);
             throw new RuntimeException(e);
@@ -231,9 +250,9 @@ public class Ygglib {
             conn.connect();
 
             if (conn.getResponseCode() == 200) {
-                return FakeURLConnection(originalUrl, originalConn, 200, "YES".getBytes(StandardCharsets.UTF_8));
+                return FakeURLConnection(originalUrl, originalConn, 200, "YES".getBytes("UTF-8"));
             }
-            return FakeURLConnection(originalUrl, originalConn, 200, "Bad login".getBytes(StandardCharsets.UTF_8));
+            return FakeURLConnection(originalUrl, originalConn, 200, "Bad login".getBytes("UTF-8"));
         } catch (Exception e) {
             Loki.log.error("checkServer failed", e);
             throw new RuntimeException(e);
@@ -246,7 +265,7 @@ public class Ygglib {
                 : originalUrl.getProtocol() + "://" + replacement);
 
         String newPath = replacementUrl.getPath();
-        if (!newPath.endsWith("/") && !originalUrl.getPath().isEmpty()) newPath += "/";
+        if (!newPath.endsWith("/") && originalUrl.getPath().length() != 0) newPath += "/";
         newPath += originalUrl.getPath().startsWith("/") ? originalUrl.getPath().substring(1) : originalUrl.getPath();
 
         String finalUrlStr = replacementUrl.getProtocol() + "://" + replacementUrl.getHost();
@@ -260,8 +279,7 @@ public class Ygglib {
     public static URLConnection getSessionProfile(URL originalUrl, URLConnection originalConn) {
         try {
             HttpURLConnection conn = RequestInterceptor.mirrorHttpURLConnection(originalUrl, (HttpURLConnection) originalConn);
-            BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
-            String profileJson = reader.lines().collect(Collectors.joining());
+            String profileJson = readStream(conn.getInputStream());
             Json.JSONObject profileObj = new Json.JSONObject(profileJson);
             Json.JSONArray properties = profileObj.getJSONArray("properties");
             if (properties == null) throw new RuntimeException("properties was null");
@@ -281,7 +299,7 @@ public class Ygglib {
                 }
             }
             profileJson = profileObj.toString();
-            return FakeURLConnection(originalUrl, originalConn, 200, profileJson.getBytes(StandardCharsets.UTF_8));
+            return FakeURLConnection(originalUrl, originalConn, 200, profileJson.getBytes("UTF-8"));
         } catch (Exception e) {
             Loki.log.error("getSessionProfile failed", e);
             throw new RuntimeException(e);
@@ -300,7 +318,7 @@ public class Ygglib {
             Json.JSONObject properties = profileObj.getJSONArray("properties").getJSONObject(0);
             String texturesBase64 = properties.getString("value");
             String signaturesBase64 = properties.getString("signature");
-            String texturePayload = new String(Base64.getDecoder().decode(texturesBase64), StandardCharsets.UTF_8);
+            String texturePayload = new String(Base64.decode(texturesBase64), "UTF-8");
             Json.JSONObject texturePayloadObj = new Json.JSONObject(texturePayload);
             Json.JSONObject skinObj = texturePayloadObj.getJSONObject("textures").getJSONObject("SKIN");
             boolean isSlim = false;
@@ -329,7 +347,7 @@ public class Ygglib {
                     "  },\n" +
                     "  \"created_at\": null\n" +
                     "}";
-            return FakeURLConnection(originalUrl, originalConn, 200, (responseJson).getBytes(StandardCharsets.UTF_8));
+            return FakeURLConnection(originalUrl, originalConn, 200, (responseJson).getBytes("UTF-8"));
         } catch (UnknownHostException e) {
             throw e;
         } catch (Exception e) {
@@ -349,9 +367,14 @@ public class Ygglib {
             Json.JSONObject texturePayloadObj = new Json.JSONObject(texturesProperty);
             String textureUrl = texturePayloadObj.getJSONObject("textures").getJSONObject("SKIN").getString("url");
             if (textureUrl == null) return FakeURLConnection(originalUrl, originalConn, 204, null);
+            if (RequestInterceptor.YGGDRASIL_MAP.get("sessionserver.mojang.com").startsWith("http://")) {
+                textureUrl = textureUrl.replaceFirst("^https://", "http://");
+            }
             URLConnection connection = new URL(textureUrl).openConnection();
 
-            try (InputStream in = connection.getInputStream()) {
+            InputStream in = null;
+            try {
+                in = connection.getInputStream();
                 BufferedImage image = ImageIO.read(in);
                 int headPx = Math.max(1, image.getWidth() / 8);
                 BufferedImage i1 = image.getSubimage(headPx, headPx, headPx, headPx);
@@ -370,6 +393,8 @@ public class Ygglib {
                 ByteArrayOutputStream out = new ByteArrayOutputStream();
                 ImageIO.write(i2, "png", out);
                 return FakeURLConnection(originalUrl, originalConn, 200, out.toByteArray());
+            } finally {
+                if (in != null) in.close();
             }
         } catch (UnknownHostException e) {
             throw e;

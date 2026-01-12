@@ -13,11 +13,10 @@ import java.security.ProtectionDomain;
 
 public class MCAuthlibGameProfileTransformer implements ClassFileTransformer {
 
-    @Override
     public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,
                             ProtectionDomain protectionDomain, byte[] classfileBuffer) {
 
-        if (!"com/github/steveice10/mc/auth/data/GameProfile".equals(className)) return null;
+        if (!"com/github/steveice10/mc/auth/data/GameProfile".equals(className) || LokiUtil.JAVA_MAJOR <= 5) return null;
 
         try {
             ClassNode cn = new ClassNode();
