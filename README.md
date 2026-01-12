@@ -24,7 +24,7 @@ It does, as long as you're on the same API server and your API server supports c
 
 ![Attempted cross-API server chat report](/img/chatreport.png)
 
-## I'd like to use this on Windows 2000 or PowerPC MacOS, does it support Java 5?
+## I'd like to use this on Windows 95, does it support Java 5?
 
 Loki supports Java 5 and above. However, Java 5 lacks some functionality and may have issues in some modded environments. If you are using Java 6 or later, there should be no issues.
 
