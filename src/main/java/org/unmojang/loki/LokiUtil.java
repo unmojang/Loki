@@ -255,7 +255,7 @@ public class LokiUtil {
     private static void appendHooksToClasspath(Instrumentation inst) {
         try {
             File agentJar = new File(LokiUtil.class.getProtectionDomain().getCodeSource().getLocation().toURI());
-            if (!agentJar.exists()) throw new AssertionError("Agent JAR not found");
+            if (!agentJar.exists()) throw new RuntimeException("Agent JAR not found");
 
             File tmpJar = File.createTempFile("Loki-hooks", ".jar");
             tmpJar.deleteOnExit();
@@ -300,7 +300,6 @@ public class LokiUtil {
             Loki.log.debug("Appended hooks to classpath");
         } catch (Exception e) {
             Loki.log.error("Failed to append hooks to classpath", e);
-            System.exit(1);
         }
     }
 
@@ -318,15 +317,15 @@ public class LokiUtil {
 
     public static void earlyInit(String agentArgs, Instrumentation inst) {
         if (!isRetransformSupported(inst)) {
-            Loki.log.warn("**** RETRANSFORMATION IS NOT SUPPORTED!");
-            if (JAVA_MAJOR == 5) {
-                Loki.log.warn("Class retransformation is not supported on Java 5.");
-            } else {
-                Loki.log.warn("Class retransformation is not supported in this environment.");
+            if (JAVA_MAJOR > 5) { // Causes more problems on Java 9+, and we shouldn't encounter this anyway
+                Loki.log.error("RETRANSFORMATION IS NOT SUPPORTED?! EXITING!");
+                System.exit(1);
             }
+            Loki.log.warn("**** RETRANSFORMATION IS NOT SUPPORTED!");
+            Loki.log.warn("Class retransformation is not supported on Java 5.");
             Loki.log.warn("Domain blocking, the Authlib-Injector killer, Chat signing (1.19+),");
             Loki.log.warn("and many other features will be unavailable!");
-            if (JAVA_MAJOR == 5) Loki.log.warn("If possible, upgrade to at least Java 6 to restore this functionality!");
+            Loki.log.warn("If possible, upgrade to at least Java 6 to restore this functionality!");
             Loki.log.warn("Forge 1.13+ support can be fixed by setting the JVM argument");
             Loki.log.warn("`-DLoki.disable_factory=true`");
             // fallback to fix Fabric
