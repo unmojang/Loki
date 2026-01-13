@@ -123,7 +123,7 @@ public class LokiUtil {
         try {
             String host = new URL(url).getHost();
             if (!areWeOnline(host)) {
-                Loki.log.warn(String.format("DNS lookup for %s timed out, are we offline? Disabling certificate validation!", host));
+                Loki.log.warn("DNS lookup timed out, are we offline? Disabling certificate validation!");
                 OFFLINE_MODE = true;
             } else {
                 boolean canConnect = tryConnect(url);
