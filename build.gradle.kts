@@ -33,6 +33,9 @@ repositories {
 dependencies {
     implementation("org.ow2.asm:asm:9.9")
     implementation("org.ow2.asm:asm-tree:9.9")
+    compileOnly("org.bouncycastle:bcprov-jdk15to18:1.82")
+    compileOnly("org.bouncycastle:bctls-jdk15to18:1.82")
+    compileOnly("org.bouncycastle:bcutil-jdk15to18:1.82")
 }
 
 tasks.withType<JavaCompile>().configureEach {

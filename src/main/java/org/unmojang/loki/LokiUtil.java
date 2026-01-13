@@ -1,5 +1,7 @@
 package org.unmojang.loki;
 
+import org.unmojang.loki.util.BouncyCastleUtils;
+
 import javax.net.ssl.*;
 import java.io.*;
 import java.lang.instrument.ClassFileTransformer;
@@ -19,7 +21,6 @@ public class LokiUtil {
     private static boolean OFFLINE_MODE = false;
     public static boolean FOUND_ALI = false;
     public static final Map<String, String> MANIFEST_ATTRS = new ConcurrentHashMap<String, String>();
-
     public static final int JAVA_MAJOR = getJavaVersion();
 
     public static void initManifestAttributes() {
@@ -82,7 +83,28 @@ public class LokiUtil {
             return false;
         } catch (UnknownHostException e) {
             throw e;
+        } catch (SSLException e) {
+            if (e.getMessage().equals("Received fatal alert: internal_error")) {
+                Loki.log.error("**** TLS FAILED TO NEGOTIATE A CIPHER!");
+                Loki.log.error("TLS has failed, and Loki has preemptively terminated to prevent broken");
+                Loki.log.error("network connectivity. You can either upgrade Java, use HTTP if your");
+                Loki.log.error("API server supports that, or install BouncyCastle to fix your TLS");
+                Loki.log.error("implementation.");
+                Loki.log.error("For more information on how to do so, refer to the following:");
+                Loki.log.error("https://github.com/betacraftuk/legacyfix/blob/9c8919e0b5455fec4cc3d5fca200cde3e426e243/docs/Modern%20TLS%20on%20old%20Java.md");
+                System.exit(1);
+            }
+            Loki.log.error("Connection failed", e);
+            throw new RuntimeException(e);
         } catch (Exception e) {
+            if (e.getMessage().equals("handshake_failure(40)")) {
+                Loki.log.error("**** BOUNCYCASTLE FAILED TO NEGOTIATE A CIPHER!");
+                Loki.log.error("BouncyCastle has failed to resolve your TLS troubles, and there is no");
+                Loki.log.error("workaround to resolve this at the moment. You can either upgrade Java,");
+                Loki.log.error("use HTTP if your API server supports that, or ask your API server to");
+                Loki.log.error("support AES128-SHA or AES256-SHA ciphers.");
+                System.exit(1);
+            }
             Loki.log.error("Connection failed", e);
             throw new RuntimeException(e);
         }
@@ -315,6 +337,20 @@ public class LokiUtil {
         return false;
     }
 
+
+    public static boolean hasBouncyCastle() {
+        try {
+            Class.forName("org.bouncycastle.jce.provider.BouncyCastleProvider"); // prov
+            Class.forName("org.bouncycastle.jsse.provider.BouncyCastleJsseProvider"); // tls
+            Class.forName("org.bouncycastle.oer.BitBuilder"); // util
+            return true;
+        } catch (LinkageError ignored) {
+            return false;
+        } catch (ClassNotFoundException ignored) {
+            return false;
+        }
+    }
+
     public static void earlyInit(String agentArgs, Instrumentation inst) {
         if (!isRetransformSupported(inst)) {
             if (JAVA_MAJOR > 5) { // Causes more problems on Java 9+, and we shouldn't encounter this anyway
@@ -333,6 +369,15 @@ public class LokiUtil {
         }
 
         initManifestAttributes();
+
+        if (hasBouncyCastle()) {
+            Loki.log.info("Using provided BouncyCastle to fix HTTPS");
+            try {
+                BouncyCastleUtils.init();
+            } catch (Exception e) {
+                Loki.log.error("Could not init BouncyCastle", e);
+            }
+        }
 
         // Authlib-Injector API
         String authlibInjectorURL = (System.getProperty("Loki.url") != null) // Prioritize Loki.url
