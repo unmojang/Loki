@@ -149,6 +149,12 @@ public class LokiUtil {
                     }
             }, new java.security.SecureRandom());
             HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
+
+            HttpsURLConnection.setDefaultHostnameVerifier(new HostnameVerifier() {
+                public boolean verify(String hostname, SSLSession session) {
+                    return true;
+                }
+            });
         } catch (Exception e) {
             Loki.log.error("Connection failed", e);
             throw new RuntimeException(e);

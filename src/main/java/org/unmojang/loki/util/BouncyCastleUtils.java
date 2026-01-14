@@ -66,6 +66,12 @@ public class BouncyCastleUtils {
             @Override public Socket createSocket(InetAddress host, int port, InetAddress localHost, int localPort) throws IOException { return wrap(factory.createSocket(host, port, localHost, localPort)); }
         };
         HttpsURLConnection.setDefaultSSLSocketFactory(wrappedFactory);
+
+        HttpsURLConnection.setDefaultHostnameVerifier(new HostnameVerifier() {
+            public boolean verify(String hostname, SSLSession session) {
+                return true;
+            }
+        });
     }
 }
 
