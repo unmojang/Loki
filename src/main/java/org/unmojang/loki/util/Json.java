@@ -1896,7 +1896,7 @@ public class Json {
                         && method.getParameterTypes().length == 0 && !method.isBridge()
                         && method.getReturnType() != Void.TYPE && isValidMethodName(method.getName())) {
                     final String key = getKeyNameFromMethod(method);
-                    if (key != null && !key.isEmpty()) {
+                    if (key != null && key.length() != 0) {
                         try {
                             final Object result = method.invoke(bean);
                             if (result != null) {
@@ -1941,9 +1941,9 @@ public class Json {
                 return null;
             }
             if (key.length() == 1) {
-                key = key.toLowerCase(Locale.ROOT);
+                key = key.toLowerCase(Locale.ENGLISH);
             } else if (!Character.isUpperCase(key.charAt(1))) {
-                key = key.substring(0, 1).toLowerCase(Locale.ROOT) + key.substring(1);
+                key = key.substring(0, 1).toLowerCase(Locale.ENGLISH) + key.substring(1);
             }
             return key;
         }
@@ -2220,7 +2220,7 @@ public class Json {
         }
 
         public static java.io.Writer quote(String string, java.io.Writer w) throws IOException {
-            if (string == null || string.isEmpty()) {
+            if (string == null || string.length() == 0) {
                 w.write("\"\"");
                 return w;
             }
