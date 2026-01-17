@@ -415,7 +415,9 @@ public class LokiUtil {
                 return Integer.parseInt(version.substring(0, endIndex));
             }
         } catch (Exception e) {
-            return -1;
+            Loki.log.error("COULD NOT DETERMINE JAVA VERSION?! EXITING!");
+            System.exit(1);
+            throw new IllegalStateException("Unreachable");
         }
     }
 
