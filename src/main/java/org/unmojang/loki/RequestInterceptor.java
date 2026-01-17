@@ -5,6 +5,7 @@ import sun.misc.Unsafe;
 
 import java.io.*;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.net.*;
 import java.util.*;
 
@@ -95,7 +96,7 @@ public class RequestInterceptor {
         }
     }
 
-    private static URLConnection wrapConnection(java.net.URL originalUrl, java.net.URLConnection originalConn) throws UnknownHostException, UnsupportedEncodingException {
+    private static URLConnection wrapConnection(URL originalUrl, URLConnection originalConn) throws UnknownHostException, UnsupportedEncodingException {
         if (!(originalConn instanceof HttpURLConnection)) return originalConn;
         String host = originalUrl.getHost();
         String path = originalUrl.getPath();
@@ -226,7 +227,7 @@ public class RequestInterceptor {
     private static URLStreamHandler getSystemURLHandler(String protocol) throws Exception {
         URL url = new URL(protocol + ":"); // create a temporary URL
         Field handlerField = URL.class.getDeclaredField("handler");
-        sun.misc.Unsafe unsafe = getUnsafe();
+        Unsafe unsafe = getUnsafe();
         long offset = unsafe.objectFieldOffset(handlerField);
         return (URLStreamHandler) unsafe.getObject(url, offset);
     }
@@ -260,8 +261,7 @@ public class RequestInterceptor {
         protected URLConnection openConnection(URL url, Proxy proxy) throws IOException {
             // Java URL constructor does not support Proxy directly, need fallback
             try {
-                java.lang.reflect.Method m = URLStreamHandler.class
-                        .getDeclaredMethod("openConnection", URL.class, Proxy.class);
+                Method m = URLStreamHandler.class.getDeclaredMethod("openConnection", URL.class, Proxy.class);
                 m.setAccessible(true); // will fail on Java 9+, avoid if possible
                 URLConnection conn = (URLConnection) m.invoke(parent, url, proxy);
                 return wrapConnection(url, conn);

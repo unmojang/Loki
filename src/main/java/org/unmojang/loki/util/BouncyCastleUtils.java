@@ -9,10 +9,7 @@ import javax.net.ssl.*;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.Socket;
-import java.security.KeyManagementException;
-import java.security.NoSuchAlgorithmException;
-import java.security.NoSuchProviderException;
-import java.security.Security;
+import java.security.*;
 import java.security.cert.X509Certificate;
 
 // Thanks LegacyFix!
@@ -31,7 +28,7 @@ public class BouncyCastleUtils {
                     public void checkClientTrusted(X509Certificate[] certs, String authType) {}
                     public void checkServerTrusted(X509Certificate[] certs, String authType) {}
                 }
-        }, new java.security.SecureRandom());
+        }, new SecureRandom());
         final SSLSocketFactory factory = sc.getSocketFactory();
 
         SSLSocketFactory wrappedFactory = new SSLSocketFactory() {

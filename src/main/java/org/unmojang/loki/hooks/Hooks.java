@@ -68,9 +68,9 @@ public class Hooks {
             Field pubKeyField = gameProfileClass.getDeclaredField("SIGNATURE_KEY");
             pubKeyField.setAccessible(true);
 
-            Field unsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
+            Field unsafeField = Unsafe.class.getDeclaredField("theUnsafe");
             unsafeField.setAccessible(true);
-            Unsafe unsafe = (sun.misc.Unsafe) unsafeField.get(null);
+            Unsafe unsafe = (Unsafe) unsafeField.get(null);
 
             Object staticBase = unsafe.staticFieldBase(pubKeyField);
             long staticOffset = unsafe.staticFieldOffset(pubKeyField);

@@ -11,6 +11,7 @@ import java.lang.reflect.Method;
 import java.net.*;
 import java.security.CodeSource;
 import java.security.ProtectionDomain;
+import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
 import java.util.Enumeration;
 import java.util.Map;
@@ -79,7 +80,7 @@ public class LokiUtil {
             conn.setReadTimeout(5000);
             conn.connect();
             return true;
-        } catch (javax.net.ssl.SSLHandshakeException ignored) {
+        } catch (SSLHandshakeException ignored) {
             return false;
         } catch (UnknownHostException e) {
             throw e;
@@ -147,7 +148,7 @@ public class LokiUtil {
                         public void checkClientTrusted(X509Certificate[] certs, String authType) {}
                         public void checkServerTrusted(X509Certificate[] certs, String authType) {}
                     }
-            }, new java.security.SecureRandom());
+            }, new SecureRandom());
             HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
 
             HttpsURLConnection.setDefaultHostnameVerifier(new HostnameVerifier() {
