@@ -28,7 +28,7 @@ public class UsernameConstantTransformer implements ClassFileTransformer {
                 for (AbstractInsnNode insn = mn.instructions.getFirst(); insn != null; insn = insn.getNext()) {
                     if (insn instanceof LdcInsnNode) {
                         LdcInsnNode ldc = (LdcInsnNode) insn;
-                        if ("Grumm".equals(ldc.cst)) {
+                        if ("Grumm".equals(ldc.cst) || "Notch".equals(ldc.cst)) {
                             Loki.log.debug("Replacing \"" + ldc.cst + "\" constant in " + LokiUtil.getFqmn(className, mn.name, mn.desc));
                             ldc.cst = "cat";
                             changed = true;
