@@ -11,8 +11,7 @@ Loki supports every Minecraft version.
 
 ## Wait, what about classic servers?
 
-Minecraft Classic servers use the [Classic Protocol](https://minecraft.wiki/w/Minecraft_Wiki:Projects/wiki.vg_merge/Classic_Protocol), and while this may be supported in the future, as of now there is
-little incentive to do so due to the availability of significantly better clones like [ClassiCube](https://www.classicube.net/).
+Minecraft Classic servers use the [Classic Protocol](https://minecraft.wiki/w/Minecraft_Wiki:Projects/wiki.vg_merge/Classic_Protocol), which is entirely incompatible with a Yggdrasil-based API server. Consider playing [ClassiCube](https://www.classicube.net/) or [Classic+](https://legacy-plus.dejvoss.cz/) instead.
 
 ## Are total conversion mods or obscure mod loaders supported?
 
