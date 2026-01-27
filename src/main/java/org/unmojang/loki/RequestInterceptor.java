@@ -102,13 +102,22 @@ public class RequestInterceptor {
         String path = originalUrl.getPath();
         String query = originalUrl.getQuery();
         Loki.log.debug("Connection: " + ((HttpURLConnection) originalConn).getRequestMethod() + " " + originalUrl);
+        boolean isAPIServer = false;
+        for (Object v : YGGDRASIL_MAP.values())
+            if (v != null && v.toString().contains(host)) { isAPIServer = true; break; }
+        if (YGGDRASIL_MAP.containsKey(host) || isAPIServer) {
+            if (path.endsWith("/events") && !Loki.enable_snooper) { // Snooper (1.18+): https://api.minecraftservices.com/events
+                Loki.log.info("Intercepting snooper request");
+                return Ygglib.FakeURLConnection(originalUrl, originalConn, 403, ("Nice try ;)").getBytes("UTF-8"));
+            }
+            if (path.endsWith("/player/attributes") && Hooks.accessToken != null) { // need token from transformMainArgs
+                Loki.log.info("Intercepting player attributes");
+                return Ygglib.modifyPlayerAttributes(originalUrl, originalConn);
+            }
+        }
         if (YGGDRASIL_MAP.containsKey(host)) { // yggdrasil
             try {
                 final URL targetUrl = Ygglib.getYggdrasilUrl(originalUrl, originalUrl.getHost());
-                if (path.equals("/events") && !(Loki.enable_snooper)) { // Snooper (1.18+): https://api.minecraftservices.com/events
-                    Loki.log.info("Intercepting snooper request");
-                    return Ygglib.FakeURLConnection(originalUrl, originalConn, 403, ("Nice try ;)").getBytes("UTF-8"));
-                }
                 Loki.log.info("Intercepting " + host + " request");
                 Loki.log.debug(originalUrl + " -> " + targetUrl);
                 if (path.startsWith("/session/minecraft/profile/")) { // ReIndev fix

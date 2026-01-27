@@ -8,6 +8,7 @@ import java.lang.instrument.Instrumentation;
 public class Loki {
     public static final NilLogger log = NilLogger.get("Loki");
 
+    public static final Boolean chat_restrictions =  Boolean.getBoolean("Loki.chat_restrictions");
     public static Boolean disable_factory = Boolean.getBoolean("Loki.disable_factory");
     public static final Boolean disable_realms = Boolean.getBoolean("Loki.disable_realms");
     public static final Boolean enable_patchy =  Boolean.getBoolean("Loki.enable_patchy");
@@ -38,8 +39,8 @@ public class Loki {
         inst.addTransformer(new AllowedDomainTransformer());    // 1.7.6-1.16.5, 1.17-1.19.2, 1.19.3+
 
         // Public keys
+        inst.addTransformer(new MainArgsTransformer()); // secure-profile breaks if userType is "mojang" on 1.19.3-1.21.8
         inst.addTransformer(new ServicesKeyInfoTransformer());  // 1.19+
-        inst.addTransformer(new UserTypeTransformer()); // secure-profile breaks if userType is "mojang" on 1.19.3-1.21.8
 
         // Patchy
         inst.addTransformer(new PatchyTransformer());

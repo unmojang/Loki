@@ -404,6 +404,64 @@ public class Ygglib {
         }
     }
 
+    // Decides whether to enable chat restrictions, snooper, etc.
+    // https://minecraft.wiki/w/Mojang_API#Query_player_attributes
+    public static URLConnection modifyPlayerAttributes(URL url, URLConnection originalConn) {
+        try {
+            URLStreamHandler handler = Hooks.DEFAULT_HANDLERS.get(url.getProtocol());
+            final HttpURLConnection conn = RequestInterceptor.openWithParent(url, handler);
+            conn.setRequestMethod("GET");
+            conn.setRequestProperty("Authorization", "Bearer " + Hooks.accessToken);
+            conn.setDoInput(true);
+            conn.connect();
+
+            int responseCode = conn.getResponseCode();
+            byte[] responseBytes = new byte[0];
+            InputStream is = (responseCode >= 400) ? conn.getErrorStream() : conn.getInputStream();
+            if (is != null) {
+                ByteArrayOutputStream baos = null;
+                try {
+                    baos = new ByteArrayOutputStream();
+                    byte[] buf = new byte[8192];
+                    int r;
+                    while ((r = is.read(buf)) != -1) baos.write(buf, 0, r);
+                    responseBytes = baos.toByteArray();
+                } finally {
+                    if (baos != null) baos.close();
+                }
+            }
+
+            if (responseBytes.length > 0) {
+                Json.JSONObject root = new Json.JSONObject(new String(responseBytes, "UTF-8"));
+
+                if (root.has("privileges")) {
+                    Object privileges = root.get("privileges");
+                    if (privileges instanceof Json.JSONObject) {
+                        if (!Loki.chat_restrictions) {
+                            Json.JSONObject onlineChat = ((Json.JSONObject) privileges).getJSONObject("onlineChat");
+                            onlineChat.put("enabled", true);
+                        }
+
+                        if (!Loki.enable_snooper) {
+                            Json.JSONObject optionalTelemetry = ((Json.JSONObject) privileges).getJSONObject("optionalTelemetry");
+                            optionalTelemetry.put("enabled", false);
+
+                            Json.JSONObject telemetry = ((Json.JSONObject) privileges).getJSONObject("telemetry");
+                            telemetry.put("enabled", false);
+                        }
+
+                        responseBytes = root.toString().getBytes("UTF-8");
+                    }
+                }
+            }
+
+            return Ygglib.FakeURLConnection(url, originalConn, responseCode, responseBytes);
+        } catch (Exception e) {
+            Loki.log.error("modifyPlayerAttributes failed", e);
+            return originalConn;
+        }
+    }
+
     public static URLConnection FakeURLConnection(URL url, URLConnection originalConn, int code, byte[] data) {
         return (originalConn instanceof HttpsURLConnection)
                 ? new FakeHttpsURLConnection(url, code, data)

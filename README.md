@@ -66,6 +66,11 @@ Loki supports JVM arguments to enable or disable some behaviour.
   -DLoki.enable_snooper=true
   ```
 
+- Re-enable chat restrictions
+  ```
+  -DLoki.chat_restrictions=true
+  ```
+
 - Require valid chat signatures on 1.19+ servers where `enforce-secure-profile=true` is set in `server.properties` [^1]
   ```
   -DLoki.enforce_secure_profile=true
