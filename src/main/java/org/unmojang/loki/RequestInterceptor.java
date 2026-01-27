@@ -31,10 +31,6 @@ public class RequestInterceptor {
                 "mineskin.eu",
                 "minotar.net"
         ));
-        if (Loki.disable_realms) {
-            INTERCEPTED_DOMAINS.add("java.frontendlegacy.realms.minecraft-services.net");
-            INTERCEPTED_DOMAINS.add("pc.realms.minecraft.net");
-        }
         if (!Loki.enable_snooper) {
             INTERCEPTED_DOMAINS.add("snoop.minecraft.net");
         }

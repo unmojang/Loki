@@ -46,14 +46,14 @@ Loki supports JVM arguments to enable or disable some behaviour.
   -DLoki.trace=true
   ```
 
+- Re-enable chat restrictions
+  ```
+  -DLoki.chat_restrictions=true
+  ```
+
 - Disable the URL factory
   ```
   -DLoki.disable_factory=true
-  ```
-
-- Disable realms APIs
-  ```
-  -DLoki.disable_realms=true
   ```
 
 - Re-enable patchy (server blocking)
@@ -64,11 +64,6 @@ Loki supports JVM arguments to enable or disable some behaviour.
 - Re-enable snooper
   ```
   -DLoki.enable_snooper=true
-  ```
-
-- Re-enable chat restrictions
-  ```
-  -DLoki.chat_restrictions=true
   ```
 
 - Require valid chat signatures on 1.19+ servers where `enforce-secure-profile=true` is set in `server.properties` [^1]

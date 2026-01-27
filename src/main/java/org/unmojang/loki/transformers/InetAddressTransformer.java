@@ -24,10 +24,6 @@ public class InetAddressTransformer implements ClassFileTransformer {
         if (!Loki.enable_snooper) {
             TARGET_HOSTS.add("snoop.minecraft.net");
         }
-        if (Loki.disable_realms) {
-            TARGET_HOSTS.add("java.frontendlegacy.realms.minecraft-services.net");
-            TARGET_HOSTS.add("pc.realms.minecraft.net");
-        }
     }
 
     public byte[] transform(ClassLoader loader, final String className, Class<?> classBeingRedefined,
