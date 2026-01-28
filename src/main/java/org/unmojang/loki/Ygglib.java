@@ -46,7 +46,7 @@ public class Ygglib {
     public static String getUUID(String username) throws UnknownHostException {
         try {
             URL skinUrl = new URL("https://api.mojang.com/users/profiles/minecraft/" + URLEncoder.encode(username, "UTF-8"));
-            skinUrl = getYggdrasilUrl(skinUrl, skinUrl.getHost());
+            skinUrl = getYggdrasilUrl(skinUrl, null);
             URLStreamHandler handler = Hooks.DEFAULT_HANDLERS.get(skinUrl.getProtocol());
             HttpURLConnection conn = RequestInterceptor.openWithParent(skinUrl, handler);
             conn.setRequestMethod("GET");
@@ -67,7 +67,7 @@ public class Ygglib {
     public static String getTexturesProperty(String uuid, boolean returnProfileJson) {
         try {
             URL textureUrl = new URL("https://sessionserver.mojang.com/session/minecraft/profile/" + URLEncoder.encode(uuid, "UTF-8") + "?unsigned=false");
-            textureUrl = getYggdrasilUrl(textureUrl, textureUrl.getHost());
+            textureUrl = getYggdrasilUrl(textureUrl, null);
             URLStreamHandler handler = Hooks.DEFAULT_HANDLERS.get(textureUrl.getProtocol());
             HttpURLConnection conn = RequestInterceptor.openWithParent(textureUrl, handler);
             conn.setRequestMethod("GET");
@@ -194,7 +194,7 @@ public class Ygglib {
             Loki.log.debug("UUID of " + username + ": " + uuid);
 
             URL url = new URL("https://sessionserver.mojang.com/session/minecraft/join");
-            url = getYggdrasilUrl(url, url.getHost());
+            url = getYggdrasilUrl(url, null);
             URLStreamHandler handler = Hooks.DEFAULT_HANDLERS.get(url.getProtocol());
             HttpURLConnection conn = RequestInterceptor.openWithParent(url, handler);
             conn.setDoOutput(true);
@@ -241,7 +241,7 @@ public class Ygglib {
             String ip = params.get("ip");
 
             URL url = new URL("https://sessionserver.mojang.com/session/minecraft/hasJoined?username=" + user + "&serverId=" + serverId + (ip != null ? "&ip=" + ip : ""));
-            url = getYggdrasilUrl(url, url.getHost());
+            url = getYggdrasilUrl(url, null);
             URLStreamHandler handler = Hooks.DEFAULT_HANDLERS.get(url.getProtocol());
             HttpURLConnection conn = RequestInterceptor.openWithParent(url, handler);
             conn.setDoInput(true);
@@ -259,8 +259,12 @@ public class Ygglib {
         }
     }
 
-    public static URL getYggdrasilUrl(URL originalUrl, String server) throws MalformedURLException {
-        String replacement = RequestInterceptor.YGGDRASIL_MAP.get(server);
+    public static URL getYggdrasilUrl(URL originalUrl, URLConnection originalConn) throws MalformedURLException {
+        String replacement = RequestInterceptor.YGGDRASIL_MAP.get(originalUrl.getHost());
+        if (originalConn instanceof HttpsURLConnection && replacement.startsWith("http://")) {
+            Loki.log.warn("Cannot downgrade HttpsURLConnection to HTTP, forcing HTTPS!");
+            replacement = replacement.replaceFirst("^http://", "https://");
+        }
         URL replacementUrl = new URL(replacement.startsWith("http") ? replacement
                 : originalUrl.getProtocol() + "://" + replacement);
 

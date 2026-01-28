@@ -113,7 +113,7 @@ public class RequestInterceptor {
         }
         if (YGGDRASIL_MAP.containsKey(host)) { // yggdrasil
             try {
-                final URL targetUrl = Ygglib.getYggdrasilUrl(originalUrl, originalUrl.getHost());
+                final URL targetUrl = Ygglib.getYggdrasilUrl(originalUrl, originalConn);
                 Loki.log.info("Intercepting " + host + " request");
                 Loki.log.debug(originalUrl + " -> " + targetUrl);
                 if (path.startsWith("/session/minecraft/profile/")) { // ReIndev fix
