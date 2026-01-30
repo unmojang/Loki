@@ -41,12 +41,13 @@ public class Loki {
         inst.addTransformer(new MainArgsTransformer()); // secure-profile breaks if userType is "mojang" on 1.19.3-1.21.8
         inst.addTransformer(new ServicesKeyInfoTransformer());  // 1.19+
 
-        // Patchy
-        inst.addTransformer(new PatchyTransformer());
-
         // Usernames
         inst.addTransformer(new UsernameCharacterCheckTransformer()); // Support cursed usernames on 1.18.2+
         inst.addTransformer(new UsernameConstantTransformer());
+
+        // Anti-features
+        inst.addTransformer(new PatchyTransformer());
+        inst.addTransformer(new PlayerAttributesTransformer());
 
         // Misc fixes
         inst.addTransformer(new ConcatenateURLTransformer()); // Prevent port number being ignored in old authlib, if you specified it

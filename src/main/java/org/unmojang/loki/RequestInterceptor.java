@@ -106,10 +106,6 @@ public class RequestInterceptor {
                 Loki.log.info("Intercepting snooper request");
                 return Ygglib.FakeURLConnection(originalUrl, originalConn, 403, ("Nice try ;)").getBytes("UTF-8"));
             }
-            if (path.endsWith("/player/attributes") && Hooks.accessToken != null) { // need token from transformMainArgs
-                Loki.log.info("Intercepting player attributes");
-                return Ygglib.modifyPlayerAttributes(originalUrl, originalConn);
-            }
         }
         if (YGGDRASIL_MAP.containsKey(host)) { // yggdrasil
             try {

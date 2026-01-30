@@ -20,7 +20,6 @@ import java.util.concurrent.ConcurrentHashMap;
 public class Hooks {
     public static final Map<String, URLStreamHandler> DEFAULT_HANDLERS = new ConcurrentHashMap<String, URLStreamHandler>();
     private static final NilLogger log = NilLogger.get("Loki");
-    public static String accessToken;
 
     // thanks yushijinhun!
     // https://github.com/yushijinhun/authlib-injector/blob/aff141877cccaec8c5ffe7a542efa139cc64bcde/src/main/java/moe/yushi/authlibinjector/transform/support/ConcatenateURLTransformUnit.java
@@ -43,9 +42,7 @@ public class Hooks {
             if ("--userType".equals(args[i]) && "mojang".equals(args[i + 1])) {
                 args[i + 1] = "msa";
                 log.info("Setting accountType to msa");
-            }
-            if ("--accessToken".equals(args[i])) {
-                accessToken = args[i + 1];
+                break;
             }
         }
         return args;
