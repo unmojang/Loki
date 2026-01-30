@@ -13,6 +13,7 @@ import java.net.*;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -46,6 +47,28 @@ public class Hooks {
             }
         }
         return args;
+    }
+
+    public static String transformProfileJson(String json) {
+        try {
+            Json.JSONObject profileObj = new Json.JSONObject(json);
+            Json.JSONArray properties = profileObj.getJSONArray("properties");
+
+            Iterator<Object> iter = properties.iterator();
+            while (iter.hasNext()) {
+                Object elem = iter.next();
+                if (elem instanceof Json.JSONObject) {
+                    String name = ((Json.JSONObject) elem).getString("name");
+                    if (!"textures".equals(name)) {
+                        iter.remove();
+                    }
+                }
+            }
+
+            return profileObj.toString();
+        } catch (Exception e) {
+            return json;
+        }
     }
 
     // thanks yushijinhun!

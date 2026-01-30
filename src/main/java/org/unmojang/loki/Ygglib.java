@@ -12,7 +12,6 @@ import java.io.*;
 import java.net.*;
 import java.security.cert.Certificate;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 
 public class Ygglib {
@@ -181,16 +180,20 @@ public class Ygglib {
             // token:<accessToken>:<player UUID>
             // or, as of Minecraft release 1.3.1, it may be URL encoded:
             // token%3A<accessToken>%3A<player UUID>
-            if (!sessionId.contains(":") && !sessionId.contains("%3A")) {
-                throw new RuntimeException("invalid sessionId");
-            }
-            String[] parts = sessionId.split(sessionId.contains(":") ? ":" : "%3A");
-            if (parts.length < 3 || parts[1].length() == 0 || parts[2].length() == 0) {
-                throw new RuntimeException("invalid sessionId");
-            }
+            String accessToken;
+            String uuid;
+            if (!sessionId.contains(":") && !sessionId.contains("%3A")) { // apparently this is valid too?
+                accessToken = sessionId;
+                uuid = getUUID(username);
+            } else {
+                String[] parts = sessionId.split(sessionId.contains(":") ? ":" : "%3A");
+                if (parts.length < 3 || parts[1].length() == 0 || parts[2].length() == 0) {
+                    throw new RuntimeException("invalid sessionId");
+                }
 
-            String accessToken = parts[1];
-            String uuid = parts[2];
+                accessToken = parts[1];
+                uuid = parts[2];
+            }
             Loki.log.debug("UUID of " + username + ": " + uuid);
 
             URL url = new URL("https://sessionserver.mojang.com/session/minecraft/join");
@@ -278,36 +281,6 @@ public class Ygglib {
         if (originalUrl.getQuery() != null) finalUrlStr += "?" + originalUrl.getQuery();
 
         return new URL(finalUrlStr);
-    }
-
-    public static URLConnection getSessionProfile(URL originalUrl, URLConnection originalConn) {
-        try {
-            HttpURLConnection conn = RequestInterceptor.mirrorHttpURLConnection(originalUrl, (HttpURLConnection) originalConn);
-            String profileJson = readStream(conn.getInputStream());
-            Json.JSONObject profileObj = new Json.JSONObject(profileJson);
-            Json.JSONArray properties = profileObj.getJSONArray("properties");
-            if (properties == null) throw new RuntimeException("properties was null");
-
-            // Use iterator to safely remove elements
-            Iterator<Object> iter = properties.iterator();
-            while (iter.hasNext()) {
-                Object elem = iter.next();
-                if (elem instanceof Json.JSONObject) {
-                    Json.JSONObject prop = (Json.JSONObject) elem;
-                    String name = prop.getString("name");
-                    if (!"textures".equals(name)) {
-                        iter.remove(); // remove uploadableTextures entry
-                    }
-                } else {
-                    throw new RuntimeException("elem was not an instance of JsonObject");
-                }
-            }
-            profileJson = profileObj.toString();
-            return FakeURLConnection(originalUrl, originalConn, 200, profileJson.getBytes("UTF-8"));
-        } catch (Exception e) {
-            Loki.log.error("getSessionProfile failed", e);
-            throw new RuntimeException(e);
-        }
     }
 
     public static URLConnection getAshcon(URL originalUrl, URLConnection originalConn, String username) throws UnknownHostException {

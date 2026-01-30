@@ -112,9 +112,6 @@ public class RequestInterceptor {
                 final URL targetUrl = Ygglib.getYggdrasilUrl(originalUrl, originalConn);
                 Loki.log.info("Intercepting " + host + " request");
                 Loki.log.debug(originalUrl + " -> " + targetUrl);
-                if (path.startsWith("/session/minecraft/profile/")) { // ReIndev fix
-                    return Ygglib.getSessionProfile(targetUrl, originalConn);
-                }
                 return mirrorHttpURLConnection(targetUrl, (HttpURLConnection) originalConn);
             } catch (Exception e) {
                 Loki.log.error("Failed to intercept " + originalUrl, e);
