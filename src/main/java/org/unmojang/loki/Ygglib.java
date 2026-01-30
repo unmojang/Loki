@@ -252,7 +252,7 @@ public class Ygglib {
             if (conn.getResponseCode() == 200) {
                 return FakeURLConnection(originalUrl, originalConn, 200, "YES".getBytes("UTF-8"));
             }
-            return FakeURLConnection(originalUrl, originalConn, 200, "Bad login".getBytes("UTF-8"));
+            return FakeURLConnection(originalUrl, originalConn, 200, "NO".getBytes("UTF-8"));
         } catch (Exception e) {
             Loki.log.error("checkServer failed", e);
             throw new RuntimeException(e);
