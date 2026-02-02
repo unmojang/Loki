@@ -29,7 +29,8 @@ public class RequestInterceptor {
                 "betacraft.uk",
                 "api.ashcon.app",
                 "mineskin.eu",
-                "minotar.net"
+                "minotar.net",
+                "skinsystem.ely.by"
         ));
         if (!Loki.enable_snooper) {
             INTERCEPTED_DOMAINS.add("snoop.minecraft.net");
@@ -166,6 +167,12 @@ public class RequestInterceptor {
                 int res = Integer.parseInt(path.split("/")[3].replaceFirst("\\..*$", ""));
                 Loki.log.info(String.format("Intercepting minotar.net lookup for %s (%s px)", username, res));
                 return Ygglib.getMinotar(originalUrl, originalConn, username, res);
+            }
+
+            if (host.equals("skinsystem.ely.by") && path.startsWith("/textures")) {
+                String username = Ygglib.getUsernameFromPath(path);
+                Loki.log.info("Intercepting ely.by lookup for " + username);
+                return Ygglib.getElyBy(originalUrl, originalConn, username);
             }
 
             // Capes

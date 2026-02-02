@@ -106,9 +106,7 @@ public class Ygglib {
                 boolean isSlim = false;
                 if (skinOrCape.has("metadata")) {
                     Json.JSONObject metadata = skinOrCape.getJSONObject("metadata");
-                    if ("slim".equals(metadata.getString("model"))) {
-                        isSlim = true;
-                    }
+                    if ("slim".equals(metadata.getString("model"))) isSlim = true;
                 }
                 URLConnection connection = new URL(textureUrl).openConnection();
                 InputStream in = null;
@@ -301,9 +299,7 @@ public class Ygglib {
             boolean isSlim = false;
             if (skinObj.has("metadata")) {
                 Json.JSONObject metadata = skinObj.getJSONObject("metadata");
-                if ("slim".equals(metadata.getString("model"))) {
-                    isSlim = true;
-                }
+                if ("slim".equals(metadata.getString("model"))) isSlim = true;
             }
 
             String responseJson = "{\n" +
@@ -329,6 +325,45 @@ public class Ygglib {
             throw e;
         } catch (Exception e) {
             Loki.log.error("getAshcon failed", e);
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static URLConnection getElyBy(URL originalUrl, URLConnection originalConn, String username) {
+        try {
+            String uuid = getUUID(username);
+            if (uuid == null) throw new RuntimeException("Couldn't find UUID of " + username);
+            Loki.log.debug("UUID of " + username + ": " + uuid);
+
+            String texturesProperty = getTexturesProperty(uuid, false);
+            if (texturesProperty == null) throw new RuntimeException("textures property was null");
+            Json.JSONObject texturePayloadObj = new Json.JSONObject(texturesProperty);
+            if (!texturePayloadObj.has("textures")) throw new RuntimeException("textures object was null");
+            Json.JSONObject texturesObj = texturePayloadObj.getJSONObject("textures");
+
+            if (RequestInterceptor.YGGDRASIL_MAP.get("sessionserver.mojang.com").startsWith("http://")) {
+                if (texturesObj.has("SKIN")) {
+                    Json.JSONObject skinObj = texturesObj.getJSONObject("SKIN");
+                    String skinUrl = skinObj.optString("url", null);
+                    if (skinUrl != null) {
+                        skinUrl = skinUrl.replaceFirst("^https://", "http://");
+                        skinObj.put("url", skinUrl);
+                    }
+                }
+
+                if (texturesObj.has("CAPE")) {
+                    Json.JSONObject capeObj = texturesObj.getJSONObject("CAPE");
+                    String capeUrl = capeObj.optString("url", null);
+                    if (capeUrl != null) {
+                        capeUrl = capeUrl.replaceFirst("^https://", "http://");
+                        capeObj.put("url", capeUrl);
+                    }
+                }
+            }
+
+            return FakeURLConnection(originalUrl, originalConn, 200, texturesObj.toString().getBytes("UTF-8"));
+        } catch (Exception e) {
+            Loki.log.error("getElyBy failed", e);
             throw new RuntimeException(e);
         }
     }
