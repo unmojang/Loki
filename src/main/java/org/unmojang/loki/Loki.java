@@ -42,6 +42,7 @@ public class Loki {
         inst.addTransformer(new ServicesKeyInfoTransformer());  // 1.19+
 
         // Usernames
+        inst.addTransformer(new ClassicUsernameLengthTransformer()); // Disable username length limit on Classic server 1.10.x (0.30)
         inst.addTransformer(new UsernameCharacterCheckTransformer()); // Support cursed usernames on 1.18.2+
         inst.addTransformer(new UsernameConstantTransformer());
 
