@@ -42,7 +42,7 @@ public class Ygglib {
         return params;
     }
 
-    public static String getUUID(String username) throws UnknownHostException {
+    public static String getUUID(String username) throws Exception {
         try {
             URL skinUrl = new URL("https://api.mojang.com/users/profiles/minecraft/" + URLEncoder.encode(username, "UTF-8"));
             skinUrl = getYggdrasilUrl(skinUrl, null);
@@ -58,12 +58,12 @@ public class Ygglib {
         } catch (UnknownHostException e) {
             throw e;
         } catch (Exception e) {
-            Loki.log.error("Failed to get UUID for " + username, e);
-            return null;
+            Loki.log.error("Failed to get UUID for " + username);
+            throw e;
         }
     }
 
-    public static String getTexturesProperty(String uuid, boolean returnProfileJson) {
+    public static String getTexturesProperty(String uuid, boolean returnProfileJson) throws Exception {
         try {
             URL textureUrl = new URL("https://sessionserver.mojang.com/session/minecraft/profile/" + URLEncoder.encode(uuid, "UTF-8") + "?unsigned=false");
             textureUrl = getYggdrasilUrl(textureUrl, null);
@@ -79,8 +79,8 @@ public class Ygglib {
             String texturesBase64 = profileObj.getJSONArray("properties").getJSONObject(0).getString("value");
             return new String(Base64.decode(texturesBase64), "UTF-8");
         } catch (Exception e) {
-            Loki.log.error("Failed to get textures property for " + uuid, e);
-            return null;
+            Loki.log.error("Failed to get textures property for " + uuid);
+            throw e;
         }
     }
 
@@ -89,11 +89,9 @@ public class Ygglib {
     public static URLConnection getTexture(URL originalUrl, URLConnection originalConn, String username, String type) throws UnknownHostException {
         try {
             String uuid = getUUID(username);
-            if (uuid == null) throw new RuntimeException("Couldn't find UUID of " + username);
             Loki.log.debug("UUID of " + username + ": " + uuid);
 
             String texturesProperty = getTexturesProperty(uuid, false);
-            if (texturesProperty == null) throw new RuntimeException("textures property was null");
             Json.JSONObject texturePayloadObj = new Json.JSONObject(texturesProperty);
             Json.JSONObject skinOrCape = texturePayloadObj.getJSONObject("textures").getJSONObject(type);
             String textureUrl = skinOrCape.getString("url");
@@ -157,7 +155,7 @@ public class Ygglib {
         } catch (UnknownHostException e) {
             throw e;
         } catch (Exception e) {
-            Loki.log.error("getTexture failed", e);
+            Loki.log.error("getTexture failed");
             throw new RuntimeException(e);
         }
     }
@@ -224,7 +222,7 @@ public class Ygglib {
             }
             return FakeURLConnection(originalUrl, originalConn, 200, "Bad login".getBytes("UTF-8"));
         } catch (Exception e) {
-            Loki.log.error("joinServer failed", e);
+            Loki.log.error("joinServer failed");
             throw new RuntimeException(e);
         }
     }
@@ -255,7 +253,7 @@ public class Ygglib {
             }
             return FakeURLConnection(originalUrl, originalConn, 200, "NO".getBytes("UTF-8"));
         } catch (Exception e) {
-            Loki.log.error("checkServer failed", e);
+            Loki.log.error("checkServer failed");
             throw new RuntimeException(e);
         }
     }
@@ -284,11 +282,9 @@ public class Ygglib {
     public static URLConnection getAshcon(URL originalUrl, URLConnection originalConn, String username) throws UnknownHostException {
         try {
             String uuid = getUUID(username);
-            if (uuid == null) throw new RuntimeException("Couldn't find UUID of " + username);
             Loki.log.debug("UUID of " + username + ": " + uuid);
 
             String profileJson = getTexturesProperty(uuid, true);
-            if (profileJson == null) throw new RuntimeException("profile JSON was null");
             Json.JSONObject profileObj = new Json.JSONObject(profileJson);
             Json.JSONObject properties = profileObj.getJSONArray("properties").getJSONObject(0);
             String texturesBase64 = properties.getString("value");
@@ -324,7 +320,7 @@ public class Ygglib {
         } catch (UnknownHostException e) {
             throw e;
         } catch (Exception e) {
-            Loki.log.error("getAshcon failed", e);
+            Loki.log.error("getAshcon failed");
             throw new RuntimeException(e);
         }
     }
@@ -332,11 +328,9 @@ public class Ygglib {
     public static URLConnection getElyBy(URL originalUrl, URLConnection originalConn, String username) {
         try {
             String uuid = getUUID(username);
-            if (uuid == null) throw new RuntimeException("Couldn't find UUID of " + username);
             Loki.log.debug("UUID of " + username + ": " + uuid);
 
             String texturesProperty = getTexturesProperty(uuid, false);
-            if (texturesProperty == null) throw new RuntimeException("textures property was null");
             Json.JSONObject texturePayloadObj = new Json.JSONObject(texturesProperty);
             if (!texturePayloadObj.has("textures")) throw new RuntimeException("textures object was null");
             Json.JSONObject texturesObj = texturePayloadObj.getJSONObject("textures");
@@ -363,7 +357,7 @@ public class Ygglib {
 
             return FakeURLConnection(originalUrl, originalConn, 200, texturesObj.toString().getBytes("UTF-8"));
         } catch (Exception e) {
-            Loki.log.error("getElyBy failed", e);
+            Loki.log.error("getElyBy failed");
             throw new RuntimeException(e);
         }
     }
@@ -371,11 +365,9 @@ public class Ygglib {
     public static URLConnection getMinotar(URL originalUrl, URLConnection originalConn, String username, int res) throws UnknownHostException {
         try {
             String uuid = getUUID(username);
-            if (uuid == null) throw new RuntimeException("Couldn't find UUID of " + username);
             Loki.log.debug("UUID of " + username + ": " + uuid);
 
             String texturesProperty = getTexturesProperty(uuid, false);
-            if (texturesProperty == null) throw new RuntimeException("textures property was null");
             Json.JSONObject texturePayloadObj = new Json.JSONObject(texturesProperty);
             String textureUrl = texturePayloadObj.getJSONObject("textures").getJSONObject("SKIN").getString("url");
             if (textureUrl == null) return FakeURLConnection(originalUrl, originalConn, 204, null);
@@ -411,7 +403,7 @@ public class Ygglib {
         } catch (UnknownHostException e) {
             throw e;
         } catch (Exception e) {
-            Loki.log.error("getMinotar failed", e);
+            Loki.log.error("getMinotar failed");
             throw new RuntimeException(e);
         }
     }

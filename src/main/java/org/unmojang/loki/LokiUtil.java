@@ -314,17 +314,14 @@ public class LokiUtil {
                 if (jos != null) jos.close();
             }
 
-            //inst.appendToBootstrapClassLoaderSearch(new JarFile(tmpJar));
-            try {
-                Method m = Instrumentation.class.getMethod("appendToBootstrapClassLoaderSearch", JarFile.class);
-                m.invoke(inst, new JarFile(tmpJar));
-            } catch (NoSuchMethodException ignored) {}
-
-            //inst.appendToSystemClassLoaderSearch(new JarFile(tmpJar));
-            try {
-                Method m = Instrumentation.class.getMethod("appendToSystemClassLoaderSearch", JarFile.class);
-                m.invoke(inst, new JarFile(tmpJar));
-            } catch (NoSuchMethodException ignored) {}
+            // appending to bootstrap class loader seems to only be necessary on Java 9+ and causes IllegalAccessErrors
+            // on Java 8 and below.
+            if (JAVA_MAJOR > 8) {
+                try {
+                    Method m = Instrumentation.class.getMethod("appendToBootstrapClassLoaderSearch", JarFile.class);
+                    m.invoke(inst, new JarFile(tmpJar));
+                } catch (NoSuchMethodException ignored) {}
+            }
             hookFutureClassLoaders(inst, tmpJar);
             Loki.log.debug("Appended hooks to classpath");
         } catch (Exception e) {
