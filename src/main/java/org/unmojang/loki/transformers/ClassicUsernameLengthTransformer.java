@@ -3,6 +3,7 @@ package org.unmojang.loki.transformers;
 import org.objectweb.asm.*;
 import org.objectweb.asm.tree.*;
 import org.unmojang.loki.Loki;
+import org.unmojang.loki.LokiUtil;
 
 import java.lang.instrument.ClassFileTransformer;
 import java.security.ProtectionDomain;
@@ -36,6 +37,8 @@ public class ClassicUsernameLengthTransformer implements ClassFileTransformer {
                             mn.instructions.remove(a);
                             mn.instructions.remove(b);
                             mn.instructions.remove(c);
+
+                            Loki.log.debug("Patching " + LokiUtil.getFqmn(className, mn.name, mn.desc));
                             changed = true;
                             break;
                         }
