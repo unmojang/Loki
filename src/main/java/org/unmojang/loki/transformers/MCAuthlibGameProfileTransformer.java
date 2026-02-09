@@ -11,12 +11,13 @@ import org.unmojang.loki.LokiUtil;
 import java.lang.instrument.ClassFileTransformer;
 import java.security.ProtectionDomain;
 
+// Used in MojangFix and Ears mods, possibly more
 public class MCAuthlibGameProfileTransformer implements ClassFileTransformer {
 
     public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,
                             ProtectionDomain protectionDomain, byte[] classfileBuffer) {
 
-        if (!"com/github/steveice10/mc/auth/data/GameProfile".equals(className) || LokiUtil.JAVA_MAJOR <= 5) return null;
+        if (!className.endsWith("data/GameProfile") || LokiUtil.JAVA_MAJOR <= 5) return null;
 
         try {
             ClassNode cn = new ClassNode();
@@ -36,7 +37,7 @@ public class MCAuthlibGameProfileTransformer implements ClassFileTransformer {
                     if (ret == null) throw new RuntimeException("could not find RETURN");
 
                     InsnList insns = new InsnList();
-                    insns.add(new LdcInsnNode(Type.getType("Lcom/github/steveice10/mc/auth/data/GameProfile;")));
+                    insns.add(new LdcInsnNode(Type.getType("L" + className + ";")));
                     insns.add(new MethodInsnNode(
                             Opcodes.INVOKESTATIC,
                             "org/unmojang/loki/hooks/Hooks",

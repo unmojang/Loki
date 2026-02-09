@@ -17,8 +17,7 @@ import java.util.Set;
 public class AllowedDomainTransformer implements ClassFileTransformer {
     private static final Set<String> TARGET_CLASSES = new HashSet<String>(Arrays.asList(
             "com/mojang/authlib/yggdrasil/YggdrasilMinecraftSessionService",
-            "com/mojang/authlib/yggdrasil/TextureUrlChecker",
-            "com/github/steveice10/mc/auth/data/GameProfile"
+            "com/mojang/authlib/yggdrasil/TextureUrlChecker"
     ));
     private static final String[] METHODS = {
             "isWhitelistedDomain(Ljava/lang/String;)Z",
@@ -28,7 +27,8 @@ public class AllowedDomainTransformer implements ClassFileTransformer {
     public byte[] transform(final ClassLoader loader, String className, Class<?> classBeingRedefined,
                             ProtectionDomain protectionDomain, byte[] classfileBuffer) {
 
-        if (!TARGET_CLASSES.contains(className)) return null;
+        // Target MCAuthlib too (used in MojangFix and Ears mods, possibly more)
+        if (!TARGET_CLASSES.contains(className) && !className.endsWith("/data/GameProfile")) return null;
 
         try {
             ClassNode cn = new ClassNode();
