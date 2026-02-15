@@ -17,7 +17,7 @@ public class MCAuthlibGameProfileTransformer implements ClassFileTransformer {
     public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,
                             ProtectionDomain protectionDomain, byte[] classfileBuffer) {
 
-        if (!className.endsWith("data/GameProfile") || LokiUtil.JAVA_MAJOR <= 5) return null;
+        if (!className.endsWith("/data/GameProfile") || LokiUtil.JAVA_MAJOR <= 5) return null;
 
         try {
             ClassNode cn = new ClassNode();
