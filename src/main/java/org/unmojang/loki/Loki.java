@@ -33,6 +33,7 @@ public class Loki {
         inst.addTransformer(new YggdrasilURLTransformer());
         inst.addTransformer(new SignatureValidTransformer());    /* Texture signatures (possibly unnecessary?)
 		                                                                    1.7-1.18.2 (deprecated in 1.19) */
+        inst.addTransformer(new AppletParameterTransformer()); // Fetch mppass for classic multiplayer
 
         // Allowed texture domains
         inst.addTransformer(new AllowedDomainTransformer());    // 1.7.6-1.16.5, 1.17-1.19.2, 1.19.3+

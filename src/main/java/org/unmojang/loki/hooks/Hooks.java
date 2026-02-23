@@ -5,6 +5,7 @@ import org.unmojang.loki.util.Json;
 import org.unmojang.loki.util.logger.NilLogger;
 import sun.misc.Unsafe;
 
+import java.applet.Applet;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -113,6 +114,46 @@ public class Hooks {
         } catch (Exception e) {
             throw new RuntimeException("Failed to fetch yggdrasil public key!", e);
         }
+    }
+
+    public static String getMpPass(Applet applet) {
+        if (applet == null) return null;
+
+        String mppass = applet.getParameter("mppass"); // original mppass; returned if we are unable to fetch
+        String player = applet.getParameter("username");
+        String session = applet.getParameter("session");
+        if (session == null) session = applet.getParameter("sessionid");
+        String ip = applet.getParameter("server");
+        String port = applet.getParameter("port");
+        if (player == null || session == null || ip == null || port == null) return applet.getParameter("mppass"); // singleplayer?
+        session = session.split(session.contains(":") ? ":" : "%3A")[1]; // parse session ID for token
+
+        try {
+            URL url = new URL(System.getProperty("minecraft.api.session.host", "https://sessionserver.mojang.com")
+                    + "/getMpPass?ip=" + URLEncoder.encode(ip, "UTF-8")
+                    + "&port=" + port + "&player=" + URLEncoder.encode(player, "UTF-8"));
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(5000);
+            conn.setRequestProperty("Authorization", "Bearer " + session);
+            if (conn.getResponseCode() != 200) return applet.getParameter("mppass");
+            InputStream is = null;
+            try {
+                is = conn.getInputStream();
+                ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+                byte[] data = new byte[8192];
+                int nRead;
+                while ((nRead = is.read(data, 0, data.length)) != -1) {
+                    buffer.write(data, 0, nRead);
+                }
+                mppass = buffer.toString("UTF-8");
+            } finally {
+                if (is != null) is.close();
+            }
+        } catch (Exception ignored) {}
+        log.debug("Fetched MpPass: " + mppass);
+        return mppass;
     }
 
     public static void replaceYggdrasilServicesKeyInfoSignature(Object target) {

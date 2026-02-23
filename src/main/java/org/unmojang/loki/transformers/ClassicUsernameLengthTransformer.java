@@ -17,7 +17,8 @@ public class ClassicUsernameLengthTransformer implements ClassFileTransformer {
 
         try {
             ClassNode cn = new ClassNode();
-            new ClassReader(classfileBuffer).accept(cn, 0);
+            ClassReader cr = new ClassReader(classfileBuffer);
+            cr.accept(cn, 0);
 
             boolean changed = false;
 
