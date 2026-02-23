@@ -118,17 +118,29 @@ public class Hooks {
 
     public static String getMpPass(Applet applet) {
         if (applet == null) return null;
-
         String mppass = applet.getParameter("mppass"); // original mppass; returned if we are unable to fetch
-        String player = applet.getParameter("username");
-        String session = applet.getParameter("session");
-        if (session == null) session = applet.getParameter("sessionid");
-        String ip = applet.getParameter("server");
-        String port = applet.getParameter("port");
-        if (player == null || session == null || ip == null || port == null) return applet.getParameter("mppass"); // singleplayer?
-        session = session.split(session.contains(":") ? ":" : "%3A")[1]; // parse session ID for token
-
         try {
+            String player = applet.getParameter("username");
+            String sessionId = applet.getParameter("session");
+            if (sessionId == null) sessionId = applet.getParameter("sessionid");
+            String ip = applet.getParameter("server");
+            String port = applet.getParameter("port");
+            if (player == null || sessionId == null || ip == null || port == null)
+                return applet.getParameter("mppass"); // singleplayer?
+
+            String accessToken;
+            if (!sessionId.contains(":") && !sessionId.contains("%3A")) { // maybe it can be in the raw format here too?
+                accessToken = sessionId;
+            } else {
+                String[] parts = sessionId.split(sessionId.contains(":") ? ":" : "%3A");
+                if (parts.length < 3 || parts[1].length() == 0 || parts[2].length() == 0) {
+                    log.error("could not parse session ID: " + sessionId);
+                    return applet.getParameter("mppass");
+                }
+
+                accessToken = parts[1];
+            }
+
             URL url = new URL(System.getProperty("minecraft.api.session.host", "https://sessionserver.mojang.com")
                     + "/getMpPass?ip=" + URLEncoder.encode(ip, "UTF-8")
                     + "&port=" + port + "&player=" + URLEncoder.encode(player, "UTF-8"));
@@ -136,7 +148,7 @@ public class Hooks {
             conn.setRequestMethod("GET");
             conn.setConnectTimeout(5000);
             conn.setReadTimeout(5000);
-            conn.setRequestProperty("Authorization", "Bearer " + session);
+            conn.setRequestProperty("Authorization", "Bearer " + accessToken);
             if (conn.getResponseCode() != 200) return applet.getParameter("mppass");
             InputStream is = null;
             try {
