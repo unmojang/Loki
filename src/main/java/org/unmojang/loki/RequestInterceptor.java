@@ -129,7 +129,7 @@ public class RequestInterceptor {
             } else if (path.equals("/heartbeat.jsp")) {
                 try {
                     final URL targetUrl = new URL(RequestInterceptor.YGGDRASIL_MAP.get("sessionserver.mojang.com") + "/heartbeat.jsp" + (query != null && query.length() != 0 ? "?" + query : ""));
-                    Loki.log.info("Intercepting heartbeat");
+                    Loki.log.debug("Intercepting heartbeat");
                     Loki.log.debug(originalUrl + " -> " + targetUrl);
                     return mirrorHttpURLConnection(targetUrl, (HttpURLConnection) originalConn);
                 } catch (Exception e) {
