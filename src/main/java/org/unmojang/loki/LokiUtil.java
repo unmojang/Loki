@@ -1,5 +1,6 @@
 package org.unmojang.loki;
 
+import org.unmojang.loki.hooks.Hooks;
 import org.unmojang.loki.util.BouncyCastleUtils;
 
 import javax.net.ssl.*;
@@ -19,7 +20,6 @@ import java.util.concurrent.*;
 import java.util.jar.*;
 
 public class LokiUtil {
-    private static boolean OFFLINE_MODE = false;
     public static boolean FOUND_ALI = false;
     public static final Map<String, String> MANIFEST_ATTRS = new ConcurrentHashMap<String, String>();
     public static final int JAVA_MAJOR = getJavaVersion();
@@ -119,13 +119,13 @@ public class LokiUtil {
     }
 
     public static void tryOrDisableSSL(String httpsUrl) {
-        if (OFFLINE_MODE || httpsUrl == null || httpsUrl.length() == 0 || httpsUrl.startsWith("http://")) return;
+        if (Hooks.OFFLINE_MODE || httpsUrl == null || httpsUrl.length() == 0 || httpsUrl.startsWith("http://")) return;
         String url = normalizeUrl(httpsUrl.toLowerCase());
         try {
             String host = new URL(url).getHost();
             if (!areWeOnline(host)) {
                 Loki.log.warn("DNS lookup timed out, are we offline? Disabling certificate validation!");
-                OFFLINE_MODE = true;
+                Hooks.OFFLINE_MODE = true;
             } else {
                 boolean canConnect = tryConnect(url);
                 if (canConnect) {
@@ -163,7 +163,7 @@ public class LokiUtil {
     }
 
     public static String getAuthlibInjectorApiLocation(String server) {
-        if (OFFLINE_MODE) {
+        if (Hooks.OFFLINE_MODE) {
             try {
                 URL url = new URL(server);
                 String path = url.getPath();

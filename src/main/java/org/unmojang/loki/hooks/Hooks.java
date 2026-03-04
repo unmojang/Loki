@@ -22,6 +22,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class Hooks {
     public static final Map<String, URLStreamHandler> DEFAULT_HANDLERS = new ConcurrentHashMap<String, URLStreamHandler>();
     private static final NilLogger log = NilLogger.get("Loki");
+    public static boolean OFFLINE_MODE = false;
 
     // thanks yushijinhun!
     // https://github.com/yushijinhun/authlib-injector/blob/aff141877cccaec8c5ffe7a542efa139cc64bcde/src/main/java/moe/yushi/authlibinjector/transform/support/ConcatenateURLTransformUnit.java
@@ -140,6 +141,9 @@ public class Hooks {
 
                 accessToken = parts[1];
             }
+
+            // Skip getting the mppass if we're offline
+            if (OFFLINE_MODE) return mppass;
 
             URL url = new URL(System.getProperty("minecraft.api.session.host", "https://sessionserver.mojang.com")
                     + "/getMpPass?ip=" + URLEncoder.encode(ip, "UTF-8")
