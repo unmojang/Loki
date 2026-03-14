@@ -146,7 +146,7 @@ public class Hooks {
             if (OFFLINE_MODE) return mppass;
 
             URL url = new URL(System.getProperty("minecraft.api.session.host", "https://sessionserver.mojang.com")
-                    + "/getMpPass?ip=" + URLEncoder.encode(ip, "UTF-8")
+                    + "/mppass?ip=" + URLEncoder.encode(ip, "UTF-8")
                     + "&port=" + port + "&player=" + URLEncoder.encode(player, "UTF-8"));
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
