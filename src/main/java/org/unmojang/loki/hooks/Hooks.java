@@ -121,12 +121,11 @@ public class Hooks {
         if (applet == null) return null;
         String mppass = applet.getParameter("mppass"); // original mppass; returned if we are unable to fetch
         try {
-            String player = applet.getParameter("username");
             String sessionId = applet.getParameter("session");
             if (sessionId == null) sessionId = applet.getParameter("sessionid");
             String ip = applet.getParameter("server");
             String port = applet.getParameter("port");
-            if (player == null || sessionId == null || ip == null || port == null)
+            if (sessionId == null || ip == null || port == null)
                 return applet.getParameter("mppass"); // singleplayer?
 
             String accessToken;
@@ -147,7 +146,7 @@ public class Hooks {
 
             URL url = new URL(System.getProperty("minecraft.api.session.host", "https://sessionserver.mojang.com")
                     + "/mppass?ip=" + URLEncoder.encode(ip, "UTF-8")
-                    + "&port=" + port + "&player=" + URLEncoder.encode(player, "UTF-8"));
+                    + "&port=" + port);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
             conn.setConnectTimeout(5000);
