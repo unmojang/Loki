@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "org.unmojang"
-version = "2.2.1"
+version = "2.3.0"
 
 val authlibInjectorAPIServer: String by project
 val authHost: String by project
