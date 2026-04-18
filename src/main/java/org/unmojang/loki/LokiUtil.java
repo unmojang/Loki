@@ -73,6 +73,31 @@ public class LokiUtil {
         }
     }
 
+    private static void exitBrokenTLS() {
+        Loki.log.error("**** TLS FAILED TO NEGOTIATE A CIPHER!");
+        if (JAVA_MAJOR <= 7) {
+            Loki.log.error("TLS has failed, and Loki has preemptively terminated to prevent broken");
+            Loki.log.error("network connectivity. You can either upgrade Java to 8 or Azul Zulu's");
+            Loki.log.error("7u352, use HTTP if your API server permits it, or install BouncyCastle");
+            Loki.log.error("to fix your TLS implementation. BouncyCastle is extremely unlikely to");
+            Loki.log.error("work, but for information on how to do so, refer to the following:");
+            Loki.log.error("https://github.com/betacraftuk/legacyfix/blob/9c8919e0b5455fec4cc3d5fca200cde3e426e243/docs/Modern%20TLS%20on%20old%20Java.md");
+        } else {
+            Loki.log.error("TLS has failed, and Loki has preemptively terminated to prevent broken");
+            Loki.log.error("network connectivity. More than likely, this is because the version");
+            Loki.log.error("of Java which was downloaded by your launcher for you is *severely*");
+            Loki.log.error("out of date.");
+            Loki.log.error("");
+            Loki.log.error("You should upgrade to a more recent version of Java " + JAVA_MAJOR + ". Azul Zulu or");
+            Loki.log.error("Eclipse Temurin are good choices on Windows or MacOS. On GNU/Linux,");
+            Loki.log.error("BSDs, or anything else you can probably find a copy of OpenJDK in your");
+            Loki.log.error("package manager. You can also use HTTP if your API server supports");
+            Loki.log.error("that, but this is not recommended due to the insecure nature of");
+            Loki.log.error("unencrypted HTTP connections.");
+        }
+        System.exit(1);
+    }
+
     private static boolean tryConnect(String url) throws UnknownHostException {
         try {
             HttpsURLConnection conn = (HttpsURLConnection) new URL(url).openConnection();
@@ -80,23 +105,14 @@ public class LokiUtil {
             conn.setReadTimeout(5000);
             conn.connect();
             return true;
-        } catch (SSLHandshakeException ignored) {
+        } catch (SSLHandshakeException e) {
+            if (e.getMessage().endsWith("handshake_failure")) exitBrokenTLS();
             return false;
         } catch (UnknownHostException e) {
             throw e;
         } catch (SSLException e) {
-            if (e.getMessage().equals("Received fatal alert: internal_error")) {
-                Loki.log.error("**** TLS FAILED TO NEGOTIATE A CIPHER!");
-                Loki.log.error("TLS has failed, and Loki has preemptively terminated to prevent broken");
-                Loki.log.error("network connectivity. You can either upgrade Java, use HTTP if your");
-                Loki.log.error("API server supports that, or install BouncyCastle to fix your TLS");
-                Loki.log.error("implementation.");
-                Loki.log.error("For more information on how to do so, refer to the following:");
-                Loki.log.error("https://github.com/betacraftuk/legacyfix/blob/9c8919e0b5455fec4cc3d5fca200cde3e426e243/docs/Modern%20TLS%20on%20old%20Java.md");
-                System.exit(1);
-            }
-            Loki.log.error("Connection failed", e);
-            throw new RuntimeException(e);
+            exitBrokenTLS();
+            return false;
         } catch (Exception e) {
             if (e.getMessage().equals("handshake_failure(40)")) {
                 Loki.log.error("**** BOUNCYCASTLE FAILED TO NEGOTIATE A CIPHER!");
