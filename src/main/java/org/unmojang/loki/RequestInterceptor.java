@@ -172,7 +172,7 @@ public class RequestInterceptor {
                 return Ygglib.getAshcon(originalUrl, originalConn, username);
             }
 
-            if (host.equals("minotar.net") && path.startsWith("/helm")) {
+            if (host.equals("minotar.net") && (path.startsWith("/helm") || path.startsWith("/avatar"))) {
                 String username = path.split("/")[2];
                 int res = Integer.parseInt(path.split("/")[3].replaceFirst("\\..*$", ""));
                 Loki.log.info(String.format("Intercepting minotar.net lookup for %s (%s px)", username, res));
