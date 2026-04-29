@@ -19,9 +19,13 @@ See [doc/configuration.md](doc/configuration.md) for documentation of the config
 
 ## Building
 
-Loki needs to be built with Java 8. Gradle should find and build with a Java 8 JDK automatically for you, so there is no need to adjust your `JAVA_HOME`, but you must have a Java 8 JDK installed.
+Loki should be built with Java 8. Adjust either the `JDK8_HOME` or the `JAVA_HOME` environment variable accordingly.
 
-Run `./gradlew build` to build. Your compiled jar will be placed in `build/libs/Loki-X.Y.Z.jar`.
+Install Apache Ant, and run `ant ivy` to fetch Apache Ivy; you only need to do this once.
+
+Run `ant` to build. Your compiled jar will be placed in `build/dist/Loki-x.x.x.jar`.
+
+You *can* build with Java 9 or later, however your build will lack Java 5-7 support. To do this, use `ant -DjavaTarget=1.8`
 
 ## FAQ
 See [doc/faq.md](doc/faq.md)

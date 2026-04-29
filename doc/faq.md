@@ -6,7 +6,11 @@ Loki supports every Minecraft version.
 
 ## Wait, what about classic servers?
 
-Minecraft Classic servers use the [Classic Protocol](https://minecraft.wiki/w/Minecraft_Wiki:Projects/wiki.vg_merge/Classic_Protocol), which is entirely incompatible with a Yggdrasil-based API server. Consider playing [ClassiCube](https://www.classicube.net/) or [Classic+](https://legacy-plus.dejvoss.cz/) instead.
+Minecraft Classic servers use the [Classic Protocol](https://minecraft.wiki/w/Minecraft_Wiki:Projects/wiki.vg_merge/Classic_Protocol), which is entirely incompatible with the Yggdrasil protocol.
+
+If you are using the latest git commit of Drasl, then the Classic Protocol is supported. Unfortunately, fallback API servers are not supported.
+
+If you are using another API server (Blessing Skin, Ely.by), you could ask them to [implement it how Drasl does](https://github.com/unmojang/drasl/blob/da510ceb9cff4da9a5513b04e52ab9f6ac69c15b/session.go#L304-L419). For an immediate solution, consider playing [ClassiCube](https://www.classicube.net/) or [Classic+](https://legacy-plus.dejvoss.cz/) instead.
 
 ## Are total conversion mods or obscure mod loaders supported?
 

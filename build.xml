@@ -1,0 +1,147 @@
+<project name="Loki" default="build" basedir="." xmlns:ivy="antlib:org.apache.ivy.ant">
+    <property environment="env"/>
+    <property name="group" value="org.unmojang"/>
+    <property name="artifact" value="Loki"/>
+    <property name="version" value="2.3.1"/>
+    <property name="asm.version" value="9.9"/>
+    <property name="ivy.version" value="2.4.0"/>
+
+    <condition property="java_home" value="${env.JDK8_HOME}">
+        <isset property="env.JDK8_HOME"/>
+    </condition>
+
+    <condition property="java_home" value="${env.JAVA_HOME}">
+        <not>
+            <isset property="java_home"/>
+        </not>
+    </condition>
+
+    <fail message="Neither JDK8_HOME nor JAVA_HOME is set">
+        <condition>
+            <not>
+                <isset property="java_home"/>
+            </not>
+        </condition>
+    </fail>
+
+    <property file="loki.properties"/>
+
+    <property name="src.dir" value="src/main/java"/>
+    <property name="res.dir" value="src/main/resources"/>
+
+    <property name="build.dir" value="build"/>
+    <property name="classes.dir" value="${build.dir}/classes"/>
+    <property name="lib.dir" value="${build.dir}/lib"/>
+    <property name="tools.dir" value="${build.dir}/tools"/>
+    <property name="dist.dir" value="${build.dir}/dist"/>
+    <property name="temp.dir" value="${build.dir}/temp"/>
+
+    <target name="init">
+        <mkdir dir="${classes.dir}"/>
+        <mkdir dir="${dist.dir}"/>
+        <mkdir dir="${temp.dir}"/>
+    </target>
+
+    <target name="ivy" description="Fetch Apache Ivy">
+        <mkdir dir="${user.home}/.ant/lib"/>
+        <get dest="${user.home}/.ant/lib/ivy.jar" src="https://repo1.maven.org/maven2/org/apache/ivy/ivy/${ivy.version}/ivy-${ivy.version}.jar"/>
+    </target>
+
+    <target name="resolve" depends="init">
+        <ivy:retrieve pattern="${lib.dir}/[artifact]-[revision].[ext]"
+                      conf="compile,runtime"/>
+
+        <ivy:retrieve pattern="${tools.dir}/[artifact]-[revision].[ext]"
+                      conf="tools"/>
+    </target>
+
+    <path id="cp">
+        <fileset dir="${lib.dir}" includes="**/*.jar"/>
+    </path>
+
+    <target name="compile" depends="resolve">
+
+        <copy todir="${classes.dir}">
+            <fileset dir="${res.dir}" erroronmissingdir="false"/>
+        </copy>
+
+        <javac srcdir="${src.dir}"
+               destdir="${classes.dir}"
+               fork="true"
+               executable="${java_home}/bin/javac"
+               source="${javaTarget}"
+               target="${javaTarget}"
+               encoding="UTF-8"
+               includeantruntime="false"
+               classpathref="cp">
+
+            <compilerarg value="-Xlint:all"/>
+            <compilerarg value="-Xlint:-deprecation"/>
+            <compilerarg value="-Xlint:-options"/>
+        </javac>
+
+    </target>
+
+    <target name="shadow" depends="compile">
+
+        <jar destfile="${temp.dir}/${artifact}-${version}-fat.jar">
+
+            <manifest>
+                <attribute name="Premain-Class" value="org.unmojang.loki.Loki"/>
+                <attribute name="Implementation-Version" value="${version}"/>
+                <attribute name="Can-Redefine-Classes" value="true"/>
+                <attribute name="Can-Retransform-Classes" value="true"/>
+
+                <attribute name="AuthlibInjectorAPIServer" value="${authlibInjectorAPIServer}"/>
+                <attribute name="AuthHost" value="${authHost}"/>
+                <attribute name="AccountHost" value="${accountHost}"/>
+                <attribute name="SessionHost" value="${sessionHost}"/>
+                <attribute name="ServicesHost" value="${servicesHost}"/>
+            </manifest>
+
+            <fileset dir="${classes.dir}">
+                <exclude name="META-INF/maven/**"/>
+                <exclude name="**/module-info.class"/>
+            </fileset>
+
+            <zipfileset src="${lib.dir}/asm-${asm.version}.jar">
+                <exclude name="META-INF/**"/>
+                <exclude name="**/module-info.class"/>
+            </zipfileset>
+
+            <zipfileset src="${lib.dir}/asm-tree-${asm.version}.jar">
+                <exclude name="META-INF/**"/>
+                <exclude name="**/module-info.class"/>
+            </zipfileset>
+
+            <zipfileset src="${lib.dir}/asm-commons-${asm.version}.jar">
+                <exclude name="META-INF/**"/>
+                <exclude name="**/module-info.class"/>
+            </zipfileset>
+        </jar>
+
+        <path id="jarjar.classpath">
+            <fileset dir="${tools.dir}" includes="jarjar-*.jar"/>
+            <fileset dir="${lib.dir}" includes="asm-*.jar"/>
+        </path>
+
+        <java classname="org.pantsbuild.jarjar.Main" fork="true" failonerror="true">
+            <classpath refid="jarjar.classpath"/>
+            <arg value="process"/>
+            <arg value="jarjar.rules"/>
+            <arg value="${temp.dir}/${artifact}-${version}-fat.jar"/>
+            <arg value="${dist.dir}/${artifact}-${version}.jar"/>
+        </java>
+
+    </target>
+
+    <target name="build" depends="shadow"/>
+
+    <target name="clean" description="Clear build directory">
+        <delete dir="${build.dir}"/>
+    </target>
+
+    <target name="clean-all" depends="clean" description="Clear build directory + Ivy cache">
+        <ivy:cleancache/>
+    </target>
+</project>

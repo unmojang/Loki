@@ -1,0 +1,21 @@
+<ivy-module version="2.0">
+    <info organisation="org.unmojang" module="Loki" revision="${version}"/>
+
+    <configurations>
+        <conf name="compile"/>
+        <conf name="runtime"/>
+        <conf name="tools"/>
+    </configurations>
+
+    <dependencies>
+        <dependency org="org.ow2.asm" name="asm" rev="${asm.version}" conf="compile,runtime->default"/>
+        <dependency org="org.ow2.asm" name="asm-tree" rev="${asm.version}" conf="compile,runtime->default"/>
+        <dependency org="org.ow2.asm" name="asm-commons" rev="${asm.version}" conf="compile,runtime->default"/>
+
+        <dependency org="org.bouncycastle" name="bcprov-jdk15to18" rev="1.82" conf="compile->default"/>
+        <dependency org="org.bouncycastle" name="bctls-jdk15to18" rev="1.82" conf="compile->default"/>
+        <dependency org="org.bouncycastle" name="bcutil-jdk15to18" rev="1.82" conf="compile->default"/>
+
+        <dependency org="org.pantsbuild" name="jarjar" rev="1.7.2" conf="tools->default"/>
+    </dependencies>
+</ivy-module>

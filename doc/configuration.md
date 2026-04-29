@@ -56,7 +56,7 @@ Loki supports JVM arguments to enable or disable some behaviour.
 
 ## Changing the Default API Servers
 
-By default, Loki will use Mojang's API servers if none are provided. If you would like, you can change Loki's default API servers by editing `gradle.properties` before compiling:
+By default, Loki will use Mojang's API servers if none are provided. If you would like, you can change Loki's default API servers by editing `loki.properties` before compiling:
 
 ```
 authlibInjectorAPIServer=drasl.unmojang.org
@@ -64,6 +64,11 @@ authHost=https://authserver.mojang.com
 accountHost=https://api.mojang.com
 sessionHost=https://sessionserver.mojang.com
 servicesHost=https://api.minecraftservices.com
+```
+
+You can also override these properties within the build command:
+```
+ant -DauthlibInjectorAPIServer=https://drasl.unmojang.org/authlib-injector
 ```
 
 `authlibInjectorAPIServer` is preferred when it is set, keep it empty if your API server does not support the authlib-injector API.

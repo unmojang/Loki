@@ -21,15 +21,29 @@ jobs:
           java-version: '8'
           distribution: 'temurin'
 
-      - name: Build
-        run: ./gradlew build --no-daemon
+      - name: Install Ant
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ant
 
-      - name: Strip 'v' from tag
-        id: strip_tag
+      - name: Cache Ivy dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.ivy2/cache
+          key: ivy-${{ runner.os }}-${{ hashFiles('**/ivy.xml') }}
+          restore-keys: |
+            ivy-${{ runner.os }}-
+
+      - name: Fetch Ivy
+        run: ant ivy
+
+      - name: Build
+        run: ant clean build
+
+      - name: Extract version from tag
         run: echo "RELEASE_TAG=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
 
       - name: Create Release
-        id: create_release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ github.ref_name }}
@@ -42,6 +56,6 @@ jobs:
       - name: Upload JAR to Release
         uses: softprops/action-gh-release@v1
         with:
-          files: build/libs/Loki-${{ env.RELEASE_TAG }}.jar
+          files: build/dist/Loki-${{ env.RELEASE_TAG }}.jar
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
