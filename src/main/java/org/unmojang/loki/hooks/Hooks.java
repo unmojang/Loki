@@ -126,7 +126,7 @@ public class Hooks {
             String ip = applet.getParameter("server");
             String port = applet.getParameter("port");
             if (sessionId == null || ip == null || port == null)
-                return applet.getParameter("mppass"); // singleplayer?
+                return mppass; // singleplayer?
 
             String accessToken;
             if (!sessionId.contains(":") && !sessionId.contains("%3A")) { // maybe it can be in the raw format here too?
@@ -135,7 +135,7 @@ public class Hooks {
                 String[] parts = sessionId.split(sessionId.contains(":") ? ":" : "%3A");
                 if (parts.length < 3 || parts[1].length() == 0 || parts[2].length() == 0) {
                     log.error("could not parse session ID: " + sessionId);
-                    return applet.getParameter("mppass");
+                    return mppass;
                 }
 
                 accessToken = parts[1];
@@ -152,7 +152,7 @@ public class Hooks {
             conn.setConnectTimeout(5000);
             conn.setReadTimeout(5000);
             conn.setRequestProperty("Authorization", "Bearer " + accessToken);
-            if (conn.getResponseCode() != 200) return applet.getParameter("mppass");
+            if (conn.getResponseCode() != 200) return mppass;
             InputStream is = null;
             try {
                 is = conn.getInputStream();

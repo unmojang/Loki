@@ -91,7 +91,6 @@
                 <attribute name="Implementation-Version" value="${version}"/>
                 <attribute name="Can-Redefine-Classes" value="true"/>
                 <attribute name="Can-Retransform-Classes" value="true"/>
-
                 <attribute name="AuthlibInjectorAPIServer" value="${authlibInjectorAPIServer}"/>
                 <attribute name="AuthHost" value="${authHost}"/>
                 <attribute name="AccountHost" value="${accountHost}"/>
