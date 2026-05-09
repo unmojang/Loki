@@ -390,6 +390,14 @@ public class LokiUtil {
 
         initManifestAttributes();
 
+        String[] proxyProps = {"http.proxyHost", "http.proxyPort", "https.proxyHost", "https.proxyPort"};
+        for (String prop : proxyProps) {
+            if (System.getProperty(prop) != null) {
+                Loki.log.warn("Clearing " + prop + " to prevent interference with URL factory");
+                System.clearProperty(prop);
+            }
+        }
+
         if (hasBouncyCastle()) {
             Loki.log.info("Using provided BouncyCastle to fix HTTPS");
             try {
