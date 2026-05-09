@@ -52,6 +52,16 @@ public class Ygglib {
             conn.setConnectTimeout(5000);
             conn.setReadTimeout(5000);
 
+            if (conn.getResponseCode() != 200) { // route not implemented? let's try the other one...
+                skinUrl = new URL("https://api.mojang.com/minecraft/profile/lookup/name/" + URLEncoder.encode(username, "UTF-8"));
+                skinUrl = getYggdrasilUrl(skinUrl, null);
+                handler = Hooks.DEFAULT_HANDLERS.get(skinUrl.getProtocol());
+                conn = RequestInterceptor.openWithParent(skinUrl, handler);
+                conn.setRequestMethod("GET");
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(5000);
+            }
+
             String jsonText = readStream(conn.getInputStream());
             Json.JSONObject obj = new Json.JSONObject(jsonText);
             return obj.getString("id");
@@ -93,7 +103,9 @@ public class Ygglib {
 
             String texturesProperty = getTexturesProperty(uuid, false);
             Json.JSONObject texturePayloadObj = new Json.JSONObject(texturesProperty);
-            Json.JSONObject skinOrCape = texturePayloadObj.getJSONObject("textures").getJSONObject(type);
+            Json.JSONObject texturesObj = texturePayloadObj.getJSONObject("textures");
+            if (!texturesObj.has(type)) return FakeURLConnection(originalUrl, originalConn, 204, null);
+            Json.JSONObject skinOrCape = texturesObj.getJSONObject(type);
             String textureUrl = skinOrCape.getString("url");
             if (textureUrl == null) return FakeURLConnection(originalUrl, originalConn, 204, null);
             if (RequestInterceptor.YGGDRASIL_MAP.get("sessionserver.mojang.com").startsWith("http://")) {
@@ -104,7 +116,7 @@ public class Ygglib {
                 boolean isSlim = false;
                 if (skinOrCape.has("metadata")) {
                     Json.JSONObject metadata = skinOrCape.getJSONObject("metadata");
-                    if ("slim".equals(metadata.getString("model"))) isSlim = true;
+                    if ("slim".equals(metadata.optString("model", ""))) isSlim = true;
                 }
                 URLConnection connection = new URL(textureUrl).openConnection();
                 InputStream in = null;
@@ -291,11 +303,13 @@ public class Ygglib {
             String signaturesBase64 = properties.getString("signature");
             String texturePayload = new String(Base64.decode(texturesBase64), "UTF-8");
             Json.JSONObject texturePayloadObj = new Json.JSONObject(texturePayload);
-            Json.JSONObject skinObj = texturePayloadObj.getJSONObject("textures").getJSONObject("SKIN");
+            Json.JSONObject texturesObj = texturePayloadObj.getJSONObject("textures");
+            if (!texturesObj.has("SKIN")) return FakeURLConnection(originalUrl, originalConn, 204, null);
+            Json.JSONObject skinObj = texturesObj.getJSONObject("SKIN");
             boolean isSlim = false;
             if (skinObj.has("metadata")) {
                 Json.JSONObject metadata = skinObj.getJSONObject("metadata");
-                if ("slim".equals(metadata.getString("model"))) isSlim = true;
+                if ("slim".equals(metadata.optString("model", ""))) isSlim = true;
             }
 
             String responseJson = "{\n" +
@@ -369,12 +383,14 @@ public class Ygglib {
 
             String texturesProperty = getTexturesProperty(uuid, false);
             Json.JSONObject texturePayloadObj = new Json.JSONObject(texturesProperty);
-            String textureUrl = texturePayloadObj.getJSONObject("textures").getJSONObject("SKIN").getString("url");
-            if (textureUrl == null) return FakeURLConnection(originalUrl, originalConn, 204, null);
+            Json.JSONObject texturesObj = texturePayloadObj.getJSONObject("textures");
+            if (!texturesObj.has("SKIN")) return FakeURLConnection(originalUrl, originalConn, 204, null);
+            String skinUrl = texturesObj.getJSONObject("SKIN").optString("url", null);
+            if (skinUrl == null) return FakeURLConnection(originalUrl, originalConn, 204, null);
             if (RequestInterceptor.YGGDRASIL_MAP.get("sessionserver.mojang.com").startsWith("http://")) {
-                textureUrl = textureUrl.replaceFirst("^https://", "http://");
+                skinUrl = skinUrl.replaceFirst("^https://", "http://");
             }
-            URLConnection connection = new URL(textureUrl).openConnection();
+            URLConnection connection = new URL(skinUrl).openConnection();
 
             InputStream in = null;
             try {
