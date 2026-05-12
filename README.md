@@ -5,6 +5,10 @@ Patch (nearly) any Minecraft version to use custom API servers
 ![Minecraft Classic 0.0.18a_02 with Loki](img/1.png)
 ![Minecraft 1.21.10 with Loki](img/2.png)
 
+## Installation
+
+See [doc/installation.md](doc/installation.md) for information on getting Loki installed.
+
 ## Usage
 
 See [doc/usage.md](doc/usage.md) to learn how to use Loki on clients and servers.

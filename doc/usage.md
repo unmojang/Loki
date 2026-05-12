@@ -30,8 +30,6 @@ If your API server is not authlib-injector compatible, Loki supports `minecraft.
 -Dminecraft.api.services.host=https://drasl.unmojang.org/services
 ```
 
-If you are using Fjord Launcher, you can use the "Add Agents" feature in the Version tab of your instance. This is equivalent to doing `-javaagent:/path/to/Loki.jar`. Setting Loki.url is not necessary since Fjord Launcher will set the `minecraft.api.*.host` parameters for you when authlib-injector is not present.
-
 Although not recommended, Loki can also pick up the API server provided from authlib-injector if you're using both, and kill authlib-injector to prevent breakage.
 
 [^1]: Windows users should prefix the path with `C:`, assuming you are on drive C. You should still use forward slashes in the path. 
