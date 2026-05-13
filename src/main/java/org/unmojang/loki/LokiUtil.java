@@ -216,6 +216,7 @@ public class LokiUtil {
         System.setProperty("minecraft.api.profiles.host", authlibInjectorApiLocation + "/api");
         System.setProperty("minecraft.api.session.host", authlibInjectorApiLocation + "/sessionserver");
         System.setProperty("minecraft.api.services.host", authlibInjectorApiLocation + "/minecraftservices");
+        System.setProperty("minecraft.api.signaling.host", authlibInjectorApiLocation + "/signaling");
 
         // Velocity
         System.setProperty("mojang.sessionserver", authlibInjectorApiLocation + "/sessionserver/session/minecraft/hasJoined");
