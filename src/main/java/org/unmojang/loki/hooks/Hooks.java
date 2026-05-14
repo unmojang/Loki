@@ -9,13 +9,17 @@ import java.applet.Applet;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.management.ManagementFactory;
 import java.lang.reflect.Field;
 import java.net.*;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
+import java.util.Enumeration;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 
 @SuppressWarnings("unused")
@@ -220,6 +224,31 @@ public class Hooks {
         X509EncodedKeySpec spec = new X509EncodedKeySpec(keyBytes);
         KeyFactory keyFactory = KeyFactory.getInstance("RSA");
         return keyFactory.generatePublic(spec);
+    }
+
+    public static void injectMCOSELanServerJvmArgs(List<String> command) {
+        try {
+            for (String arg : ManagementFactory.getRuntimeMXBean().getInputArguments()) {
+                if (arg.startsWith("-javaagent:")) {
+                    log.debug("Appending agent to LAN server: " + arg);
+                    command.add(arg);
+                }
+            }
+            Properties props = System.getProperties();
+            Enumeration<?> names = props.propertyNames();
+            while (names.hasMoreElements()) {
+                String key = (String) names.nextElement();
+                if (key.startsWith("Loki.") || key.startsWith("minecraft.api.")) {
+                    String value = props.getProperty(key);
+                    if (value == null) continue;
+                    String jvmArg = "-D" + key + "=" + value;
+                    log.debug("Appending JVM argument to LAN server: " + jvmArg);
+                    command.add(jvmArg);
+                }
+            }
+        } catch (Throwable t) {
+            log.error("Failed to inject LAN server JVM args!", t);
+        }
     }
 
     public static synchronized void registerExternalFactory(URLStreamHandlerFactory factory) {

@@ -55,6 +55,7 @@ public class Loki {
         inst.addTransformer(new ConcatenateURLTransformer()); // Prevent port number being ignored in old authlib, if you specified it
         inst.addTransformer(new MCAuthlibGameProfileTransformer()); // Primarily for MojangFix
         inst.addTransformer(new ReIndevGetSkinTransformer()); // Fix a bug in ReIndev's ThreadGetSkin
+        inst.addTransformer(new MCOSEMultiplayerTransformer()); // Propagate Loki into MCOSE server subprocess
         LokiUtil.addRetransformTransformer(new SetURLFactoryTransformer(), inst); // Fix 1.13-1.16 Forge, LegacyFix agent
         LokiUtil.retransformClass("uk.betacraft.legacyfix.LegacyFixLauncher", inst);
 
