@@ -53,7 +53,7 @@ public class RequestInterceptor {
         tmp.put("api.mojang.com", accountHost != null ? accountHost : LokiUtil.MANIFEST_ATTRS.get("AccountHost"));
         tmp.put("sessionserver.mojang.com", sessionHost != null ? sessionHost : LokiUtil.MANIFEST_ATTRS.get("SessionHost"));
         tmp.put("api.minecraftservices.com", servicesHost != null ? servicesHost : LokiUtil.MANIFEST_ATTRS.get("ServicesHost"));
-        if (signalingHost != null) tmp.put("signaling-afd.franchise.minecraft-services.net", signalingHost);
+        tmp.put("signaling-afd.franchise.minecraft-services.net", signalingHost != null ? signalingHost : LokiUtil.MANIFEST_ATTRS.get("SignalingHost"));
         YGGDRASIL_MAP = Collections.unmodifiableMap(tmp);
     }
 

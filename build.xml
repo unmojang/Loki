@@ -96,6 +96,7 @@
                 <attribute name="AccountHost" value="${accountHost}"/>
                 <attribute name="SessionHost" value="${sessionHost}"/>
                 <attribute name="ServicesHost" value="${servicesHost}"/>
+                <attribute name="SignalingHost" value="${signalingHost}"/>
             </manifest>
 
             <fileset dir="${classes.dir}">

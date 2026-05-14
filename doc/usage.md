@@ -28,6 +28,7 @@ If your API server is not authlib-injector compatible, Loki supports `minecraft.
 -Dminecraft.api.account.host=https://drasl.unmojang.org/account
 -Dminecraft.api.session.host=https://drasl.unmojang.org/session
 -Dminecraft.api.services.host=https://drasl.unmojang.org/services
+-Dminecraft.api.signaling.host=https://drasl.unmojang.org/signaling
 ```
 
 Although not recommended, Loki can also pick up the API server provided from authlib-injector if you're using both, and kill authlib-injector to prevent breakage.
