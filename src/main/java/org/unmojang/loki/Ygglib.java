@@ -79,6 +79,8 @@ public class Ygglib {
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Content-Type", "application/json");
             conn.setRequestProperty("Accept", "application/json");
+            // cloudflare blocks Java/* user agent, for _SOME_ reason
+            conn.setRequestProperty("User-Agent", "Loki/" + Loki.class.getPackage().getImplementationVersion());
             conn.setDoOutput(true);
             conn.setConnectTimeout(5000);
             conn.setReadTimeout(5000);
@@ -86,9 +88,13 @@ public class Ygglib {
             conn.getOutputStream().write(body);
             conn.getOutputStream().close();
 
-            String jsonText = readStream(conn.getInputStream());
-            Json.JSONArray arr = new Json.JSONArray(jsonText);
-            return arr.getJSONObject(0).getString("id");
+            if (conn.getResponseCode() == 200) {
+                String jsonText = readStream(conn.getInputStream());
+                Json.JSONArray arr = new Json.JSONArray(jsonText);
+                return arr.getJSONObject(0).getString("id");
+            }
+
+            throw new IOException("No UUID lookup route succeeded for username: " + username);
         } catch (UnknownHostException e) {
             throw e;
         } catch (Exception e) {
