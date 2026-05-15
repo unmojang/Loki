@@ -2,7 +2,7 @@
 
 ## What versions are supported?
 
-Loki supports every Minecraft version.
+Loki offers support for skins, capes, and authentication to every Minecraft version that has skins, capes, or authentication. From Classic 0.0.15a up to the latest version of Minecraft, Loki makes a strong effort to support **everything**.
 
 ## Wait, what about classic servers?
 
@@ -18,7 +18,7 @@ They should be, but if not, please file an issue.
 
 ## Does chat reporting/secure-profile work?
 
-It does, as long as you're on the same API server and your API server supports chat reporting. While using Loki, the player signature is not validated, even with `enforce-secure-profile=true` in `server.properties` - it only requires that a signature is provided. In this state, [No Chat Reports](https://modrinth.com/mod/no-chat-reports) will not work, but signatures could potentially be forged unless you additionally set `-DLoki.enforce_secure_profile=true`. Doing this will, however, kick [fallback API server](https://github.com/unmojang/drasl/blob/master/doc/configuration.md) players, and is discouraged (see "Chat validation error" in [troubleshooting.md](troubleshooting.md)). You can even do chat reports across API servers, the API server will of course reject the attempt to make the report though.
+It does, as long as you're on the same API server and your API server supports chat reporting. While using Loki, the player signature is not validated, even with `enforce-secure-profile=true` in `server.properties` - it only requires that a signature is provided. In this state, [No Chat Reports](https://modrinth.com/mod/no-chat-reports) will not resolve the issue if it were installed on the server-side, because it does not permit malformed signatures, it only tolerates missing or valid signatures. By default, when using Loki, signatures could potentially be forged unless you additionally set `-DLoki.enforce_secure_profile=true`. Doing this will, however, kick [fallback API server](https://github.com/unmojang/drasl/blob/master/doc/configuration.md) players, and is discouraged (see "Chat validation error" in [troubleshooting.md](troubleshooting.md)). You can even do chat reports across API servers, the API server will of course reject the attempt to make the report though.
 
 ![Attempted cross-API server chat report](/img/chatreport.png)
 

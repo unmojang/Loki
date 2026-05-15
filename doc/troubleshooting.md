@@ -2,7 +2,7 @@
 
 ## Fallback API server players see "Chat validation error"
 
-Whenever anyone from a different API server talks in chat, fallback API server players may see "Chat validation error" and be unable to send messages afterward until they relog. This is due to the vanilla 1.19+ game client performing signature checks on messages prior to accepting them. The solution is to either use Loki or authlib-injector on the client - which will most likely already be in use unless the fallback API server is Mojang - or to install [No Chat Reports](https://modrinth.com/mod/no-chat-reports) on the server.[^1]
+Whenever anyone from a different API server talks in chat, fallback API server players may see "Chat validation error" and be unable to send messages afterward until they relog. This is due to the vanilla 1.19+ game client performing signature checks on messages prior to accepting them. The solution is to use Loki or authlib-injector on the client, which will most likely already be in use unless the fallback API server is Mojang. For supporting Mojang players, you should ensure that you are using either Loki or authlib-injector on the server, **NOT `minecraft.api.*.host` parameters**, then install [No Chat Reports](https://modrinth.com/mod/no-chat-reports) on the server[^1].
 
 
 ## My game immediately crashed!
