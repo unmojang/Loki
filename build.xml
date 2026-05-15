@@ -2,7 +2,7 @@
     <property environment="env"/>
     <property name="group" value="org.unmojang"/>
     <property name="artifact" value="Loki"/>
-    <property name="version" value="2.4.1"/>
+    <property name="version" value="2.4.2"/>
     <property name="asm.version" value="9.9"/>
     <property name="ivy.version" value="2.4.0"/>
 
