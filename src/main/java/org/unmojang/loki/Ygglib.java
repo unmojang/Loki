@@ -79,8 +79,6 @@ public class Ygglib {
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Content-Type", "application/json");
             conn.setRequestProperty("Accept", "application/json");
-            // cloudflare blocks Java/* user agent, for _SOME_ reason
-            conn.setRequestProperty("User-Agent", "Loki/" + Loki.class.getPackage().getImplementationVersion());
             conn.setDoOutput(true);
             conn.setConnectTimeout(5000);
             conn.setReadTimeout(5000);
@@ -148,7 +146,9 @@ public class Ygglib {
                     Json.JSONObject metadata = skinOrCape.getJSONObject("metadata");
                     if ("slim".equals(metadata.optString("model", ""))) isSlim = true;
                 }
-                URLConnection connection = new URL(textureUrl).openConnection();
+                URL parsedTextureUrl = new URL(textureUrl);
+                URLStreamHandler handler = Hooks.DEFAULT_HANDLERS.get(parsedTextureUrl.getProtocol());
+                URLConnection connection = RequestInterceptor.openWithParent(parsedTextureUrl, handler);
                 InputStream in = null;
                 try {
                     // thank you ahnewark!
@@ -191,7 +191,9 @@ public class Ygglib {
                     if (in != null) in.close();
                 }
             } else if (type.equals("CAPE")) {
-                return new URL(textureUrl).openConnection();
+                URL parsedTextureUrl = new URL(textureUrl);
+                URLStreamHandler handler = Hooks.DEFAULT_HANDLERS.get(parsedTextureUrl.getProtocol());
+                return RequestInterceptor.openWithParent(parsedTextureUrl, handler);
             }
             throw new RuntimeException("Unexpected texture type. How did we get here?");
         } catch (UnknownHostException e) {
@@ -420,7 +422,9 @@ public class Ygglib {
             if (RequestInterceptor.YGGDRASIL_MAP.get("sessionserver.mojang.com").startsWith("http://")) {
                 skinUrl = skinUrl.replaceFirst("^https://", "http://");
             }
-            URLConnection connection = new URL(skinUrl).openConnection();
+            URL parsedSkinUrl = new URL(skinUrl);
+            URLStreamHandler handler = Hooks.DEFAULT_HANDLERS.get(parsedSkinUrl.getProtocol());
+            URLConnection connection = RequestInterceptor.openWithParent(parsedSkinUrl, handler);
 
             InputStream in = null;
             try {
