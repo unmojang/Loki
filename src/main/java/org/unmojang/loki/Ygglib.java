@@ -52,19 +52,43 @@ public class Ygglib {
             conn.setConnectTimeout(5000);
             conn.setReadTimeout(5000);
 
-            if (conn.getResponseCode() != 200) { // route not implemented? let's try the other one...
-                skinUrl = new URL("https://api.mojang.com/minecraft/profile/lookup/name/" + URLEncoder.encode(username, "UTF-8"));
-                skinUrl = getYggdrasilUrl(skinUrl, null);
-                handler = Hooks.DEFAULT_HANDLERS.get(skinUrl.getProtocol());
-                conn = RequestInterceptor.openWithParent(skinUrl, handler);
-                conn.setRequestMethod("GET");
-                conn.setConnectTimeout(5000);
-                conn.setReadTimeout(5000);
+            if (conn.getResponseCode() == 200) {
+                Json.JSONObject obj = new Json.JSONObject(readStream(conn.getInputStream()));
+                return obj.getString("id");
             }
 
+            // route not implemented? let's try the other one...
+            skinUrl = new URL("https://api.mojang.com/minecraft/profile/lookup/name/" + URLEncoder.encode(username, "UTF-8"));
+            skinUrl = getYggdrasilUrl(skinUrl, null);
+            handler = Hooks.DEFAULT_HANDLERS.get(skinUrl.getProtocol());
+            conn = RequestInterceptor.openWithParent(skinUrl, handler);
+            conn.setRequestMethod("GET");
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(5000);
+
+            if (conn.getResponseCode() == 200) {
+                Json.JSONObject obj = new Json.JSONObject(readStream(conn.getInputStream()));
+                return obj.getString("id");
+            }
+
+            // prehistoric version of BlessingSkin only implements this route
+            skinUrl = new URL("https://api.mojang.com/profiles/minecraft");
+            skinUrl = getYggdrasilUrl(skinUrl, null);
+            handler = Hooks.DEFAULT_HANDLERS.get(skinUrl.getProtocol());
+            conn = RequestInterceptor.openWithParent(skinUrl, handler);
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setRequestProperty("Accept", "application/json");
+            conn.setDoOutput(true);
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(5000);
+            byte[] body = ("[\"" + username + "\"]").getBytes("UTF-8");
+            conn.getOutputStream().write(body);
+            conn.getOutputStream().close();
+
             String jsonText = readStream(conn.getInputStream());
-            Json.JSONObject obj = new Json.JSONObject(jsonText);
-            return obj.getString("id");
+            Json.JSONArray arr = new Json.JSONArray(jsonText);
+            return arr.getJSONObject(0).getString("id");
         } catch (UnknownHostException e) {
             throw e;
         } catch (Exception e) {
