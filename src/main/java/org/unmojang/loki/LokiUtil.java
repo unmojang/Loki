@@ -19,6 +19,7 @@ import java.util.Map;
 import java.util.concurrent.*;
 import java.util.jar.*;
 
+@SuppressWarnings("HttpUrlsUsage")
 public class LokiUtil {
     public static boolean FOUND_ALI = false;
     public static final Map<String, String> MANIFEST_ATTRS = new ConcurrentHashMap<String, String>();

@@ -14,6 +14,7 @@ import java.security.cert.Certificate;
 import java.util.HashMap;
 import java.util.Map;
 
+@SuppressWarnings("HttpUrlsUsage")
 public class Ygglib {
     public static String readStream(InputStream in) throws IOException {
         BufferedReader reader = new BufferedReader(new InputStreamReader(in, "UTF-8"));
@@ -156,34 +157,35 @@ public class Ygglib {
                     // https://github.com/ahnewark/MineOnline/blob/4f4f86f9d051e0a6fd7ff0b95b2a05f7437683d7/src/main/java/gg/codie/mineonline/gui/textures/TextureHelper.java#L17
                     in = connection.getInputStream();
                     BufferedImage image = ImageIO.read(in);
+                    int s = Math.max(1, image.getWidth() / 64);
                     Graphics2D graphics = image.createGraphics();
                     graphics.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER));
 
                     BufferedImage subimage;
 
-                    if (image.getHeight() > 32) {
+                    if (image.getHeight() > 32 * s) {
                         // flatten second layers
-                        subimage = image.getSubimage(0, 32, 56, 16);
-                        graphics.drawImage(subimage, 0, 16, null);
+                        subimage = image.getSubimage(0, 32 * s, 56 * s, 16 * s);
+                        graphics.drawImage(subimage, 0, 16 * s, null);
                     }
 
                     if (isSlim) {
                         // convert slim to classic
-                        subimage = image.getSubimage(45, 16, 9, 16);
-                        graphics.drawImage(subimage, 46, 16, null);
+                        subimage = image.getSubimage(45 * s, 16 * s, 9 * s, 16 * s);
+                        graphics.drawImage(subimage, 46 * s, 16 * s, null);
 
-                        subimage = image.getSubimage(49, 16, 2, 4);
-                        graphics.drawImage(subimage, 50, 16, null);
+                        subimage = image.getSubimage(49 * s, 16 * s, 2 * s, 4 * s);
+                        graphics.drawImage(subimage, 50 * s, 16 * s, null);
 
-                        subimage = image.getSubimage(53, 20, 2, 12);
-                        graphics.drawImage(subimage, 54, 20, null);
+                        subimage = image.getSubimage(53 * s, 20 * s, 2 * s, 12 * s);
+                        graphics.drawImage(subimage, 54 * s, 20 * s, null);
                     }
 
                     graphics.dispose();
 
                     // crop the image - old versions disregard all secondary layers besides the hat
                     ByteArrayOutputStream out = new ByteArrayOutputStream();
-                    image = image.getSubimage(0, 0, 64, 32);
+                    image = image.getSubimage(0, 0, 64 * s, 32 * s);
                     ImageIO.write(image, "png", out);
 
                     return FakeURLConnection(originalUrl, originalConn, 200, out.toByteArray());
