@@ -16,7 +16,7 @@ public class InetAddressTransformer implements ClassFileTransformer {
     private static final List<String> TARGET_HOSTS = new ArrayList<String>();
 
     static {
-        if (!Loki.modded_capes && !LokiUtil.areWeSeriouslyOnMojangRightNow()) {
+        if (!Loki.modded_capes && !LokiUtil.IS_MOJANG) {
             TARGET_HOSTS.add("s.optifine.net");
             TARGET_HOSTS.add("161.35.130.99"); // Cloaks+
             TARGET_HOSTS.add("api.rumblecapes.xyz");

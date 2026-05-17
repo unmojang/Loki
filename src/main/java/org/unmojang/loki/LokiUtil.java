@@ -23,6 +23,7 @@ import java.util.jar.*;
 public class LokiUtil {
     public static boolean FOUND_ALI = false;
     public static final Map<String, String> MANIFEST_ATTRS = new ConcurrentHashMap<String, String>();
+    public static final boolean IS_MOJANG = areWeSeriouslyOnMojangRightNow();
     public static final int JAVA_MAJOR = getJavaVersion();
 
     public static void initManifestAttributes() {

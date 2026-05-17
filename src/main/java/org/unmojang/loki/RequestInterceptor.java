@@ -35,7 +35,7 @@ public class RequestInterceptor {
         if (!Loki.enable_snooper) {
             INTERCEPTED_DOMAINS.add("snoop.minecraft.net");
         }
-        if (!Loki.modded_capes && !LokiUtil.areWeSeriouslyOnMojangRightNow()) {
+        if (!Loki.modded_capes && !LokiUtil.IS_MOJANG) {
             INTERCEPTED_DOMAINS.add("s.optifine.net");
             INTERCEPTED_DOMAINS.add("161.35.130.99"); // Cloaks+
             INTERCEPTED_DOMAINS.add("api.rumblecapes.xyz");
