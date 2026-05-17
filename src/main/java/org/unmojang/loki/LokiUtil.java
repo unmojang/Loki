@@ -473,4 +473,10 @@ public class LokiUtil {
     public static String getFqmn(String className, String name, String desc) {
         return className.replace('/', '.') + "::" + name + desc;
     }
+
+    public static boolean areWeSeriouslyOnMojangRightNow() {
+        String accountHost = RequestInterceptor.YGGDRASIL_MAP.get("api.mojang.com");
+        String sessionHost = RequestInterceptor.YGGDRASIL_MAP.get("sessionserver.mojang.com");
+        return accountHost.equals("https://api.mojang.com") && sessionHost.equals("https://sessionserver.mojang.com");
+    }
 }

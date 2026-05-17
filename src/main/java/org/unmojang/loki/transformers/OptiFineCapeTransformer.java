@@ -17,7 +17,7 @@ public class OptiFineCapeTransformer implements ClassFileTransformer {
     public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,
                             ProtectionDomain protectionDomain, byte[] classfileBuffer) {
 
-        if (Loki.modded_capes || !className.endsWith("CapeUtils")) return null;
+        if (Loki.modded_capes || LokiUtil.areWeSeriouslyOnMojangRightNow() || !className.endsWith("CapeUtils")) return null;
 
         try {
             ClassNode cn = new ClassNode();
