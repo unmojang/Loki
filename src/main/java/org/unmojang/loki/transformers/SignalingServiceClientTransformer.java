@@ -14,6 +14,8 @@ public class SignalingServiceClientTransformer implements ClassFileTransformer {
 
     public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,
                             ProtectionDomain protectionDomain, byte[] classfileBuffer) {
+
+        if (!Loki.disable_factory) return null; // nothing to do
         if (!"net/minecraft/client/multiplayer/p2p/client/SignalingServiceClient$Environment".equals(className)) return null;
 
         String signalingHost = RequestInterceptor.YGGDRASIL_MAP.get("signaling-afd.franchise.minecraft-services.net");

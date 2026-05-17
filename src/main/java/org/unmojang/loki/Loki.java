@@ -30,14 +30,15 @@ public class Loki {
 
         // Authentication & skins/capes
         RequestInterceptor.setURLFactory();
-        inst.addTransformer(new YggdrasilURLTransformer());
-        inst.addTransformer(new SignalingServiceClientTransformer());
-        inst.addTransformer(new SignatureValidTransformer());    /* Texture signatures (possibly unnecessary?)
-		                                                                    1.7-1.18.2 (deprecated in 1.19) */
+        inst.addTransformer(new YggdrasilURLTransformer()); // Transform Yggdrasil URLs while URL factory is not available
+        inst.addTransformer(new SignalingServiceClientTransformer()); // Transform SignalingServiceClient while URL factory is not available
         inst.addTransformer(new AppletParameterTransformer()); // Fetch mppass for classic multiplayer
 
-        // Allowed texture domains
-        inst.addTransformer(new AllowedDomainTransformer());    // 1.7.6-1.16.5, 1.17-1.19.2, 1.19.3+
+        // Textures
+        inst.addTransformer(new AllowedDomainTransformer()); // Allowed texture domains. 1.7.6-1.16.5, 1.17-1.19.2, 1.19.3+
+        inst.addTransformer(new SignatureValidTransformer()); /* Texture signatures (possibly unnecessary?)
+		                                                                 1.7-1.18.2 (deprecated in 1.19) */
+        inst.addTransformer(new FetchTexturesByPlayerNameTransformer()); // Fetch textures on offline mode servers
 
         // Public keys
         inst.addTransformer(new MainArgsTransformer()); // secure-profile breaks if userType is "mojang" on 1.19.3-1.21.8

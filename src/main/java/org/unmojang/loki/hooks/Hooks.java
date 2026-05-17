@@ -6,11 +6,11 @@ import org.unmojang.loki.util.logger.NilLogger;
 import sun.misc.Unsafe;
 
 import java.applet.Applet;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.lang.management.ManagementFactory;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.net.*;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
@@ -22,11 +22,24 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 
-@SuppressWarnings("unused")
+@SuppressWarnings({"unused", "CallToPrintStackTrace"})
 public class Hooks {
     public static final Map<String, URLStreamHandler> DEFAULT_HANDLERS = new ConcurrentHashMap<String, URLStreamHandler>();
     private static final NilLogger log = NilLogger.get("Loki");
     public static boolean OFFLINE_MODE = false;
+    private static final ConcurrentHashMap<String, String> nameToUUIDCache = new ConcurrentHashMap<String, String>();
+    private static final ConcurrentHashMap<String, String[]> uuidToTexturesCache = new ConcurrentHashMap<String, String[]>();
+
+    private static String readStream(InputStream in) throws IOException {
+        BufferedReader reader = new BufferedReader(new InputStreamReader(in, "UTF-8"));
+        StringBuilder sb = new StringBuilder();
+        String line;
+        while ((line = reader.readLine()) != null) {
+            sb.append(line);
+        }
+        reader.close();
+        return sb.toString();
+    }
 
     // thanks yushijinhun!
     // https://github.com/yushijinhun/authlib-injector/blob/aff141877cccaec8c5ffe7a542efa139cc64bcde/src/main/java/moe/yushi/authlibinjector/transform/support/ConcatenateURLTransformUnit.java
@@ -152,6 +165,7 @@ public class Hooks {
                     + "/mppass?ip=" + URLEncoder.encode(ip, "UTF-8")
                     + "&port=" + port);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestProperty("User-Agent", "Loki/" + Hooks.class.getPackage().getImplementationVersion());
             conn.setRequestMethod("GET");
             conn.setConnectTimeout(5000);
             conn.setReadTimeout(5000);
@@ -192,6 +206,7 @@ public class Hooks {
         String baseUrl = System.getProperty("minecraft.api.services.host", "https://api.minecraftservices.com");
         URL url = new URL(baseUrl + "/publickeys");
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestProperty("User-Agent", "Loki/" + Hooks.class.getPackage().getImplementationVersion());
         conn.setRequestMethod("GET");
         conn.setDoInput(true);
 
@@ -251,6 +266,170 @@ public class Hooks {
         }
     }
 
+    // TODO always keep in sync with Ygglib.getUUID
+    private static String getUUID(String username) throws Exception {
+        URL url = new URL(System.getProperty("minecraft.api.account.host", "https://api.mojang.com")
+                + "/users/profiles/minecraft/" + URLEncoder.encode(username, "UTF-8"));
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestProperty("User-Agent", "Loki/" + Hooks.class.getPackage().getImplementationVersion());
+        conn.setRequestMethod("GET");
+        conn.setConnectTimeout(5000);
+        conn.setReadTimeout(5000);
+
+        if (conn.getResponseCode() == 200) {
+            Json.JSONObject obj = new Json.JSONObject(readStream(conn.getInputStream()));
+            return obj.getString("id");
+        }
+
+        // route not implemented? let's try the other one...
+        url = new URL(System.getProperty("minecraft.api.account.host", "https://api.mojang.com")
+                + "/minecraft/profile/lookup/name/" + URLEncoder.encode(username, "UTF-8"));
+        conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestProperty("User-Agent", "Loki/" + Hooks.class.getPackage().getImplementationVersion());
+        conn.setRequestMethod("GET");
+        conn.setConnectTimeout(5000);
+        conn.setReadTimeout(5000);
+
+        if (conn.getResponseCode() == 200) {
+            Json.JSONObject obj = new Json.JSONObject(readStream(conn.getInputStream()));
+            return obj.getString("id");
+        }
+
+        // prehistoric version of BlessingSkin only implements this route
+        url = new URL(System.getProperty("minecraft.api.account.host", "https://api.mojang.com")
+                + "/profiles/minecraft");
+        conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestProperty("User-Agent", "Loki/" + Hooks.class.getPackage().getImplementationVersion());
+        conn.setRequestMethod("POST");
+        conn.setRequestProperty("Content-Type", "application/json");
+        conn.setRequestProperty("Accept", "application/json");
+        conn.setDoOutput(true);
+        conn.setConnectTimeout(5000);
+        conn.setReadTimeout(5000);
+        byte[] body = ("[\"" + username + "\"]").getBytes("UTF-8");
+        conn.getOutputStream().write(body);
+        conn.getOutputStream().close();
+
+        if (conn.getResponseCode() == 200) {
+            String jsonText = readStream(conn.getInputStream());
+            Json.JSONArray arr = new Json.JSONArray(jsonText);
+            return arr.getJSONObject(0).getString("id");
+        }
+
+        throw new IOException("No UUID lookup route succeeded for username: " + username);
+    }
+
+    private static String[] fetchTexturesData(String uuid) throws Exception {
+        URL url = new URL(System.getProperty("minecraft.api.session.host", "https://sessionserver.mojang.com")
+                + "/session/minecraft/profile/" + URLEncoder.encode(uuid, "UTF-8") + "?unsigned=false");
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestProperty("User-Agent", "Loki/" + Hooks.class.getPackage().getImplementationVersion());
+        conn.setRequestMethod("GET");
+        conn.setConnectTimeout(5000);
+        conn.setReadTimeout(5000);
+        if (conn.getResponseCode() != 200) return null;
+        InputStream is = null;
+        try {
+            is = conn.getInputStream();
+            ByteArrayOutputStream buf = new ByteArrayOutputStream();
+            byte[] data = new byte[8192];
+            int n;
+            while ((n = is.read(data)) != -1) buf.write(data, 0, n);
+            Json.JSONArray props = new Json.JSONObject(buf.toString("UTF-8")).getJSONArray("properties");
+            for (int i = 0; i < props.length(); i++) {
+                Json.JSONObject prop = props.getJSONObject(i);
+                if ("textures".equals(prop.optString("name", ""))) {
+                    return new String[]{ prop.getString("value"), prop.optString("signature", null) };
+                }
+            }
+            return null;
+        } finally {
+            if (is != null) is.close();
+        }
+    }
+
+    private static Object getMissingTexturesProperty(Object profile) {
+        try {
+            Object propertiesMap;
+            try {
+                propertiesMap = profile.getClass().getMethod("getProperties").invoke(profile); // ~<=1.21.1
+            } catch (NoSuchMethodException e) {
+                propertiesMap = profile.getClass().getMethod("properties").invoke(profile); // ~1.21.10+
+            }
+            Method containsKey = propertiesMap.getClass().getMethod("containsKey", Object.class);
+            if (Boolean.TRUE.equals(containsKey.invoke(propertiesMap, "textures"))) return null;
+
+            String username;
+            try {
+                username = (String) profile.getClass().getMethod("getName").invoke(profile); // ~<=1.21.1
+            } catch (NoSuchMethodException e) {
+                username = (String) profile.getClass().getMethod("name").invoke(profile); // ~1.21.10+
+            }
+            if (username == null || username.length() == 0) return null;
+
+            String uuid = nameToUUIDCache.get(username);
+            if (uuid == null) {
+                try { uuid = getUUID(username); } catch (Exception e) { return null; }
+                if (uuid == null) return null;
+                nameToUUIDCache.putIfAbsent(username, uuid);
+                uuid = nameToUUIDCache.get(username);
+            }
+
+            String[] texturesData = uuidToTexturesCache.get(uuid);
+            if (texturesData == null) {
+                try { texturesData = fetchTexturesData(uuid); } catch (Exception e) { return null; }
+                if (texturesData == null) return null;
+                uuidToTexturesCache.putIfAbsent(uuid, texturesData);
+                texturesData = uuidToTexturesCache.get(uuid);
+            }
+
+            log.info("Successfully fetched missing textures for player " + username);
+            Class<?> propertyClass = profile.getClass().getClassLoader()
+                    .loadClass("com.mojang.authlib.properties.Property");
+            Constructor<?> ctor = propertyClass.getConstructor(String.class, String.class, String.class);
+            return ctor.newInstance("textures", texturesData[0], texturesData[1]);
+        } catch (Throwable t) {
+            t.printStackTrace();
+            return null;
+        }
+    }
+
+    public static Object getTextures(Object instance, Object profile, boolean requireSecure) {
+        try {
+            Object property = getMissingTexturesProperty(profile);
+            if (property != null) {
+                Object propertiesMap;
+                try {
+                    propertiesMap = profile.getClass().getMethod("getProperties").invoke(profile); // ~<=1.21.1
+                } catch (NoSuchMethodException e) {
+                    propertiesMap = profile.getClass().getMethod("properties").invoke(profile); // ~1.21.10+
+                }
+                Class<?> propertiesMapClass = propertiesMap.getClass();
+                propertiesMapClass.getMethod("removeAll", Object.class).invoke(propertiesMap, "textures");
+                propertiesMapClass.getMethod("put", Object.class, Object.class).invoke(propertiesMap, "textures", property);
+            }
+            Method original = instance.getClass().getDeclaredMethod("getTextures$original", profile.getClass(), boolean.class);
+            original.setAccessible(true);
+            return original.invoke(instance, profile, requireSecure);
+        } catch (Throwable t) {
+            t.printStackTrace();
+            return null;
+        }
+    }
+
+    public static Object getPackedTextures(Object instance, Object profile) {
+        try {
+            Object property = getMissingTexturesProperty(profile);
+            if (property != null) return property;
+            Method original = instance.getClass().getDeclaredMethod("getPackedTextures$original", profile.getClass());
+            original.setAccessible(true);
+            return original.invoke(instance, profile);
+        } catch (Throwable t) {
+            t.printStackTrace();
+            return null;
+        }
+    }
+
     public static synchronized void registerExternalFactory(URLStreamHandlerFactory factory) {
         if (factory == null) return;
         try {
@@ -266,7 +445,7 @@ public class Hooks {
                 } catch (Throwable ignored) {}
             }
         } catch (Throwable t) {
-            log.error("registerExternalFactory failed!", t);
+            t.printStackTrace();
         }
     }
 }

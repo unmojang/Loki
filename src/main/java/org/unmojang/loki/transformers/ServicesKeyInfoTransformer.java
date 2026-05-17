@@ -15,7 +15,7 @@ public class ServicesKeyInfoTransformer implements ClassFileTransformer {
     public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,
                             ProtectionDomain protectionDomain, byte[] classfileBuffer) {
 
-        if (!"com/mojang/authlib/yggdrasil/YggdrasilServicesKeyInfo".equals(className) || LokiUtil.JAVA_MAJOR <= 5) return null;
+        if (!"com/mojang/authlib/yggdrasil/YggdrasilServicesKeyInfo".equals(className)) return null;
 
         try {
             ClassNode cn = new ClassNode();
