@@ -17,6 +17,7 @@ public class FetchTexturesByPlayerNameTransformer implements ClassFileTransforme
     public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,
                             ProtectionDomain protectionDomain, byte[] classfileBuffer) {
 
+        if (Loki.disable_profile_lookup) return null;
         if (!"com/mojang/authlib/yggdrasil/YggdrasilMinecraftSessionService".equals(className)) return null;
 
         try {

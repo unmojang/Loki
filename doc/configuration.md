@@ -29,6 +29,11 @@ Loki supports JVM arguments to enable or disable some behaviour.
   -DLoki.disable_factory=true
   ```
 
+- Disable username-based profile lookups [^1]
+  ```
+  -DLoki.disable_profile_lookup=true
+  ```
+
 - Re-enable patchy (server blocking)
   ```
   -DLoki.enable_patchy=true
@@ -39,7 +44,7 @@ Loki supports JVM arguments to enable or disable some behaviour.
   -DLoki.enable_snooper=true
   ```
 
-- Require valid chat signatures on 1.19+ servers where `enforce-secure-profile=true` is set in `server.properties` [^1]
+- Require valid chat signatures on 1.19+ servers where `enforce-secure-profile=true` is set in `server.properties` [^2]
   ```
   -DLoki.enforce_secure_profile=true
   ```
@@ -85,4 +90,5 @@ ServicesHost: https://drasl.unmojang.org/services
 SignalingHost: https://signaling-afd.franchise.minecraft-services.net
 ```
 
-[^1]: This option is **NOT** necessary to ensure the integrity of chat reports made to the API server from clients, and will kick [fallback API server](https://github.com/unmojang/drasl/blob/master/doc/configuration.md) players.
+[^1]: Username-based profile lookups allow for displaying textures on offline mode servers.
+[^2]: This option is **NOT** necessary to ensure the integrity of chat reports made to the API server from clients, and will kick [fallback API server](https://github.com/unmojang/drasl/blob/master/doc/configuration.md) players.
