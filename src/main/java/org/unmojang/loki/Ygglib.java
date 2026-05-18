@@ -208,7 +208,7 @@ public class Ygglib {
 
     // Credit: Fjord Launcher legacy fixes
     // https://github.com/unmojang/FjordLauncher/blob/develop/libraries/launcher/legacy/org/prismlauncher/legacy/fix/online/OnlineModeFix.java
-    public static URLConnection joinServer(URL originalUrl, URLConnection originalConn) {
+    public static URLConnection joinServer(URL originalUrl, URLConnection originalConn) throws UnsupportedEncodingException {
         try {
             Map<String, String> params = queryStringParser(originalUrl.getQuery());
             String username = params.get("user");
@@ -266,17 +266,17 @@ public class Ygglib {
             if (conn.getResponseCode() == 204) {
                 return FakeURLConnection(originalUrl, originalConn, 200, "OK".getBytes("UTF-8"));
             }
-            return FakeURLConnection(originalUrl, originalConn, 200, "Bad login".getBytes("UTF-8"));
         } catch (Exception e) {
-            Loki.log.error("joinServer failed");
-            throw new RuntimeException(e);
+            Loki.log.error("joinServer failed", e);
+            return FakeURLConnection(originalUrl, originalConn, 200, e.getMessage().getBytes("UTF-8"));
         }
+        return FakeURLConnection(originalUrl, originalConn, 200, "Bad login".getBytes("UTF-8"));
     }
 
     // Credit: OnlineModeFix
     // https://github.com/craftycodie/OnlineModeFix/blob/main/src/gg/codie/mineonline/protocol/CheckServerURLConnection.java
     // https://github.com/craftycodie/OnlineModeFix/blob/main/src/gg/codie/minecraft/api/SessionServer.java
-    public static URLConnection checkServer(URL originalUrl, URLConnection originalConn) {
+    public static URLConnection checkServer(URL originalUrl, URLConnection originalConn) throws UnsupportedEncodingException {
         try {
             Map<String, String> params = queryStringParser(originalUrl.getQuery());
             String user = params.get("user");
@@ -297,11 +297,11 @@ public class Ygglib {
             if (conn.getResponseCode() == 200) {
                 return FakeURLConnection(originalUrl, originalConn, 200, "YES".getBytes("UTF-8"));
             }
-            return FakeURLConnection(originalUrl, originalConn, 200, "NO".getBytes("UTF-8"));
         } catch (Exception e) {
-            Loki.log.error("checkServer failed");
-            throw new RuntimeException(e);
+            Loki.log.error("checkServer failed", e);
+            return FakeURLConnection(originalUrl, originalConn, 200, e.getMessage().getBytes("UTF-8"));
         }
+        return FakeURLConnection(originalUrl, originalConn, 200, "NO".getBytes("UTF-8"));
     }
 
     public static URL getYggdrasilUrl(URL originalUrl, URLConnection originalConn) throws MalformedURLException {
