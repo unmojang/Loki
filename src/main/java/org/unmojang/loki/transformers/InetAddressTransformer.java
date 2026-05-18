@@ -3,6 +3,7 @@ package org.unmojang.loki.transformers;
 import org.objectweb.asm.*;
 import org.unmojang.loki.Loki;
 import org.unmojang.loki.LokiUtil;
+import org.unmojang.loki.RequestInterceptor;
 
 import java.lang.instrument.ClassFileTransformer;
 import java.security.ProtectionDomain;
@@ -16,7 +17,7 @@ public class InetAddressTransformer implements ClassFileTransformer {
     private static final List<String> TARGET_HOSTS = new ArrayList<String>();
 
     static {
-        if (!Loki.modded_capes && !LokiUtil.IS_MOJANG) {
+        if (!Loki.modded_capes && !RequestInterceptor.IS_MOJANG) {
             TARGET_HOSTS.add("s.optifine.net");
             TARGET_HOSTS.add("161.35.130.99"); // Cloaks+
             TARGET_HOSTS.add("api.rumblecapes.xyz");

@@ -12,6 +12,7 @@ import java.util.*;
 public class RequestInterceptor {
     public static final Map<String, String> YGGDRASIL_MAP;
     private static final Set<String> INTERCEPTED_DOMAINS;
+    public static final boolean IS_MOJANG;
 
     static {
         try {
@@ -20,25 +21,6 @@ public class RequestInterceptor {
         } catch (Exception e) {
             Loki.log.error("Failed to get system URL handler", e);
             Loki.disable_factory = true;
-        }
-        INTERCEPTED_DOMAINS = new HashSet<String>(Arrays.asList(
-                "s3.amazonaws.com",
-                "www.minecraft.net",
-                "skins.minecraft.net",
-                "session.minecraft.net",
-                "betacraft.uk",
-                "api.ashcon.app",
-                "mineskin.eu",
-                "minotar.net",
-                "skinsystem.ely.by"
-        ));
-        if (!Loki.enable_snooper) {
-            INTERCEPTED_DOMAINS.add("snoop.minecraft.net");
-        }
-        if (!Loki.modded_capes && !LokiUtil.IS_MOJANG) {
-            INTERCEPTED_DOMAINS.add("s.optifine.net");
-            INTERCEPTED_DOMAINS.add("161.35.130.99"); // Cloaks+
-            INTERCEPTED_DOMAINS.add("api.rumblecapes.xyz");
         }
 
         String accountHost = System.getProperty("minecraft.api.account.host",
@@ -55,6 +37,28 @@ public class RequestInterceptor {
         tmp.put("api.minecraftservices.com", servicesHost != null ? servicesHost : LokiUtil.MANIFEST_ATTRS.get("ServicesHost"));
         tmp.put("signaling-afd.franchise.minecraft-services.net", signalingHost != null ? signalingHost : LokiUtil.MANIFEST_ATTRS.get("SignalingHost"));
         YGGDRASIL_MAP = Collections.unmodifiableMap(tmp);
+        IS_MOJANG = YGGDRASIL_MAP.get("api.mojang.com").equals("https://api.mojang.com")
+                && YGGDRASIL_MAP.get("sessionserver.mojang.com").equals("https://sessionserver.mojang.com");
+
+        INTERCEPTED_DOMAINS = new HashSet<String>(Arrays.asList(
+                "s3.amazonaws.com",
+                "www.minecraft.net",
+                "skins.minecraft.net",
+                "session.minecraft.net",
+                "betacraft.uk",
+                "api.ashcon.app",
+                "mineskin.eu",
+                "minotar.net",
+                "skinsystem.ely.by"
+        ));
+        if (!Loki.enable_snooper) {
+            INTERCEPTED_DOMAINS.add("snoop.minecraft.net");
+        }
+        if (!Loki.modded_capes && !IS_MOJANG) {
+            INTERCEPTED_DOMAINS.add("s.optifine.net");
+            INTERCEPTED_DOMAINS.add("161.35.130.99"); // Cloaks+
+            INTERCEPTED_DOMAINS.add("api.rumblecapes.xyz");
+        }
     }
 
     public static void setURLFactory() {

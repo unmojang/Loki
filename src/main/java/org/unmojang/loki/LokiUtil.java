@@ -23,7 +23,6 @@ import java.util.jar.*;
 public class LokiUtil {
     public static boolean FOUND_ALI = false;
     public static final Map<String, String> MANIFEST_ATTRS = new ConcurrentHashMap<String, String>();
-    public static final boolean IS_MOJANG = areWeSeriouslyOnMojangRightNow();
     public static final int JAVA_MAJOR = getJavaVersion();
 
     public static void initManifestAttributes() {
@@ -473,11 +472,5 @@ public class LokiUtil {
 
     public static String getFqmn(String className, String name, String desc) {
         return className.replace('/', '.') + "::" + name + desc;
-    }
-
-    public static boolean areWeSeriouslyOnMojangRightNow() {
-        String accountHost = RequestInterceptor.YGGDRASIL_MAP.get("api.mojang.com");
-        String sessionHost = RequestInterceptor.YGGDRASIL_MAP.get("sessionserver.mojang.com");
-        return accountHost.equals("https://api.mojang.com") && sessionHost.equals("https://sessionserver.mojang.com");
     }
 }

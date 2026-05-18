@@ -8,6 +8,7 @@ import org.objectweb.asm.tree.InsnNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.unmojang.loki.Loki;
 import org.unmojang.loki.LokiUtil;
+import org.unmojang.loki.RequestInterceptor;
 
 import java.lang.instrument.ClassFileTransformer;
 import java.security.ProtectionDomain;
@@ -17,7 +18,7 @@ public class OptiFineCapeTransformer implements ClassFileTransformer {
     public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,
                             ProtectionDomain protectionDomain, byte[] classfileBuffer) {
 
-        if (Loki.modded_capes || LokiUtil.IS_MOJANG || !className.endsWith("CapeUtils")) return null;
+        if (Loki.modded_capes || RequestInterceptor.IS_MOJANG || !className.endsWith("CapeUtils")) return null;
 
         try {
             ClassNode cn = new ClassNode();
