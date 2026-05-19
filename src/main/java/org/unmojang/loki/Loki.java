@@ -60,6 +60,7 @@ public class Loki {
         inst.addTransformer(new MCOSEMultiplayerTransformer()); // Propagate Loki into MCOSE server subprocess
         LokiUtil.addRetransformTransformer(new SetURLFactoryTransformer(), inst); // Fix 1.13-1.16 Forge, LegacyFix agent
         LokiUtil.retransformClass("uk.betacraft.legacyfix.LegacyFixLauncher", inst);
+        inst.addTransformer(new TitleScreenTransformer()); // Server brand on title screen for 26.1+
 
         // Intercept OptiFine capes to prevent collisions, for whatever reason it isn't caught by Loki's URL factory
         inst.addTransformer(new OptiFineCapeTransformer());

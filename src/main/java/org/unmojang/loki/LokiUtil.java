@@ -2,6 +2,7 @@ package org.unmojang.loki;
 
 import org.unmojang.loki.hooks.Hooks;
 import org.unmojang.loki.util.BouncyCastleUtils;
+import org.unmojang.loki.util.Json;
 
 import javax.net.ssl.*;
 import java.io.*;
@@ -21,6 +22,7 @@ import java.util.jar.*;
 
 @SuppressWarnings("HttpUrlsUsage")
 public class LokiUtil {
+    public static String SERVER_NAME = "";
     public static boolean FOUND_ALI = false;
     public static final Map<String, String> MANIFEST_ATTRS = new ConcurrentHashMap<String, String>();
     public static final int JAVA_MAJOR = getJavaVersion();
@@ -206,11 +208,33 @@ public class LokiUtil {
         }
     }
 
+    public static String getServerName(String authlibInjectorApiLocation) {
+        try {
+            URL u = new URL(authlibInjectorApiLocation);
+            URLStreamHandler handler = Hooks.DEFAULT_HANDLERS.get(u.getProtocol());
+            HttpURLConnection conn = RequestInterceptor.openWithParent(u, handler);
+            conn.setRequestMethod("GET");
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(5000);
+            conn.connect();
+
+            if (conn.getResponseCode() != 200) return "";
+            String jsonText = Ygglib.readStream(conn.getInputStream());
+            Json.JSONObject meta = new Json.JSONObject(jsonText).optJSONObject("meta");
+            if (meta == null) return "";
+            return meta.optString("serverName", "");
+        } catch (Exception e) {
+            Loki.log.error("Failed to get server name", e);
+            return "";
+        }
+    }
+
     public static void initAuthlibInjectorAPI(String server) {
         server = normalizeUrl(server.toLowerCase());
         String authlibInjectorApiLocation = getAuthlibInjectorApiLocation(server);
         if (authlibInjectorApiLocation == null) authlibInjectorApiLocation = server;
         Loki.log.info("Using authlib-injector API Server: " + authlibInjectorApiLocation);
+        SERVER_NAME = getServerName(authlibInjectorApiLocation);
         System.setProperty("minecraft.api.env", "custom");
         System.setProperty("minecraft.api.account.host", authlibInjectorApiLocation + "/api");
         System.setProperty("minecraft.api.auth.host", authlibInjectorApiLocation + "/authserver");

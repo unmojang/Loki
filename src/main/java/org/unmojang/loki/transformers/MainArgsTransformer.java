@@ -27,11 +27,12 @@ public class MainArgsTransformer implements ClassFileTransformer {
 
                 InsnList insns = new InsnList();
                 insns.add(new VarInsnNode(Opcodes.ALOAD, 0)); // args
+                insns.add(new LdcInsnNode(LokiUtil.SERVER_NAME));
                 insns.add(new MethodInsnNode(
                         Opcodes.INVOKESTATIC,
                         "org/unmojang/loki/hooks/Hooks",
                         "transformMainArgs",
-                        "([Ljava/lang/String;)[Ljava/lang/String;",
+                        "([Ljava/lang/String;Ljava/lang/String;)[Ljava/lang/String;",
                         false
                 ));
                 insns.add(new VarInsnNode(Opcodes.ASTORE, 0));

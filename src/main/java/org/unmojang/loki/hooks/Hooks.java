@@ -56,13 +56,16 @@ public class Hooks {
         }
     }
 
-    public static String[] transformMainArgs(String[] args) {
+    public static String[] transformMainArgs(String[] args, String serverName) {
         for (int i = 0; i < args.length; i++) {
             if (i + 1 > args.length) break;
             if ("--userType".equals(args[i]) && "mojang".equals(args[i + 1])) {
                 args[i + 1] = "msa";
                 log.info("Setting accountType to msa");
-                break;
+            }
+            if ("--versionType".equals(args[i]) && serverName.length() != 0) {
+                log.info("Setting versionType to server name: " + serverName);
+                args[i + 1] = serverName;
             }
         }
         return args;
