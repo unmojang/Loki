@@ -104,6 +104,7 @@ public class LokiUtil {
     private static boolean tryConnect(String url) throws UnknownHostException {
         try {
             HttpsURLConnection conn = (HttpsURLConnection) new URL(url).openConnection();
+            conn.setRequestProperty("User-Agent", "Loki/" + Hooks.class.getPackage().getImplementationVersion());
             conn.setConnectTimeout(5000);
             conn.setReadTimeout(5000);
             conn.connect();
@@ -196,6 +197,7 @@ public class LokiUtil {
         try {
             URL url = new URL(server);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestProperty("User-Agent", "Loki/" + Hooks.class.getPackage().getImplementationVersion());
             conn.setRequestMethod("GET");
             conn.setDoInput(true);
             conn.connect();
@@ -210,9 +212,8 @@ public class LokiUtil {
 
     public static String getServerName(String authlibInjectorApiLocation) {
         try {
-            URL u = new URL(authlibInjectorApiLocation);
-            URLStreamHandler handler = Hooks.DEFAULT_HANDLERS.get(u.getProtocol());
-            HttpURLConnection conn = RequestInterceptor.openWithParent(u, handler);
+            HttpURLConnection conn = (HttpURLConnection) new URL(authlibInjectorApiLocation).openConnection();
+            conn.setRequestProperty("User-Agent", "Loki/" + Hooks.class.getPackage().getImplementationVersion());
             conn.setRequestMethod("GET");
             conn.setConnectTimeout(5000);
             conn.setReadTimeout(5000);
@@ -234,7 +235,6 @@ public class LokiUtil {
         String authlibInjectorApiLocation = getAuthlibInjectorApiLocation(server);
         if (authlibInjectorApiLocation == null) authlibInjectorApiLocation = server;
         Loki.log.info("Using authlib-injector API Server: " + authlibInjectorApiLocation);
-        SERVER_NAME = getServerName(authlibInjectorApiLocation);
         System.setProperty("minecraft.api.env", "custom");
         System.setProperty("minecraft.api.account.host", authlibInjectorApiLocation + "/api");
         System.setProperty("minecraft.api.auth.host", authlibInjectorApiLocation + "/authserver");
@@ -242,9 +242,10 @@ public class LokiUtil {
         System.setProperty("minecraft.api.session.host", authlibInjectorApiLocation + "/sessionserver");
         System.setProperty("minecraft.api.services.host", authlibInjectorApiLocation + "/minecraftservices");
         System.setProperty("minecraft.api.signaling.host", authlibInjectorApiLocation + "/signaling");
-
         // Velocity
         System.setProperty("mojang.sessionserver", authlibInjectorApiLocation + "/sessionserver/session/minecraft/hasJoined");
+
+        SERVER_NAME = getServerName(authlibInjectorApiLocation);
     }
 
     public static void apply1219Fixes() {
