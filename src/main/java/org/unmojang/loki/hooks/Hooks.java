@@ -120,6 +120,7 @@ public class Hooks {
 
     public static void replaceMCAuthlibGameProfileSignature(Class<?> gameProfileClass) {
         try {
+            log.debug("Replacing Mojang public key in MCAuthlib GameProfile");
             PublicKey publicKey = getPublicKey();
 
             Field pubKeyField = gameProfileClass.getDeclaredField("SIGNATURE_KEY");
@@ -133,8 +134,81 @@ public class Hooks {
             long staticOffset = unsafe.staticFieldOffset(pubKeyField);
             unsafe.putObject(staticBase, staticOffset, publicKey);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to fetch yggdrasil public key!", e);
+            throw new RuntimeException("Failed to replace yggdrasil public key!", e);
         }
+    }
+
+    public static void replaceBungeeCordMojangKey(Class<?> encUtilClass) {
+        try {
+            log.debug("Replacing Mojang public key in BungeeCord");
+            PublicKey publicKey = getPublicKey();
+
+            Field keyField = encUtilClass.getDeclaredField("MOJANG_KEY");
+            keyField.setAccessible(true);
+
+            Field unsafeField = Unsafe.class.getDeclaredField("theUnsafe");
+            unsafeField.setAccessible(true);
+            Unsafe unsafe = (Unsafe) unsafeField.get(null);
+
+            Object staticBase = unsafe.staticFieldBase(keyField);
+            long staticOffset = unsafe.staticFieldOffset(keyField);
+            unsafe.putObject(staticBase, staticOffset, publicKey);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to replace yggdrasil public key!", e);
+        }
+    }
+
+    public static void replaceYggdrasilServicesKeyInfoSignature(Object target) {
+        try {
+            log.debug("Replacing Mojang public key in YggdrasilServicesKeyInfo");
+            PublicKey publicKey = getPublicKey();
+
+            Field pubKeyField = target.getClass().getDeclaredField("publicKey");
+            pubKeyField.setAccessible(true);
+            pubKeyField.set(target, publicKey);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to replace yggdrasil public key!", e);
+        }
+    }
+
+    @SuppressWarnings("ExtractMethodRecommender")
+    private static PublicKey getPublicKey() throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
+        String baseUrl = System.getProperty("minecraft.api.services.host", "https://api.minecraftservices.com");
+        URL url = new URL(baseUrl + "/publickeys");
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestProperty("User-Agent", "Loki/" + Hooks.class.getPackage().getImplementationVersion());
+        conn.setRequestMethod("GET");
+        conn.setDoInput(true);
+
+        String jsonText;
+        InputStream is = null;
+        try {
+            is = conn.getInputStream();
+            ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+            byte[] data = new byte[8192];
+            int nRead;
+            while ((nRead = is.read(data, 0, data.length)) != -1) {
+                buffer.write(data, 0, nRead);
+            }
+            jsonText = buffer.toString("UTF-8");
+        } finally {
+            if (is != null) is.close();
+        }
+
+        Json.JSONObject jsonObject = new Json.JSONObject(jsonText);
+        Json.JSONArray profilePropertyKeys = jsonObject.getJSONArray("profilePropertyKeys");
+        if (profilePropertyKeys == null || profilePropertyKeys.isEmpty()) {
+            throw new IllegalStateException("profilePropertyKeys not found in response");
+        }
+        Object keyElement = profilePropertyKeys.getJSONObject(0).get("publicKey");
+        if (keyElement == null) {
+            throw new IllegalStateException("publicKey not found in response");
+        }
+
+        byte[] keyBytes = Base64.decode(keyElement.toString());
+        X509EncodedKeySpec spec = new X509EncodedKeySpec(keyBytes);
+        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+        return keyFactory.generatePublic(spec);
     }
 
     public static String getMpPass(Applet applet) {
@@ -190,58 +264,6 @@ public class Hooks {
         } catch (Exception ignored) {}
         log.debug("Fetched MpPass: " + mppass);
         return mppass;
-    }
-
-    public static void replaceYggdrasilServicesKeyInfoSignature(Object target) {
-        try {
-            PublicKey publicKey = getPublicKey();
-
-            Field pubKeyField = target.getClass().getDeclaredField("publicKey");
-            pubKeyField.setAccessible(true);
-            pubKeyField.set(target, publicKey);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to fetch yggdrasil public key!", e);
-        }
-    }
-
-    @SuppressWarnings("ExtractMethodRecommender")
-    private static PublicKey getPublicKey() throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
-        String baseUrl = System.getProperty("minecraft.api.services.host", "https://api.minecraftservices.com");
-        URL url = new URL(baseUrl + "/publickeys");
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-        conn.setRequestProperty("User-Agent", "Loki/" + Hooks.class.getPackage().getImplementationVersion());
-        conn.setRequestMethod("GET");
-        conn.setDoInput(true);
-
-        String jsonText;
-        InputStream is = null;
-        try {
-            is = conn.getInputStream();
-            ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-            byte[] data = new byte[8192];
-            int nRead;
-            while ((nRead = is.read(data, 0, data.length)) != -1) {
-                buffer.write(data, 0, nRead);
-            }
-            jsonText = buffer.toString("UTF-8");
-        } finally {
-            if (is != null) is.close();
-        }
-
-        Json.JSONObject jsonObject = new Json.JSONObject(jsonText);
-        Json.JSONArray profilePropertyKeys = jsonObject.getJSONArray("profilePropertyKeys");
-        if (profilePropertyKeys == null || profilePropertyKeys.isEmpty()) {
-            throw new IllegalStateException("profilePropertyKeys not found in response");
-        }
-        Object keyElement = profilePropertyKeys.getJSONObject(0).get("publicKey");
-        if (keyElement == null) {
-            throw new IllegalStateException("publicKey not found in response");
-        }
-
-        byte[] keyBytes = Base64.decode(keyElement.toString());
-        X509EncodedKeySpec spec = new X509EncodedKeySpec(keyBytes);
-        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-        return keyFactory.generatePublic(spec);
     }
 
     public static void injectMCOSELanServerJvmArgs(List<String> command) {

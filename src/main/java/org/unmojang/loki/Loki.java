@@ -54,6 +54,7 @@ public class Loki {
         inst.addTransformer(new PlayerAttributesTransformer());
 
         // Misc fixes
+        inst.addTransformer(new BungeeCordTransformer()); // Patch BungeeCord's hardcoded URLs, public key check, and username filter
         inst.addTransformer(new ConcatenateURLTransformer()); // Prevent port number being ignored in old authlib, if you specified it
         inst.addTransformer(new MCAuthlibGameProfileTransformer()); // Primarily for MojangFix
         inst.addTransformer(new ReIndevGetSkinTransformer()); // Fix a bug in ReIndev's ThreadGetSkin
