@@ -48,7 +48,7 @@ public class SignatureValidTransformer implements ClassFileTransformer {
             return cw.toByteArray();
 
         } catch (Throwable t) {
-            Loki.log.error("Failed to transform isSignatureValid!", t);
+            Loki.log.error("Failed to transform " + className + "!", t);
             return null;
         }
     }

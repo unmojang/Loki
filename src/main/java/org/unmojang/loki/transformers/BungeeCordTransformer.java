@@ -105,7 +105,7 @@ public class BungeeCordTransformer implements ClassFileTransformer {
             return cw.toByteArray();
 
         } catch (Throwable t) {
-            Loki.log.error("Failed to transform BungeeCord class!", t);
+            Loki.log.error("Failed to transform " + className + "!", t);
             return null;
         }
     }

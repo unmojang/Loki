@@ -49,7 +49,7 @@ public class TitleScreenTransformer implements ClassFileTransformer {
             return cw.toByteArray();
 
         } catch (Throwable t) {
-            Loki.log.error("Failed to transform TitleScreen!", t);
+            Loki.log.error("Failed to transform " + className + "!", t);
             return null;
         }
     }

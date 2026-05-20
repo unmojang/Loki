@@ -86,7 +86,7 @@ public class LokiAlternativesTransformer implements ClassFileTransformer {
             return cw.toByteArray();
 
         } catch (Throwable t) {
-            Loki.log.error("Failed to transform Authlib-Injector!", t);
+            Loki.log.error("Failed to transform " + className + "!", t);
             return null;
         }
     }

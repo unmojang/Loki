@@ -54,7 +54,7 @@ public class SetURLFactoryTransformer implements ClassFileTransformer {
             return cw.toByteArray();
 
         } catch (Throwable t) {
-            Loki.log.error("Failed to transform URL.setURLStreamHandlerFactory!", t);
+            Loki.log.error("Failed to transform " + className + "!", t);
             return null;
         }
     }

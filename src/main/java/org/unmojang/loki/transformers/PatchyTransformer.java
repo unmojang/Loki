@@ -81,7 +81,7 @@ public class PatchyTransformer implements ClassFileTransformer {
             return cw.toByteArray();
 
         } catch (Throwable t) {
-            Loki.log.error("Failed to transform patchy!", t);
+            Loki.log.error("Failed to transform " + className + "!", t);
             return null;
         }
     }

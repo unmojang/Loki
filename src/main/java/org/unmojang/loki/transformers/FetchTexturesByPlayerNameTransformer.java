@@ -91,7 +91,7 @@ public class FetchTexturesByPlayerNameTransformer implements ClassFileTransforme
             return cw.toByteArray();
 
         } catch (Throwable t) {
-            Loki.log.error("Failed to transform YggdrasilMinecraftSessionService!", t);
+            Loki.log.error("Failed to transform " + className + "!", t);
             return null;
         }
     }

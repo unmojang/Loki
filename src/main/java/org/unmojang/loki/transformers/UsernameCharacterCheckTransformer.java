@@ -144,7 +144,7 @@ public class UsernameCharacterCheckTransformer implements ClassFileTransformer {
             return cw.toByteArray();
 
         } catch (Throwable t) {
-            Loki.log.error("Failed to transform UsernameCharacterCheck class!", t);
+            Loki.log.error("Failed to transform " + className + "!", t);
             return null;
         }
     }

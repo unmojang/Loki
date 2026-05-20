@@ -49,7 +49,7 @@ public class MainArgsTransformer implements ClassFileTransformer {
             return cw.toByteArray();
 
         } catch (Throwable t) {
-            Loki.log.error("Failed to transform main args!", t);
+            Loki.log.error("Failed to transform " + className + "!", t);
             return null;
         }
     }

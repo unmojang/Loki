@@ -65,7 +65,7 @@ public class AppletParameterTransformer implements ClassFileTransformer {
             return cw.toByteArray();
 
         } catch (Throwable t) {
-            Loki.log.error("Failed to transform MinecraftApplet!", t);
+            Loki.log.error("Failed to transform " + className + "!", t);
             return null;
         }
     }

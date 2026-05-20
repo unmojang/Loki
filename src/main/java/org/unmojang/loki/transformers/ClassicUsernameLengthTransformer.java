@@ -54,7 +54,7 @@ public class ClassicUsernameLengthTransformer implements ClassFileTransformer {
             return cw.toByteArray();
 
         } catch (Throwable t) {
-            Loki.log.error("Failed to transform readPacket", t);
+            Loki.log.error("Failed to transform " + className + "!", t);
             return null;
         }
     }

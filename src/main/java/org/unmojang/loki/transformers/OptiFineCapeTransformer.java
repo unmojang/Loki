@@ -48,7 +48,7 @@ public class OptiFineCapeTransformer implements ClassFileTransformer {
             return cw.toByteArray();
 
         } catch (Throwable t) {
-            Loki.log.error("Failed to transform downloadCape!", t);
+            Loki.log.error("Failed to transform " + className + "!", t);
             return null;
         }
     }

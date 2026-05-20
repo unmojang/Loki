@@ -44,7 +44,7 @@ public class SignalingServiceClientTransformer implements ClassFileTransformer {
             cn.accept(cw);
             return cw.toByteArray();
         } catch (Throwable t) {
-            Loki.log.error("Failed to transform SignalingServiceClient!", t);
+            Loki.log.error("Failed to transform " + className + "!", t);
             return null;
         }
     }

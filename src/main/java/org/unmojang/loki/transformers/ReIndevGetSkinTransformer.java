@@ -59,7 +59,7 @@ public class ReIndevGetSkinTransformer implements ClassFileTransformer {
             return cw.toByteArray();
 
         } catch (Throwable t) {
-            Loki.log.error("Failed to transform ThreadGetSkin!", t);
+            Loki.log.error("Failed to transform " + className + "!", t);
             return null;
         }
     }

@@ -63,7 +63,7 @@ public class PlayerAttributesTransformer implements ClassFileTransformer {
             return cw.toByteArray();
 
         } catch (Throwable t) {
-            Loki.log.error("Failed to transform player attributes!", t);
+            Loki.log.error("Failed to transform " + className + "!", t);
             return null;
         }
     }

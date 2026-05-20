@@ -139,7 +139,7 @@ public class YggdrasilURLTransformer implements ClassFileTransformer {
             return cw.toByteArray();
 
         } catch (Throwable t) {
-            Loki.log.error("Failed to transform Yggdrasil URLs!", t);
+            Loki.log.error("Failed to transform " + className + "!", t);
             return null;
         }
     }

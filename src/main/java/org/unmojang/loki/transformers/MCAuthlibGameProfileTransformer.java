@@ -72,7 +72,7 @@ public class MCAuthlibGameProfileTransformer implements ClassFileTransformer {
             return cw.toByteArray();
 
         } catch (Throwable t) {
-            Loki.log.error("Failed to transform publicKey!", t);
+            Loki.log.error("Failed to transform " + className + "!", t);
             return null;
         }
     }
