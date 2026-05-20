@@ -27,6 +27,22 @@ public class UsernameCharacterCheckTransformer implements ClassFileTransformer {
             for (MethodNode mn : cn.methods) {
                 if (mn.instructions == null) continue;
 
+                if ("com/destroystokyo/paper/profile/CraftPlayerProfile".equals(className) &&
+                        "createAuthLibProfile".equals(mn.name) &&
+                        "(Ljava/util/UUID;Ljava/lang/String;)Lcom/mojang/authlib/GameProfile;".equals(mn.desc)) {
+                    for (AbstractInsnNode insn : mn.instructions.toArray()) {
+                        if (insn.getOpcode() == Opcodes.NEW) {
+                            LabelNode label = new LabelNode();
+                            mn.instructions.insertBefore(insn, label);
+                            mn.instructions.insert(new JumpInsnNode(Opcodes.GOTO, label));
+                            Loki.log.debug("Patching " + LokiUtil.getFqmn(className, mn.name, mn.desc));
+                            changed = true;
+                            break;
+                        }
+                    }
+                    continue;
+                }
+
                 AbstractInsnNode[] insns = mn.instructions.toArray();
                 for (AbstractInsnNode insn : insns) {
                     if (insn instanceof FieldInsnNode) {
@@ -47,6 +63,21 @@ public class UsernameCharacterCheckTransformer implements ClassFileTransformer {
 
                     if (insn instanceof MethodInsnNode) {
                         MethodInsnNode mi = (MethodInsnNode) insn;
+                        if (mi.getOpcode() == Opcodes.INVOKESTATIC &&
+                                "net/minecraft/util/StringUtil".equals(mi.owner) &&
+                                "isValidPlayerName".equals(mi.name) &&
+                                "(Ljava/lang/String;)Z".equals(mi.desc)) {
+
+                            InsnList patch = new InsnList();
+                            patch.add(new InsnNode(Opcodes.POP));
+                            patch.add(new InsnNode(Opcodes.ICONST_1));
+                            mn.instructions.insertBefore(mi, patch);
+                            mn.instructions.remove(mi);
+
+                            Loki.log.debug("Patching " + LokiUtil.getFqmn(className, mn.name, mn.desc));
+                            changed = true;
+                        }
+
                         if (mi.getOpcode() == Opcodes.INVOKESTATIC &&
                                 "org/apache/commons/lang3/Validate".equals(mi.owner) &&
                                 "validState".equals(mi.name) &&
@@ -113,7 +144,7 @@ public class UsernameCharacterCheckTransformer implements ClassFileTransformer {
             return cw.toByteArray();
 
         } catch (Throwable t) {
-            Loki.log.error("Failed to transform ServerLoginPacketListenerImpl!", t);
+            Loki.log.error("Failed to transform UsernameCharacterCheck class!", t);
             return null;
         }
     }
