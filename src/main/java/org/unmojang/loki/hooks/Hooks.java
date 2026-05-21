@@ -180,22 +180,7 @@ public class Hooks {
         conn.setRequestMethod("GET");
         conn.setDoInput(true);
 
-        String jsonText;
-        InputStream is = null;
-        try {
-            is = conn.getInputStream();
-            ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-            byte[] data = new byte[8192];
-            int nRead;
-            while ((nRead = is.read(data, 0, data.length)) != -1) {
-                buffer.write(data, 0, nRead);
-            }
-            jsonText = buffer.toString("UTF-8");
-        } finally {
-            if (is != null) is.close();
-        }
-
-        Json.JSONObject jsonObject = new Json.JSONObject(jsonText);
+        Json.JSONObject jsonObject = new Json.JSONObject(readStream(conn.getInputStream()));
         Json.JSONArray profilePropertyKeys = jsonObject.getJSONArray("profilePropertyKeys");
         if (profilePropertyKeys == null || profilePropertyKeys.isEmpty()) {
             throw new IllegalStateException("profilePropertyKeys not found in response");
@@ -248,19 +233,7 @@ public class Hooks {
             conn.setReadTimeout(5000);
             conn.setRequestProperty("Authorization", "Bearer " + accessToken);
             if (conn.getResponseCode() != 200) return mppass;
-            InputStream is = null;
-            try {
-                is = conn.getInputStream();
-                ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-                byte[] data = new byte[8192];
-                int nRead;
-                while ((nRead = is.read(data, 0, data.length)) != -1) {
-                    buffer.write(data, 0, nRead);
-                }
-                mppass = buffer.toString("UTF-8");
-            } finally {
-                if (is != null) is.close();
-            }
+            mppass = readStream(conn.getInputStream());
         } catch (Exception ignored) {}
         log.debug("Fetched MpPass: " + mppass);
         return mppass;
@@ -353,24 +326,14 @@ public class Hooks {
         conn.setConnectTimeout(5000);
         conn.setReadTimeout(5000);
         if (conn.getResponseCode() != 200) return null;
-        InputStream is = null;
-        try {
-            is = conn.getInputStream();
-            ByteArrayOutputStream buf = new ByteArrayOutputStream();
-            byte[] data = new byte[8192];
-            int n;
-            while ((n = is.read(data)) != -1) buf.write(data, 0, n);
-            Json.JSONArray props = new Json.JSONObject(buf.toString("UTF-8")).getJSONArray("properties");
-            for (int i = 0; i < props.length(); i++) {
-                Json.JSONObject prop = props.getJSONObject(i);
-                if ("textures".equals(prop.optString("name", ""))) {
-                    return new String[]{ prop.getString("value"), prop.optString("signature", null) };
-                }
+        Json.JSONArray props = new Json.JSONObject(readStream(conn.getInputStream())).getJSONArray("properties");
+        for (int i = 0; i < props.length(); i++) {
+            Json.JSONObject prop = props.getJSONObject(i);
+            if ("textures".equals(prop.optString("name", ""))) {
+                return new String[]{ prop.getString("value"), prop.optString("signature", null) };
             }
-            return null;
-        } finally {
-            if (is != null) is.close();
         }
+        return null;
     }
 
     private static Object getMissingTexturesProperty(Object profile) {
