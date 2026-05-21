@@ -46,24 +46,32 @@ public class LokiUtil {
         }
     }
 
-    private static boolean areWeOnline(final String host) {
-        int timeoutMs = 2000;
-
+    private static boolean areWeOnline(final String host, final int port) {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         Future<Boolean> future = executor.submit(new Callable<Boolean>() {
             public Boolean call() {
+                InetAddress addr;
                 try {
-                    //noinspection ResultOfMethodCallIgnored
-                    InetAddress.getByName(host);
-                    return true;
+                    addr = InetAddress.getByName(host);
                 } catch (UnknownHostException e) {
                     return false;
+                }
+                Socket socket = new Socket();
+                try {
+                    socket.connect(new InetSocketAddress(addr, port), 1500);
+                    return true;
+                } catch (ConnectException e) {
+                    return false;
+                } catch (Exception e) {
+                    return true; // DNS worked; let tryConnect sort out the specific error
+                } finally {
+                    try { socket.close(); } catch (IOException ignored) {}
                 }
             }
         });
 
         try {
-            return future.get(timeoutMs, TimeUnit.MILLISECONDS);
+            return future.get(2000, TimeUnit.MILLISECONDS);
         } catch (TimeoutException e) {
             future.cancel(true);
             return false;
@@ -118,7 +126,7 @@ public class LokiUtil {
             exitBrokenTLS();
             return false;
         } catch (Exception e) {
-            if (e.getMessage().equals("handshake_failure(40)")) {
+            if ("handshake_failure(40)".equals(e.getMessage())) {
                 Loki.log.error("**** BOUNCYCASTLE FAILED TO NEGOTIATE A CIPHER!");
                 Loki.log.error("BouncyCastle has failed to resolve your TLS troubles, and there is no");
                 Loki.log.error("workaround to resolve this at the moment. You can either upgrade Java,");
@@ -138,28 +146,33 @@ public class LokiUtil {
         return url;
     }
 
-    public static void tryOrDisableSSL(String httpsUrl) {
-        if (Hooks.OFFLINE_MODE || httpsUrl == null || httpsUrl.length() == 0 || httpsUrl.startsWith("http://")) return;
-        String url = normalizeUrl(httpsUrl.toLowerCase());
+    public static void checkConnectivity(String serverUrl) {
+        if (Hooks.OFFLINE_MODE || serverUrl == null || serverUrl.length() == 0) return;
+        String url = normalizeUrl(serverUrl.toLowerCase());
         try {
-            String host = new URL(url).getHost();
-            if (!areWeOnline(host)) {
-                Loki.log.warn("DNS lookup timed out, are we offline? Disabling certificate validation!");
+            URL parsedUrl = new URL(url);
+            String host = parsedUrl.getHost();
+            int port = parsedUrl.getPort() == -1 ? parsedUrl.getDefaultPort() : parsedUrl.getPort();
+            if (!areWeOnline(host, port)) {
+                Loki.log.warn("Server is unreachable, are we offline? Launching in offline mode.");
                 Hooks.OFFLINE_MODE = true;
-            } else {
-                boolean canConnect = tryConnect(url);
-                if (canConnect) {
-                    Loki.log.debug("Java's truststore is recent enough to connect to the API server");
-                    return;
-                } else {
-                    Loki.log.warn("**** OUTDATED JAVA CERTIFICATE STORE DETECTED!");
-                    Loki.log.warn("Certificate validation has been disabled to allow connections to the");
-                    Loki.log.warn("API server. This allows Loki to function despite the old certificates,");
-                    Loki.log.warn("but this is extremely insecure and may expose you to man-in-the-middle");
-                    Loki.log.warn("attacks. You should upgrade to a more recent release of Java as soon");
-                    Loki.log.warn("as possible to restore proper certificate validation.");
-                }
+                return;
             }
+
+            if (url.startsWith("http://")) return;
+
+            boolean canConnect = tryConnect(url);
+            if (canConnect) {
+                Loki.log.debug("Java's truststore is recent enough to connect to the API server");
+                return;
+            }
+
+            Loki.log.warn("**** OUTDATED JAVA CERTIFICATE STORE DETECTED!");
+            Loki.log.warn("Certificate validation has been disabled to allow connections to the");
+            Loki.log.warn("API server. This allows Loki to function despite the old certificates,");
+            Loki.log.warn("but this is extremely insecure and may expose you to man-in-the-middle");
+            Loki.log.warn("attacks. You should upgrade to a more recent release of Java as soon");
+            Loki.log.warn("as possible to restore proper certificate validation.");
 
             SSLContext sc = SSLContext.getInstance("TLS");
             sc.init(null, new TrustManager[]{
@@ -211,6 +224,7 @@ public class LokiUtil {
     }
 
     public static String getServerName(String authlibInjectorApiLocation) {
+        if (Hooks.OFFLINE_MODE) return "Offline";
         try {
             HttpURLConnection conn = (HttpURLConnection) new URL(authlibInjectorApiLocation).openConnection();
             conn.setRequestProperty("User-Agent", "Loki/" + Hooks.class.getPackage().getImplementationVersion());
@@ -293,7 +307,7 @@ public class LokiUtil {
         String aliAgentArgsURL = getALIAgentArgsURL();
 
         if (aliAgentArgsURL != null) {
-            LokiUtil.tryOrDisableSSL(aliAgentArgsURL);
+            LokiUtil.checkConnectivity(aliAgentArgsURL);
             LokiUtil.initAuthlibInjectorAPI(aliAgentArgsURL);
         }
         FOUND_ALI = true;
@@ -440,11 +454,11 @@ public class LokiUtil {
                 ? agentArgs
                 : MANIFEST_ATTRS.get("AuthlibInjectorAPIServer");
         if (authlibInjectorURL != null && authlibInjectorURL.length() != 0) {
-            LokiUtil.tryOrDisableSSL(authlibInjectorURL);
+            LokiUtil.checkConnectivity(authlibInjectorURL);
             LokiUtil.initAuthlibInjectorAPI(authlibInjectorURL);
         } else {
             String sessionHost = System.getProperty("minecraft.api.session.host", MANIFEST_ATTRS.get("SessionHost"));
-            LokiUtil.tryOrDisableSSL(sessionHost);
+            LokiUtil.checkConnectivity(sessionHost);
             System.setProperty("mojang.sessionserver", sessionHost + "/session/minecraft/hasJoined"); // Velocity
         }
 
