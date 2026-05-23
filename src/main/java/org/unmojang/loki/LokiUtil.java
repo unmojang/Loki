@@ -15,7 +15,9 @@ import java.security.CodeSource;
 import java.security.ProtectionDomain;
 import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
+import java.util.Arrays;
 import java.util.Enumeration;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
 import java.util.jar.*;
@@ -26,8 +28,12 @@ public class LokiUtil {
     public static boolean FOUND_ALI = false;
     public static final Map<String, String> MANIFEST_ATTRS = new ConcurrentHashMap<String, String>();
     public static final int JAVA_MAJOR = getJavaVersion();
+    @SuppressWarnings("ArraysAsListWithZeroOrOneArgument")
+    private static final List<String> MISCONFIGURED_API_SERVERS = Arrays.asList(
+            "skin.prinzeugen.net"
+    );
 
-    public static void initManifestAttributes() {
+    private static void initManifestAttributes() {
         try {
             CodeSource codeSource = LokiUtil.class.getProtectionDomain().getCodeSource();
             if (codeSource != null && codeSource.getLocation() != null) {
@@ -112,7 +118,6 @@ public class LokiUtil {
     private static boolean tryConnect(String url) throws UnknownHostException {
         try {
             HttpsURLConnection conn = (HttpsURLConnection) new URL(url).openConnection();
-            conn.setRequestProperty("User-Agent", "Loki/" + Hooks.class.getPackage().getImplementationVersion());
             conn.setConnectTimeout(5000);
             conn.setReadTimeout(5000);
             conn.connect();
@@ -146,7 +151,7 @@ public class LokiUtil {
         return url;
     }
 
-    public static void checkConnectivity(String serverUrl) {
+    private static void checkConnectivity(String serverUrl) {
         if (Hooks.OFFLINE_MODE || serverUrl == null || serverUrl.length() == 0) return;
         String url = normalizeUrl(serverUrl.toLowerCase());
         try {
@@ -195,7 +200,18 @@ public class LokiUtil {
         }
     }
 
-    public static String getAuthlibInjectorApiLocation(String server) {
+    private static void conditionallySetUserAgent(String url) {
+        if (url == null || url.length() == 0) return;
+        try {
+            String host = new URL(normalizeUrl(url.toLowerCase())).getHost();
+            if (MISCONFIGURED_API_SERVERS.contains(host)) {
+                System.setProperty("http.agent", "Loki/" + LokiUtil.class.getPackage().getImplementationVersion());
+                Loki.log.debug("Overriding default user agent (blocked by Cloudflare)");
+            }
+        } catch (MalformedURLException ignored) {}
+    }
+
+    private static String getAuthlibInjectorApiLocation(String server) {
         if (Hooks.OFFLINE_MODE) {
             try {
                 URL url = new URL(server);
@@ -210,7 +226,6 @@ public class LokiUtil {
         try {
             URL url = new URL(server);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            conn.setRequestProperty("User-Agent", "Loki/" + Hooks.class.getPackage().getImplementationVersion());
             conn.setRequestMethod("GET");
             conn.setDoInput(true);
             conn.connect();
@@ -223,11 +238,10 @@ public class LokiUtil {
         }
     }
 
-    public static String getServerName(String authlibInjectorApiLocation) {
+    private static String getServerName(String authlibInjectorApiLocation) {
         if (Hooks.OFFLINE_MODE) return "Offline";
         try {
             HttpURLConnection conn = (HttpURLConnection) new URL(authlibInjectorApiLocation).openConnection();
-            conn.setRequestProperty("User-Agent", "Loki/" + Hooks.class.getPackage().getImplementationVersion());
             conn.setRequestMethod("GET");
             conn.setConnectTimeout(5000);
             conn.setReadTimeout(5000);
@@ -244,7 +258,7 @@ public class LokiUtil {
         }
     }
 
-    public static void initAuthlibInjectorAPI(String server) {
+    private static void initAuthlibInjectorAPI(String server) {
         server = normalizeUrl(server.toLowerCase());
         String authlibInjectorApiLocation = getAuthlibInjectorApiLocation(server);
         if (authlibInjectorApiLocation == null) authlibInjectorApiLocation = server;
@@ -307,8 +321,9 @@ public class LokiUtil {
         String aliAgentArgsURL = getALIAgentArgsURL();
 
         if (aliAgentArgsURL != null) {
-            LokiUtil.checkConnectivity(aliAgentArgsURL);
-            LokiUtil.initAuthlibInjectorAPI(aliAgentArgsURL);
+            conditionallySetUserAgent(aliAgentArgsURL);
+            checkConnectivity(aliAgentArgsURL);
+            initAuthlibInjectorAPI(aliAgentArgsURL);
         }
         FOUND_ALI = true;
     }
@@ -386,7 +401,7 @@ public class LokiUtil {
         }
     }
 
-    public static boolean isRetransformSupported(Instrumentation inst) {
+    private static boolean isRetransformSupported(Instrumentation inst) {
         try {
             Method m = Instrumentation.class.getMethod("isRetransformClassesSupported");
             Object result = m.invoke(inst);
@@ -399,7 +414,7 @@ public class LokiUtil {
     }
 
 
-    public static boolean hasBouncyCastle() {
+    private static boolean hasBouncyCastle() {
         try {
             Class.forName("org.bouncycastle.jce.provider.BouncyCastleProvider"); // prov
             Class.forName("org.bouncycastle.jsse.provider.BouncyCastleJsseProvider"); // tls
@@ -454,12 +469,14 @@ public class LokiUtil {
                 ? agentArgs
                 : MANIFEST_ATTRS.get("AuthlibInjectorAPIServer");
         if (authlibInjectorURL != null && authlibInjectorURL.length() != 0) {
-            LokiUtil.checkConnectivity(authlibInjectorURL);
-            LokiUtil.initAuthlibInjectorAPI(authlibInjectorURL);
+            conditionallySetUserAgent(authlibInjectorURL);
+            checkConnectivity(authlibInjectorURL);
+            initAuthlibInjectorAPI(authlibInjectorURL);
         } else {
             String sessionHost = System.getProperty("minecraft.api.session.host", MANIFEST_ATTRS.get("SessionHost"));
-            LokiUtil.checkConnectivity(sessionHost);
             System.setProperty("mojang.sessionserver", sessionHost + "/session/minecraft/hasJoined"); // Velocity
+            conditionallySetUserAgent(sessionHost);
+            checkConnectivity(sessionHost);
         }
 
         appendHooksToClasspath(inst);

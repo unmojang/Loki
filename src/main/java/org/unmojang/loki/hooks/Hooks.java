@@ -171,12 +171,10 @@ public class Hooks {
         }
     }
 
-    @SuppressWarnings("ExtractMethodRecommender")
     private static PublicKey getPublicKey() throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
         String baseUrl = System.getProperty("minecraft.api.services.host", "https://api.minecraftservices.com");
         URL url = new URL(baseUrl + "/publickeys");
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-        conn.setRequestProperty("User-Agent", "Loki/" + Hooks.class.getPackage().getImplementationVersion());
         conn.setRequestMethod("GET");
         conn.setDoInput(true);
 
@@ -227,7 +225,6 @@ public class Hooks {
                     + "/mppass?ip=" + URLEncoder.encode(ip, "UTF-8")
                     + "&port=" + port);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            conn.setRequestProperty("User-Agent", "Loki/" + Hooks.class.getPackage().getImplementationVersion());
             conn.setRequestMethod("GET");
             conn.setConnectTimeout(5000);
             conn.setReadTimeout(5000);
@@ -269,7 +266,6 @@ public class Hooks {
         URL url = new URL(System.getProperty("minecraft.api.account.host", "https://api.mojang.com")
                 + "/users/profiles/minecraft/" + URLEncoder.encode(username, "UTF-8"));
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-        conn.setRequestProperty("User-Agent", "Loki/" + Hooks.class.getPackage().getImplementationVersion());
         conn.setRequestMethod("GET");
         conn.setConnectTimeout(5000);
         conn.setReadTimeout(5000);
@@ -283,7 +279,6 @@ public class Hooks {
         url = new URL(System.getProperty("minecraft.api.account.host", "https://api.mojang.com")
                 + "/minecraft/profile/lookup/name/" + URLEncoder.encode(username, "UTF-8"));
         conn = (HttpURLConnection) url.openConnection();
-        conn.setRequestProperty("User-Agent", "Loki/" + Hooks.class.getPackage().getImplementationVersion());
         conn.setRequestMethod("GET");
         conn.setConnectTimeout(5000);
         conn.setReadTimeout(5000);
@@ -297,7 +292,6 @@ public class Hooks {
         url = new URL(System.getProperty("minecraft.api.account.host", "https://api.mojang.com")
                 + "/profiles/minecraft");
         conn = (HttpURLConnection) url.openConnection();
-        conn.setRequestProperty("User-Agent", "Loki/" + Hooks.class.getPackage().getImplementationVersion());
         conn.setRequestMethod("POST");
         conn.setRequestProperty("Content-Type", "application/json");
         conn.setRequestProperty("Accept", "application/json");
@@ -321,7 +315,6 @@ public class Hooks {
         URL url = new URL(System.getProperty("minecraft.api.session.host", "https://sessionserver.mojang.com")
                 + "/session/minecraft/profile/" + URLEncoder.encode(uuid, "UTF-8") + "?unsigned=false");
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-        conn.setRequestProperty("User-Agent", "Loki/" + Hooks.class.getPackage().getImplementationVersion());
         conn.setRequestMethod("GET");
         conn.setConnectTimeout(5000);
         conn.setReadTimeout(5000);

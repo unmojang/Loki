@@ -94,8 +94,6 @@ public class RequestInterceptor {
             // Use the URL constructor with null context to avoid global wrapper
             URL delegated = new URL(null, url.toExternalForm(), handler);
             HttpURLConnection conn = (HttpURLConnection) delegated.openConnection();
-            // cloudflare blocks Java/* user agent, for _SOME_ reason
-            conn.setRequestProperty("User-Agent", "Loki/" + Loki.class.getPackage().getImplementationVersion());
             return conn;
         } catch (ClassCastException e) {
             throw new RuntimeException("Handler did not return HttpURLConnection", e);
