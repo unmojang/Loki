@@ -31,7 +31,7 @@ public class Loki {
 
         // Authentication & skins/capes
         RequestInterceptor.setURLFactory();
-        inst.addTransformer(new YggdrasilURLTransformer()); // Transform Yggdrasil URLs while URL factory is not available
+        inst.addTransformer(new YggdrasilURLTransformer()); // Transform Yggdrasil URL strings
         inst.addTransformer(new AppletParameterTransformer()); // Fetch mppass for classic multiplayer
 
         // Textures
@@ -53,7 +53,7 @@ public class Loki {
         inst.addTransformer(new PlayerAttributesTransformer());
 
         // Misc fixes
-        inst.addTransformer(new BungeeCordTransformer()); // Patch BungeeCord's hardcoded URLs, public key check, and username filter
+        inst.addTransformer(new BungeeCordTransformer()); // Patch BungeeCord's public key check and username filter
         inst.addTransformer(new ConcatenateURLTransformer()); // Prevent port number being ignored in old authlib, if you specified it
         inst.addTransformer(new MCAuthlibGameProfileTransformer()); // Primarily for MojangFix
         inst.addTransformer(new ReIndevGetSkinTransformer()); // Fix a bug in ReIndev's ThreadGetSkin
