@@ -15,6 +15,7 @@ import java.security.CodeSource;
 import java.security.ProtectionDomain;
 import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.List;
@@ -25,6 +26,7 @@ import java.util.jar.*;
 @SuppressWarnings("HttpUrlsUsage")
 public class LokiUtil {
     public static String SERVER_NAME = "";
+    public static List<String> SERVER_TEXTURE_DOMAINS = new ArrayList<String>();
     public static boolean FOUND_ALI = false;
     public static final Map<String, String> MANIFEST_ATTRS = new ConcurrentHashMap<String, String>();
     public static final int JAVA_MAJOR = getJavaVersion();
@@ -238,8 +240,11 @@ public class LokiUtil {
         }
     }
 
-    private static String getServerName(String authlibInjectorApiLocation) {
-        if (Hooks.OFFLINE_MODE) return "Offline";
+    private static void initServerMetadata(String authlibInjectorApiLocation) {
+        if (Hooks.OFFLINE_MODE) {
+            SERVER_NAME = "Offline";
+            return;
+        }
         try {
             HttpURLConnection conn = (HttpURLConnection) new URL(authlibInjectorApiLocation).openConnection();
             conn.setRequestMethod("GET");
@@ -247,14 +252,22 @@ public class LokiUtil {
             conn.setReadTimeout(5000);
             conn.connect();
 
-            if (conn.getResponseCode() != 200) return "";
+            if (conn.getResponseCode() != 200) return;
             String jsonText = Ygglib.readStream(conn.getInputStream());
-            Json.JSONObject meta = new Json.JSONObject(jsonText).optJSONObject("meta");
-            if (meta == null) return "";
-            return meta.optString("serverName", "");
+            Json.JSONObject json = new Json.JSONObject(jsonText);
+
+            Json.JSONObject meta = json.optJSONObject("meta");
+            if (meta != null) SERVER_NAME = meta.optString("serverName", "");
+
+            Json.JSONArray skinDomainsArr = json.optJSONArray("skinDomains");
+            if (skinDomainsArr != null && !skinDomainsArr.isEmpty() && SERVER_TEXTURE_DOMAINS.isEmpty()) {
+                for (int i = 0; i < skinDomainsArr.length(); i++) {
+                    SERVER_TEXTURE_DOMAINS.add(skinDomainsArr.getString(i));
+                }
+                Loki.log.debug("Added texture domains: " + SERVER_TEXTURE_DOMAINS);
+            }
         } catch (Exception e) {
-            Loki.log.error("Failed to get server name", e);
-            return "";
+            Loki.log.error("Failed to get server metadata", e);
         }
     }
 
@@ -273,7 +286,7 @@ public class LokiUtil {
         // Velocity
         System.setProperty("mojang.sessionserver", authlibInjectorApiLocation + "/sessionserver/session/minecraft/hasJoined");
 
-        SERVER_NAME = getServerName(authlibInjectorApiLocation);
+        initServerMetadata(authlibInjectorApiLocation);
     }
 
     public static void apply1219Fixes() {

@@ -9,26 +9,17 @@ import org.unmojang.loki.LokiUtil;
 
 import java.lang.instrument.ClassFileTransformer;
 import java.security.ProtectionDomain;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
-
+import java.util.List;
 
 public class AllowedDomainTransformer implements ClassFileTransformer {
-    private static final Set<String> TARGET_CLASSES = new HashSet<String>(Arrays.asList(
-            "com/mojang/authlib/yggdrasil/YggdrasilMinecraftSessionService",
-            "com/mojang/authlib/yggdrasil/TextureUrlChecker"
-    ));
-    private static final String[] METHODS = {
-            "isWhitelistedDomain(Ljava/lang/String;)Z",
-            "isAllowedTextureDomain(Ljava/lang/String;)Z"
-    };
 
     public byte[] transform(final ClassLoader loader, String className, Class<?> classBeingRedefined,
                             ProtectionDomain protectionDomain, byte[] classfileBuffer) {
 
         // Target MCAuthlib too (used in MojangFix and Ears mods, possibly more)
-        if (!TARGET_CLASSES.contains(className) && !className.endsWith("/data/GameProfile")) return null;
+        if (!className.equals("com/mojang/authlib/yggdrasil/YggdrasilMinecraftSessionService")
+                && !className.equals("com/mojang/authlib/yggdrasil/TextureUrlChecker")
+                && !className.endsWith("/data/GameProfile")) return null;
 
         try {
             ClassNode cn = new ClassNode();
@@ -38,28 +29,22 @@ public class AllowedDomainTransformer implements ClassFileTransformer {
             boolean changed = false;
 
             for (MethodNode mn : cn.methods) {
-                String methodDesc = mn.name + mn.desc;
-                for (String targetMethod : METHODS) {
-                    if (methodDesc.equals(targetMethod)) {
-                        AbstractInsnNode iret = null;
-                        for (AbstractInsnNode insn : mn.instructions.toArray()) {
-                            if (insn.getOpcode() == Opcodes.IRETURN) {
-                                iret = insn;
-                            }
-                        }
-                        if (iret == null) throw new RuntimeException("could not find IRETURN");
+                if ((mn.name.equals("isWhitelistedDomain") || mn.name.equals("isAllowedTextureDomain"))
+                        && mn.desc.equals("(Ljava/lang/String;)Z")) {
+                    mn.instructions.clear();
+                    mn.tryCatchBlocks.clear();
+                    if (mn.localVariables != null) mn.localVariables.clear();
 
-                        InsnList insns = new InsnList();
-
-                        insns.add(new InsnNode(Opcodes.ICONST_1));
-                        insns.add(new InsnNode(Opcodes.IRETURN));
-
-                        mn.instructions.insertBefore(iret, insns);
-
-                        Loki.log.debug("Patching " + LokiUtil.getFqmn(className, mn.name, mn.desc));
-                        changed = true;
-                        break;
+                    List<String> skinDomains = LokiUtil.SERVER_TEXTURE_DOMAINS;
+                    if (skinDomains.isEmpty()) { // allow any skin domain
+                        mn.instructions.add(new InsnNode(Opcodes.ICONST_1));
+                        mn.instructions.add(new InsnNode(Opcodes.IRETURN));
+                    } else {
+                        buildDomainCheck(mn, skinDomains);
                     }
+
+                    Loki.log.debug("Patching " + LokiUtil.getFqmn(className, mn.name, mn.desc));
+                    changed = true;
                 }
             }
 
@@ -90,5 +75,55 @@ public class AllowedDomainTransformer implements ClassFileTransformer {
             Loki.log.error("Failed to transform " + className + "!", t);
             return null;
         }
+    }
+
+    private static void buildDomainCheck(MethodNode mn, List<String> skinDomains) {
+        LabelNode tryStart = new LabelNode();
+        LabelNode tryEnd = new LabelNode();
+        LabelNode handler = new LabelNode();
+        LabelNode returnTrue = new LabelNode();
+
+        mn.tryCatchBlocks.add(new TryCatchBlockNode(tryStart, tryEnd, handler, "java/lang/Exception"));
+
+        InsnList il = mn.instructions;
+
+        // host = new URL(url).getHost()
+        il.add(tryStart);
+        il.add(new TypeInsnNode(Opcodes.NEW, "java/net/URL"));
+        il.add(new InsnNode(Opcodes.DUP));
+        il.add(new VarInsnNode(Opcodes.ALOAD, 0));
+        il.add(new MethodInsnNode(Opcodes.INVOKESPECIAL, "java/net/URL", "<init>", "(Ljava/lang/String;)V", false));
+        il.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "java/net/URL", "getHost", "()Ljava/lang/String;", false));
+        il.add(tryEnd);
+        il.add(new VarInsnNode(Opcodes.ASTORE, 1));
+
+        // Default domains: host.endsWith(".minecraft.net"), host.endsWith(".mojang.com")
+        for (String d : new String[]{".minecraft.net", ".mojang.com"}) {
+            il.add(new VarInsnNode(Opcodes.ALOAD, 1));
+            il.add(new LdcInsnNode(d));
+            il.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "java/lang/String", "endsWith", "(Ljava/lang/String;)Z", false));
+            il.add(new JumpInsnNode(Opcodes.IFNE, returnTrue));
+        }
+
+        // Skin domains: host.endsWith(d)
+        for (String d : skinDomains) {
+            il.add(new VarInsnNode(Opcodes.ALOAD, 1));
+            il.add(new LdcInsnNode(d));
+            il.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "java/lang/String", "endsWith", "(Ljava/lang/String;)Z", false));
+            il.add(new JumpInsnNode(Opcodes.IFNE, returnTrue));
+        }
+
+        il.add(new InsnNode(Opcodes.ICONST_0));
+        il.add(new InsnNode(Opcodes.IRETURN));
+
+        il.add(returnTrue);
+        il.add(new InsnNode(Opcodes.ICONST_1));
+        il.add(new InsnNode(Opcodes.IRETURN));
+
+        // Exception handler: return false
+        il.add(handler);
+        il.add(new InsnNode(Opcodes.POP));
+        il.add(new InsnNode(Opcodes.ICONST_0));
+        il.add(new InsnNode(Opcodes.IRETURN));
     }
 }
