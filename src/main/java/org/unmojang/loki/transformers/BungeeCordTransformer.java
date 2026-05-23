@@ -7,12 +7,9 @@ import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.*;
 import org.unmojang.loki.Loki;
 import org.unmojang.loki.LokiUtil;
-import org.unmojang.loki.RequestInterceptor;
-
 import java.lang.instrument.ClassFileTransformer;
 import java.security.ProtectionDomain;
 import java.util.Arrays;
-import java.util.Map;
 
 public class BungeeCordTransformer implements ClassFileTransformer {
 
@@ -27,7 +24,6 @@ public class BungeeCordTransformer implements ClassFileTransformer {
             cr.accept(cn, 0);
 
             boolean changed = false;
-            Map<String, String> ygMap = RequestInterceptor.YGGDRASIL_MAP;
 
             if ("net/md_5/bungee/EncryptionUtil".equals(className)) {
                 for (MethodNode mn : cn.methods) {
@@ -53,37 +49,6 @@ public class BungeeCordTransformer implements ClassFileTransformer {
             }
 
             for (MethodNode mn : cn.methods) {
-                for (AbstractInsnNode insn : mn.instructions.toArray()) {
-                    if (insn instanceof LdcInsnNode && ((LdcInsnNode) insn).cst instanceof String) {
-                        // plain LDC string constants
-                        LdcInsnNode ldc = (LdcInsnNode) insn;
-                        String s = (String) ldc.cst;
-                        for (String domain : ygMap.keySet()) {
-                            String prefix = "https://" + domain;
-                            if (s.startsWith(prefix)) {
-                                ldc.cst = LokiUtil.normalizeUrl(ygMap.get(domain)) + s.substring(prefix.length());
-                                Loki.log.debug("Patching Yggdrasil URL in " + LokiUtil.getFqmn(className, mn.name, mn.desc));
-                                changed = true;
-                                break;
-                            }
-                        }
-                    } else if (insn instanceof InvokeDynamicInsnNode) {
-                        // Java 9+ StringConcatFactory
-                        InvokeDynamicInsnNode idn = (InvokeDynamicInsnNode) insn;
-                        if (idn.bsmArgs != null && idn.bsmArgs.length > 0 && idn.bsmArgs[0] instanceof String) {
-                            String recipe = (String) idn.bsmArgs[0];
-                            for (String domain : ygMap.keySet()) {
-                                String prefix = "https://" + domain;
-                                if (recipe.contains(prefix)) {
-                                    idn.bsmArgs[0] = recipe.replace(prefix, LokiUtil.normalizeUrl(ygMap.get(domain)));
-                                    Loki.log.debug("Patching Yggdrasil URL in " + LokiUtil.getFqmn(className, mn.name, mn.desc));
-                                    changed = true;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
                 if (Arrays.asList("isValidName", "check").contains(mn.name)
                         && (mn.access & Opcodes.ACC_PUBLIC) != 0 && mn.desc.endsWith(")Z")) {
                     if ("check".equals(mn.name) && Loki.enforce_secure_profile) continue;

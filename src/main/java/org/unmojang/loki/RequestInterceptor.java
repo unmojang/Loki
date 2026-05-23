@@ -75,7 +75,6 @@ public class RequestInterceptor {
             Loki.log.warn("This Forge environment does not support Loki's URL factory :(");
             Loki.log.warn("Your API server may potentially not be queried by mods that utilize");
             Loki.log.warn("the Mojang API!");
-            Loki.disable_factory = true;
             return;
         }
         URL.setURLStreamHandlerFactory(new URLStreamHandlerFactory() {
@@ -93,8 +92,7 @@ public class RequestInterceptor {
         try {
             // Use the URL constructor with null context to avoid global wrapper
             URL delegated = new URL(null, url.toExternalForm(), handler);
-            HttpURLConnection conn = (HttpURLConnection) delegated.openConnection();
-            return conn;
+            return (HttpURLConnection) delegated.openConnection();
         } catch (ClassCastException e) {
             throw new RuntimeException("Handler did not return HttpURLConnection", e);
         }

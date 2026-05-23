@@ -6,7 +6,6 @@ import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.*;
 import org.unmojang.loki.Loki;
 import org.unmojang.loki.LokiUtil;
-import org.unmojang.loki.RequestInterceptor;
 
 import java.lang.instrument.ClassFileTransformer;
 import java.security.ProtectionDomain;
@@ -16,7 +15,7 @@ public class PatchyTransformer implements ClassFileTransformer {
     public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,
                             ProtectionDomain protectionDomain, byte[] classfileBuffer) {
 
-        if (!className.startsWith("com/mojang/patchy/")) return null;
+        if (!className.startsWith("com/mojang/patchy/") || Loki.enable_patchy) return null;
 
         try {
             ClassNode cn = new ClassNode();
@@ -27,7 +26,7 @@ public class PatchyTransformer implements ClassFileTransformer {
 
             for (MethodNode mn : cn.methods) {
                 // Disable server blocking (isBlockedServer = false)
-                if (!Loki.enable_patchy && (mn.access & Opcodes.ACC_PUBLIC) != 0 && mn.desc.equals("(Ljava/lang/String;)Z")) {
+                if ((mn.access & Opcodes.ACC_PUBLIC) != 0 && mn.desc.equals("(Ljava/lang/String;)Z")) {
                     mn.instructions.clear();
                     mn.tryCatchBlocks.clear();
                     if (mn.localVariables != null) mn.localVariables.clear();
@@ -39,39 +38,6 @@ public class PatchyTransformer implements ClassFileTransformer {
                     changed = true;
                 }
 
-                // Use correct API server for server blocking
-                for (AbstractInsnNode insn = mn.instructions.getFirst(); insn != null; insn = insn.getNext()) {
-                    if (insn.getType() == AbstractInsnNode.TYPE_INSN) {
-                        TypeInsnNode tin = (TypeInsnNode) insn;
-                        if (!"java/net/URL".equals(tin.desc)) continue;
-                        AbstractInsnNode cur = tin.getNext();
-                        while (cur != null) {
-                            if (cur.getType() == AbstractInsnNode.METHOD_INSN) {
-                                MethodInsnNode min = (MethodInsnNode) cur;
-                                if (min.getOpcode() == Opcodes.INVOKESPECIAL
-                                        && "java/net/URL".equals(min.owner)
-                                        && "<init>".equals(min.name)) {
-                                    break;
-                                }
-                            }
-
-                            if (cur.getType() == AbstractInsnNode.LDC_INSN) {
-                                assert cur instanceof LdcInsnNode;
-                                LdcInsnNode ldc = (LdcInsnNode) cur;
-                                Object cst = ldc.cst;
-                                if (cst instanceof String) {
-                                    if (cst.equals("https://sessionserver.mojang.com/blockedservers")) {
-                                        ldc.cst = RequestInterceptor.YGGDRASIL_MAP.get("sessionserver.mojang.com")
-                                                + "/blockedservers";
-                                        Loki.log.debug("Patching " + LokiUtil.getFqmn(className, mn.name, mn.desc));
-                                        changed = true;
-                                    }
-                                }
-                            }
-                            cur = cur.getNext();
-                        }
-                    }
-                }
             }
 
             if (!changed) return null;

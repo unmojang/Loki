@@ -32,7 +32,6 @@ public class Loki {
         // Authentication & skins/capes
         RequestInterceptor.setURLFactory();
         inst.addTransformer(new YggdrasilURLTransformer()); // Transform Yggdrasil URLs while URL factory is not available
-        inst.addTransformer(new SignalingServiceClientTransformer()); // Transform SignalingServiceClient for P2P multiplayer
         inst.addTransformer(new AppletParameterTransformer()); // Fetch mppass for classic multiplayer
 
         // Textures
