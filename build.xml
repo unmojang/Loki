@@ -1,4 +1,5 @@
-<project name="Loki" default="build" basedir="." xmlns:ivy="antlib:org.apache.ivy.ant">
+<project name="Loki" default="build" basedir="." xmlns:ivy="antlib:org.apache.ivy.ant"
+         xmlns:if="ant:if" xmlns:unless="ant:unless">
     <property environment="env"/>
     <property name="group" value="org.unmojang"/>
     <property name="artifact" value="Loki"/>
@@ -60,6 +61,7 @@
     </path>
 
     <target name="compile" depends="resolve">
+        <echo>Building with JDK: ${java_home}</echo>
 
         <copy todir="${classes.dir}">
             <fileset dir="${res.dir}" erroronmissingdir="false"/>
@@ -120,6 +122,37 @@
             </zipfileset>
         </jar>
 
+        <available file="${java_home}/jre/lib/rt.jar" property="proguard.rtjar"/>
+        <available file="${java_home}/jmods" type="dir" property="proguard.jmods"/>
+        <condition property="proguard.haslibs">
+            <or>
+                <isset property="proguard.rtjar"/>
+                <isset property="proguard.jmods"/>
+            </or>
+        </condition>
+
+        <java classname="proguard.ProGuard" fork="true" failonerror="true">
+            <classpath>
+                <fileset dir="${tools.dir}" includes="*.jar"/>
+            </classpath>
+            <arg value="@proguard.pro"/>
+            <arg value="-dontoptimize" unless:set="proguard.haslibs"/>
+            <arg value="-injars"/>
+            <arg file="${temp.dir}/${artifact}-${version}-fat.jar"/>
+            <arg value="-outjars"/>
+            <arg file="${temp.dir}/${artifact}-${version}-shrunk.jar"/>
+            <arg value="-libraryjars" if:set="proguard.rtjar"/>
+            <arg value="${java_home}/jre/lib/rt.jar" if:set="proguard.rtjar"/>
+            <arg value="-libraryjars" if:set="proguard.jmods"/>
+            <arg value="${java_home}/jmods/java.base.jmod(!**.jar;!module-info.class)" if:set="proguard.jmods"/>
+            <arg value="-libraryjars" if:set="proguard.jmods"/>
+            <arg value="${java_home}/jmods/java.instrument.jmod(!**.jar;!module-info.class)" if:set="proguard.jmods"/>
+            <arg value="-libraryjars" if:set="proguard.jmods"/>
+            <arg value="${java_home}/jmods/java.desktop.jmod(!**.jar;!module-info.class)" if:set="proguard.jmods"/>
+            <arg value="-libraryjars" if:set="proguard.jmods"/>
+            <arg value="${java_home}/jmods/java.management.jmod(!**.jar;!module-info.class)" if:set="proguard.jmods"/>
+        </java>
+
         <path id="jarjar.classpath">
             <fileset dir="${tools.dir}" includes="jarjar-*.jar"/>
             <fileset dir="${lib.dir}" includes="asm-*.jar"/>
@@ -129,7 +162,7 @@
             <classpath refid="jarjar.classpath"/>
             <arg value="process"/>
             <arg value="jarjar.rules"/>
-            <arg value="${temp.dir}/${artifact}-${version}-fat.jar"/>
+            <arg value="${temp.dir}/${artifact}-${version}-shrunk.jar"/>
             <arg value="${dist.dir}/${artifact}-${version}.jar"/>
         </java>
 

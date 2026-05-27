@@ -16,6 +16,7 @@
         <dependency org="org.bouncycastle" name="bctls-jdk15to18" rev="1.82" conf="compile->default"/>
         <dependency org="org.bouncycastle" name="bcutil-jdk15to18" rev="1.82" conf="compile->default"/>
 
+        <dependency org="com.guardsquare" name="proguard-base" rev="7.9.1" conf="tools->default"/>
         <dependency org="org.pantsbuild" name="jarjar" rev="1.7.2" conf="tools->default"/>
     </dependencies>
 </ivy-module>
