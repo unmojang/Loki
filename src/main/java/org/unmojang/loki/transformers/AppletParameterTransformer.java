@@ -47,7 +47,7 @@ public class AppletParameterTransformer implements ClassFileTransformer {
                                 Opcodes.INVOKESTATIC,
                                 "org/unmojang/loki/hooks/Hooks",
                                 "getMpPass",
-                                "(Ljava/applet/Applet;)Ljava/lang/String;",
+                                "(Ljava/lang/Object;)Ljava/lang/String;",
                                 false
                         );
                         mn.instructions.set(min, repl);

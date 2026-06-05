@@ -5,7 +5,6 @@ import org.unmojang.loki.util.Json;
 import org.unmojang.loki.util.logger.NilLogger;
 import sun.misc.Unsafe;
 
-import java.applet.Applet;
 import java.io.*;
 import java.lang.management.ManagementFactory;
 import java.lang.reflect.Constructor;
@@ -194,14 +193,21 @@ public class Hooks {
         return keyFactory.generatePublic(spec);
     }
 
-    public static String getMpPass(Applet applet) {
+    public static String getMpPass(Object applet) {
         if (applet == null) return null;
-        String mppass = applet.getParameter("mppass"); // original mppass; returned if we are unable to fetch
+        String mppass = null;
         try {
-            String sessionId = applet.getParameter("session");
-            if (sessionId == null) sessionId = applet.getParameter("sessionid");
-            String ip = applet.getParameter("server");
-            String port = applet.getParameter("port");
+            Class<?> appletClass = Class.forName("java.applet.Applet");
+            if (!appletClass.isInstance(applet)) return null;
+            Method getParameter = appletClass.getMethod("getParameter", String.class);
+
+            // original mppass; returned if we are unable to fetch
+            mppass = (String) getParameter.invoke(applet, new Object[] { "mppass" });
+
+            String sessionId = (String) getParameter.invoke(applet, new Object[] { "session" });
+            if (sessionId == null) sessionId = (String) getParameter.invoke(applet, new Object[] { "sessionid" });
+            String ip = (String) getParameter.invoke(applet, new Object[] { "server" });
+            String port = (String) getParameter.invoke(applet, new Object[] { "port" });
             if (sessionId == null || ip == null || port == null)
                 return mppass; // singleplayer?
 
