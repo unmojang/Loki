@@ -2,9 +2,10 @@
 
 ## Clients
 
-Loki is supported on the following clients:
+Loki is supported on the following launchers:
 
 - **[Fjord Launcher](https://github.com/unmojang/FjordLauncher)**
+- **[Mojang's Java Launchers](usage.md#mojangs-java-launchers)**
 
 ## Servers
 

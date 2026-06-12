@@ -1,13 +1,17 @@
 package org.unmojang.loki;
 
 import org.unmojang.loki.hooks.Hooks;
+import org.unmojang.loki.hooks.LauncherHooks;
 import sun.misc.Unsafe;
 
 import java.io.*;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.math.BigInteger;
 import java.net.*;
+import java.security.MessageDigest;
 import java.util.*;
+import java.util.zip.*;
 
 public class RequestInterceptor {
     public static final Map<String, String> YGGDRASIL_MAP;
@@ -45,6 +49,12 @@ public class RequestInterceptor {
                 "www.minecraft.net",
                 "skins.minecraft.net",
                 "session.minecraft.net",
+                "launchermeta.mojang.com",
+                "piston-meta.mojang.com",
+                "resources.download.minecraft.net",
+                "mcphackers.org",
+                "vault.omniarchive.uk",
+                "status.mojang.com",
                 "betacraft.uk",
                 "api.ashcon.app",
                 "mineskin.eu",
@@ -164,10 +174,134 @@ public class RequestInterceptor {
                 return Ygglib.FakeURLConnection(originalUrl, originalConn, 403, ("Nice try ;)").getBytes("UTF-8"));
             }
 
-            // Realms
-            if (host.equals("java.frontendlegacy.realms.minecraft-services.net") || host.equals("pc.realms.minecraft.net")) {
-                Loki.log.info("Intercepting realms request");
-                return Ygglib.FakeURLConnection(originalUrl, originalConn, 403, ("Nice try ;)").getBytes("UTF-8"));
+            // Launcher
+            if (host.equals("s3.amazonaws.com") && (path.startsWith("/MinecraftDownload/")
+                    || path.startsWith("/Minecraft.Download/"))) {
+                try {
+                    if (path.startsWith("/MinecraftDownload/minecraft.jar") && LokiUtil.LAUNCHER_VERSION_URL != null) { // game jar
+                        return mirrorHttpURLConnectionWithETag(LokiUtil.LAUNCHER_VERSION_URL, (HttpURLConnection) originalConn);
+                    }
+
+                    if (path.startsWith("/MinecraftDownload/")) {
+                        List<String> urls = LauncherHooks.getAppletLibraryUrls(path.substring("/MinecraftDownload/".length()));
+                        if (urls != null && !urls.isEmpty()) {
+                            if (urls.size() == 1) {
+                                return mirrorHttpURLConnectionWithETag(new URL(urls.get(0)), (HttpURLConnection) originalConn);
+                            }
+                            return mergedJarConnection(urls, (HttpURLConnection) originalConn);
+                        }
+                    }
+
+                    if (path.equals("/Minecraft.Download/versions/versions.json")) {
+                        return byteServingConnection(Ygglib.getReclassifiedManifest(), originalUrl, null);
+                    } else if (path.startsWith("/Minecraft.Download/versions/")) {
+                        if (path.endsWith(".json")) {
+                            String version = path.substring(path.lastIndexOf('/') + 1).replaceFirst("\\.json$", "");
+                            URL versionJsonURL = Ygglib.getVersionJsonURL(version);
+                            if (versionJsonURL != null) {
+                                // Adapt the modern version JSON for older 1.6 launchers
+                                URLStreamHandler handler = Hooks.DEFAULT_HANDLERS.get(versionJsonURL.getProtocol());
+                                String rewritten = Ygglib.rewriteVersionJsonForLegacyLauncher(
+                                        Ygglib.readStream(openWithParent(versionJsonURL, handler).getInputStream()));
+                                return Ygglib.FakeURLConnection(originalUrl, originalConn, 200, rewritten.getBytes("UTF-8"));
+                            }
+                        } else if (path.endsWith(".jar")) {
+                            String version = path.substring(path.lastIndexOf('/') + 1).replaceFirst("\\.jar$", "");
+                            URL versionJarURL = Ygglib.getVersionJarURL(version);
+                            if (versionJarURL != null) return mirrorHttpURLConnectionWithETag(versionJarURL, (HttpURLConnection) originalConn);
+                        }
+                    } else if (path.startsWith("/Minecraft.Download/")) {
+                        // Pre-1.0 1.6 launchers request /Minecraft.Download/<mavenPath>, without libraries prefix
+                        String libPath = path.substring("/Minecraft.Download/".length());
+                        if (libPath.startsWith("libraries/")) libPath = libPath.substring("libraries/".length());
+                        String mappedUrl = LauncherHooks.libraryUrlMap.get(libPath);
+                        URL libraryURL = mappedUrl != null ? new URL(mappedUrl) : new URL("https://libraries.minecraft.net/" + libPath);
+                        return mirrorHttpURLConnectionWithETag(libraryURL, (HttpURLConnection) originalConn);
+                    }
+                } catch (Exception ignored) {}
+            }
+
+            // Replace version manifest with BetterJSONs
+            if (host.equals("launchermeta.mojang.com") && path.equals("/mc/game/version_manifest.json")) {
+                try {
+                    return byteServingConnection(Ygglib.getReclassifiedManifest(), originalUrl, null);
+                } catch (Exception e) {
+                    Loki.log.error("Failed to serve BetterJSONs manifest", e);
+                    return originalConn;
+                }
+            }
+
+            // Rewrite to appease 1.6 launcher
+            if (host.equals("mcphackers.org") && path.startsWith("/BetterJSONs/jsons/") && path.endsWith(".json")) {
+                try {
+                    URLStreamHandler handler = Hooks.DEFAULT_HANDLERS.get(originalUrl.getProtocol());
+                    String rewritten = Ygglib.stripUnsupportedNatives(
+                            Ygglib.readStream(openWithParent(originalUrl, handler).getInputStream()));
+                    return Ygglib.FakeURLConnection(originalUrl, originalConn, 200, rewritten.getBytes("UTF-8"));
+                } catch (Exception e) {
+                    Loki.log.error("Failed to rewrite BetterJSONs version JSON", e);
+                    return originalConn;
+                }
+            }
+
+            // Attach ETag to appease 1.6 launcher
+            if (host.equals("resources.download.minecraft.net")
+                    || host.equals("piston-meta.mojang.com")
+                    || host.equals("launchermeta.mojang.com")
+                    || host.equals("mcphackers.org")
+                    || host.equals("vault.omniarchive.uk")) {
+                try {
+                    URL target = "http".equals(originalUrl.getProtocol())
+                            ? new URL("https" + originalUrl.toExternalForm().substring(4))
+                            : originalUrl;
+                    return mirrorHttpURLConnectionWithETag(target, (HttpURLConnection) originalConn);
+                } catch (Exception e) {
+                    Loki.log.error("Failed to intercept " + originalUrl, e);
+                    return originalConn;
+                }
+            }
+
+            // Resources
+            String resourcePrefix = null;
+            if (host.equals("s3.amazonaws.com") && path.startsWith("/Minecraft.Resources")) resourcePrefix = "/Minecraft.Resources";
+            else if (host.equals("s3.amazonaws.com") && path.startsWith("/MinecraftResources")) resourcePrefix = "/MinecraftResources";
+            else if (host.equals("www.minecraft.net") && path.startsWith("/resources")) resourcePrefix = "/resources";
+            if (resourcePrefix != null) {
+                try {
+                    String key = path.substring(resourcePrefix.length());
+                    if (key.startsWith("/")) key = key.substring(1);
+                    if (key.length() == 0) {
+                        byte[] listing = host.equals("www.minecraft.net")
+                                ? Ygglib.getLegacyResourcesListingPlain() // pre-a1.1.2_01
+                                : Ygglib.getLegacyResourcesListing();     // a1.1.2_01-1.5.2
+                        return Ygglib.FakeURLConnection(originalUrl, originalConn, 200, listing);
+                    }
+                    URL resourceURL = Ygglib.getLegacyResourceURL(key);
+                    if (resourceURL != null) return mirrorHttpURLConnectionWithETag(resourceURL, (HttpURLConnection) originalConn);
+                } catch (Exception ignored) {}
+            }
+
+            // Mojang Status
+            if (host.equals("status.mojang.com") && path.equals("/check")) {
+                if (Hooks.OFFLINE_MODE) {
+                    return Ygglib.FakeURLConnection(originalUrl, originalConn, 200, (
+                            "[{\"minecraft.net\":\"red\"},{\"login.minecraft.net\":\"red\"}," +
+                                    "{\"session.minecraft.net\":\"red\"},{\"account.mojang.com\":\"red\"}," +
+                                    "{\"auth.mojang.com\":\"red\"},{\"skins.minecraft.net\":\"red\"}," +
+                                    "{\"authserver.mojang.com\":\"red\"},{\"sessionserver.mojang.com\":\"red\"}," +
+                                    "{\"api.mojang.com\":\"red\"},{\"textures.minecraft.net\":\"red\"}," +
+                                    "{\"mojang.com\":\"red\"}]\n"
+                    ).getBytes("UTF-8"));
+                } else {
+                    return Ygglib.FakeURLConnection(originalUrl, originalConn, 200, (
+                            "[{\"minecraft.net\":\"green\"},{\"login.minecraft.net\":\"green\"}," +
+                                    "{\"session.minecraft.net\":\"green\"},{\"account.mojang.com\":\"green\"}," +
+                                    "{\"auth.mojang.com\":\"green\"},{\"skins.minecraft.net\":\"green\"}," +
+                                    "{\"authserver.mojang.com\":\"green\"},{\"sessionserver.mojang.com\":\"green\"}," +
+                                    "{\"api.mojang.com\":\"green\"},{\"textures.minecraft.net\":\"green\"}," +
+                                    "{\"mojang.com\":\"green\"}]\n"
+                    ).getBytes("UTF-8"));
+                }
             }
 
             // Misc
@@ -205,7 +339,7 @@ public class RequestInterceptor {
         return originalConn;
     }
 
-    public static HttpURLConnection mirrorHttpURLConnection(URL targetUrl, HttpURLConnection httpConn) throws IOException {
+    private static HttpURLConnection openMirroredConnection(URL targetUrl, HttpURLConnection httpConn) throws IOException {
         URLStreamHandler handler = Hooks.DEFAULT_HANDLERS.get(targetUrl.getProtocol());
         final HttpURLConnection targetConn = openWithParent(targetUrl, handler);
 
@@ -225,6 +359,17 @@ public class RequestInterceptor {
             }
         }
 
+        // Omniarchive rejects the Java user agent
+        String targetHost = targetUrl.getHost();
+        if (targetHost != null && targetHost.endsWith("omniarchive.uk")) {
+            targetConn.setRequestProperty("User-Agent", "Loki/" + LokiUtil.class.getPackage().getImplementationVersion());
+        }
+        return targetConn;
+    }
+
+    public static HttpURLConnection mirrorHttpURLConnection(URL targetUrl, HttpURLConnection httpConn) throws IOException {
+        final HttpURLConnection targetConn = openMirroredConnection(targetUrl, httpConn);
+
         // Mirror body if present
         if (httpConn.getDoOutput()) {
             targetConn.setDoOutput(true);
@@ -242,6 +387,81 @@ public class RequestInterceptor {
             }
         }
         return targetConn;
+    }
+
+    public static HttpURLConnection mirrorHttpURLConnectionWithETag(final URL targetUrl, HttpURLConnection httpConn) throws IOException {
+        final HttpURLConnection targetConn = openMirroredConnection(targetUrl, httpConn);
+
+        // Preload the response to compute an ETag
+        byte[] data;
+        try {
+            InputStream is = targetConn.getInputStream();
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            byte[] buf = new byte[8192];
+            int r;
+            while ((r = is.read(buf)) != -1) bos.write(buf, 0, r);
+            is.close();
+            data = bos.toByteArray();
+        } catch (IOException e) {
+            targetConn.disconnect();
+            throw e;
+        }
+        return byteServingConnection(data, targetUrl, targetConn);
+    }
+
+    // Construct fat JARs for applet launcher
+    private static HttpURLConnection mergedJarConnection(List<String> urls, HttpURLConnection httpConn) throws IOException {
+        ByteArrayOutputStream merged = new ByteArrayOutputStream();
+        ZipOutputStream zout = new ZipOutputStream(merged);
+        Set<String> seen = new HashSet<String>();
+        byte[] buf = new byte[8192];
+        for (String u : urls) {
+            ZipInputStream zin = new ZipInputStream(openMirroredConnection(new URL(u), httpConn).getInputStream());
+            try {
+                ZipEntry entry;
+                while ((entry = zin.getNextEntry()) != null) {
+                    String name = entry.getName();
+                    if (entry.isDirectory() || name.startsWith("META-INF/") || !seen.add(name)) continue;
+                    zout.putNextEntry(new ZipEntry(name));
+                    int r;
+                    while ((r = zin.read(buf)) != -1) zout.write(buf, 0, r);
+                    zout.closeEntry();
+                }
+            } finally {
+                zin.close();
+            }
+        }
+        zout.close();
+        return byteServingConnection(merged.toByteArray(), httpConn.getURL(), null);
+    }
+
+    // Serves a buffered byte[] as the connection body with a computed MD5 ETag
+    private static HttpURLConnection byteServingConnection(final byte[] data, URL url, final HttpURLConnection backing) {
+        return new HttpURLConnection(url) {
+            @Override public void connect() {}
+            @Override public InputStream getInputStream() { return new ByteArrayInputStream(data); }
+            @Override public String getHeaderField(String name) {
+                if ("ETag".equalsIgnoreCase(name)) return md5Etag(data);
+                return backing != null ? backing.getHeaderField(name) : null;
+            }
+            @Override public int getResponseCode() throws IOException {
+                return backing != null ? backing.getResponseCode() : 200;
+            }
+            @Override public void disconnect() { if (backing != null) backing.disconnect(); }
+            @Override public boolean usingProxy() { return backing != null && backing.usingProxy(); }
+        };
+    }
+
+    private static String md5Etag(byte[] data) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            BigInteger bi = new BigInteger(1, md.digest(data));
+            StringBuilder etag = new StringBuilder(bi.toString(16));
+            while (etag.length() < 32) etag.insert(0, "0");
+            return "\"" + etag + "\"";
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private static URLStreamHandler getSystemURLHandler(String protocol) throws Exception {

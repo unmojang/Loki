@@ -14,6 +14,8 @@ public class Loki {
     public static final Boolean enable_patchy =  Boolean.getBoolean("Loki.enable_patchy");
     public static final Boolean enable_snooper =  Boolean.getBoolean("Loki.enable_snooper");
     public static final Boolean enforce_secure_profile = Boolean.getBoolean("Loki.enforce_secure_profile");
+    public static final Boolean launcher_trigger_update = Boolean.getBoolean("Loki.launcher_trigger_update");
+    public static final String launcher_version = System.getProperty("Loki.launcher_version");
     public static final Boolean modded_capes = Boolean.getBoolean("Loki.modded_capes");
     public static final Boolean username_validation = Boolean.getBoolean("Loki.username_validation");
 
@@ -51,6 +53,22 @@ public class Loki {
         // Anti-features
         inst.addTransformer(new PatchyTransformer());
         inst.addTransformer(new PlayerAttributesTransformer());
+
+        // Applet Launcher
+        inst.addTransformer(new AppletLauncherLoginTransformer()); // Handle pre-Yggdrasil login flow
+        inst.addTransformer(new AppletLauncherNativesTransformer()); // Use natives from version manifest
+        inst.addTransformer(new AppletLauncherLoginFormTransformer()); // Disable fields & add Logout button for MS accounts
+
+        // 1.6 Launcher
+        inst.addTransformer(new OneSixLauncherLoginTransformer()); // Handle pre-Yggdrasil login flow
+        inst.addTransformer(new OneSixLauncherYggdrasilAuthTransformer()); // Handle MS account support on 1.1+
+        inst.addTransformer(new OneSixLauncherLoginFormTransformer()); // Disable login fields & add Logout for MS accounts
+        inst.addTransformer(new OneSixLauncherGameRunnerTransformer()); // Insert Loki into JVM args
+        inst.addTransformer(new OneSixLauncherLibraryTransformer()); // Fix 1.19+ natives handling
+        inst.addTransformer(new OneSixLauncherModernAssetsTransformer()); // Backport modern resource/asset system to older launcher versions
+        inst.addTransformer(new OneSixLauncherTelemetryTransformer()); // Disable launcher telemetry by default
+        inst.addTransformer(new OneSixLauncherUpdateNagTransformer()); // Hide the "old version of the launcher" banner
+        inst.addTransformer(new OneSixLauncherReleaseTypeTransformer()); // Version release type related fixes
 
         // Misc fixes
         inst.addTransformer(new BungeeCordTransformer()); // Patch BungeeCord's public key check and username filter

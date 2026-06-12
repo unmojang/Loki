@@ -49,6 +49,16 @@ Loki supports JVM arguments to enable or disable some behaviour.
   -DLoki.enforce_secure_profile=true
   ```
 
+- Force the applet launcher to re-download the game, for pre-Beta 1.3 applet launchers that lack a "Force Update" option
+  ```
+  -DLoki.launcher_trigger_update=true
+  ```
+
+- Choose which Minecraft version the applet launcher runs, required since applet launchers have no version picker
+  ```
+  -DLoki.launcher_version=1.5.2
+  ```
+
 - Re-enable modded capes with username-based lookups (OptiFine, Cloaks+, etc.)
   ```
   -DLoki.modded_capes=true

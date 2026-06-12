@@ -1,6 +1,6 @@
 package org.unmojang.loki;
 
-import org.unmojang.loki.hooks.Hooks;
+import org.unmojang.loki.hooks.*;
 import org.unmojang.loki.util.BouncyCastleUtils;
 import org.unmojang.loki.util.Json;
 
@@ -34,6 +34,7 @@ public class LokiUtil {
     private static final List<String> MISCONFIGURED_API_SERVERS = Arrays.asList(
             "skin.prinzeugen.net"
     );
+    public static URL LAUNCHER_VERSION_URL = null;
 
     private static void initManifestAttributes() {
         try {
@@ -366,6 +367,30 @@ public class LokiUtil {
         addRetransformTransformer(injector, inst);
     }
 
+    private static void pinHookClasses() {
+        ClassLoader loader = LokiUtil.class.getClassLoader();
+        JarFile jar = null;
+        try {
+            File agentJar = new File(LokiUtil.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+            jar = new JarFile(agentJar);
+            Enumeration<JarEntry> entries = jar.entries();
+            while (entries.hasMoreElements()) {
+                String name = entries.nextElement().getName();
+                if (!name.endsWith(".class")) continue;
+                if (!name.contains("/hooks/") && !name.contains("/util/")) continue;
+                String binaryName = name.substring(0, name.length() - ".class".length()).replace('/', '.');
+                try {
+                    Class.forName(binaryName, false, loader);
+                } catch (Throwable ignored) {}
+            }
+            Loki.log.debug("Pinned hook classes to the agent classloader");
+        } catch (Throwable t) {
+            Loki.log.error("Failed to pin hook classes", t);
+        } finally {
+            if (jar != null) try { jar.close(); } catch (IOException ignored) {}
+        }
+    }
+
     private static void appendHooksToClasspath(Instrumentation inst) {
         try {
             File agentJar = new File(LokiUtil.class.getProtectionDomain().getCodeSource().getLocation().toURI());
@@ -492,6 +517,13 @@ public class LokiUtil {
             checkConnectivity(sessionHost);
         }
 
+        if (Loki.launcher_version != null && !Hooks.OFFLINE_MODE) {
+            LAUNCHER_VERSION_URL = Ygglib.getVersionJarURL(Loki.launcher_version);
+            LauncherHooks.currentVersionId = Loki.launcher_version; // Provide version ID to LauncherHooks
+        }
+
+        // Pin the hook classes to this classloader before appendHooksToClasspath
+        pinHookClasses();
         appendHooksToClasspath(inst);
     }
 

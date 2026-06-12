@@ -1,6 +1,7 @@
 package org.unmojang.loki;
 
 import org.unmojang.loki.hooks.Hooks;
+import org.unmojang.loki.hooks.LauncherHooks;
 import org.unmojang.loki.util.Base64;
 import org.unmojang.loki.util.Json;
 
@@ -11,11 +12,15 @@ import java.awt.image.BufferedImage;
 import java.io.*;
 import java.net.*;
 import java.security.cert.Certificate;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
 @SuppressWarnings("HttpUrlsUsage")
 public class Ygglib {
+    private static volatile byte[] reclassifiedManifestCache;
+    private static final String[] LEGACY_OS_NAMES = {"windows", "linux", "osx"};
+
     public static String readStream(InputStream in) throws IOException {
         BufferedReader reader = new BufferedReader(new InputStreamReader(in, "UTF-8"));
         StringBuilder sb = new StringBuilder();
@@ -304,6 +309,7 @@ public class Ygglib {
         return FakeURLConnection(originalUrl, originalConn, 200, "NO".getBytes("UTF-8"));
     }
 
+    @SuppressWarnings("ExtractMethodRecommender")
     public static URL getYggdrasilUrl(URL originalUrl, URLConnection originalConn) throws MalformedURLException {
         String replacement = RequestInterceptor.YGGDRASIL_MAP.get(originalUrl.getHost());
         if (originalConn instanceof HttpsURLConnection && replacement.startsWith("http://")) {
@@ -323,6 +329,252 @@ public class Ygglib {
         if (originalUrl.getQuery() != null) finalUrlStr += "?" + originalUrl.getQuery();
 
         return new URL(finalUrlStr);
+    }
+
+    private static Json.JSONArray getManifestVersions() throws IOException {
+        return LauncherHooks.getManifestRoot().getJSONArray("versions");
+    }
+
+    // Drop BetterJSONs lwjgl3 ports and construct the release type from the id
+    public static byte[] getReclassifiedManifest() throws IOException {
+        byte[] cached = reclassifiedManifestCache;
+        if (cached != null) return cached;
+        synchronized (Ygglib.class) {
+            if (reclassifiedManifestCache != null) return reclassifiedManifestCache;
+            Json.JSONObject root = new Json.JSONObject(LauncherHooks.getManifestRoot().toString());
+            Json.JSONArray versions = root.optJSONArray("versions");
+            if (versions != null) {
+                Json.JSONArray kept = new Json.JSONArray();
+                for (int i = 0; i < versions.length(); i++) {
+                    Json.JSONObject version = versions.getJSONObject(i);
+                    if (version.optString("id", "").endsWith("-lwjgl3")) continue;
+                    version.put("type", classifyType(version.optString("id", ""), version.optString("type", "release")));
+                    kept.put(version);
+                }
+                root.put("versions", kept);
+            }
+            reclassifiedManifestCache = root.toString().getBytes("UTF-8");
+            return reclassifiedManifestCache;
+        }
+    }
+
+    private static String classifyType(String id, String existing) {
+        if (id.startsWith("b1.")) return "old_beta";
+        if (id.startsWith("a1.") || id.startsWith("a0.") || id.startsWith("c0.")
+                || id.startsWith("inf-") || id.startsWith("in-") || id.startsWith("rd-") || id.startsWith("pc-")) {
+            return "old_alpha";
+        }
+        if ("april-fools".equals(existing) || "special".equals(existing)) return "snapshot";
+        String lower = id.toLowerCase();
+        if (lower.startsWith("combat") || lower.contains("shareware") || lower.contains("-unobf")
+                || id.matches("\\d\\dw\\d\\d.*") || lower.contains("-pre") || lower.contains("-rc")
+                || lower.matches(".*-(snap|exp)\\d.*")) {
+            return "snapshot";
+        }
+        return existing;
+    }
+
+    public static URL getVersionJsonURL(String version) {
+        try {
+            Json.JSONArray versions = getManifestVersions();
+
+            for (int i = 0; i < versions.length(); i++) {
+                Json.JSONObject entry = versions.getJSONObject(i);
+
+                if (version.equals(entry.getString("id"))) {
+                    return new URL(entry.getString("url"));
+                }
+            }
+            Loki.log.error("Minecraft version not found in manifest: " + version);
+        } catch (Exception e) {
+            Loki.log.error("Failed to resolve version JSON URL for " + version, e);
+        }
+        return null;
+    }
+
+    public static URL getVersionJarURL(String version) {
+        try {
+            URL versionJsonURL = getVersionJsonURL(version);
+            if (versionJsonURL == null) return null;
+
+            Json.JSONObject versionJson = new Json.JSONObject(Ygglib.readStream(versionJsonURL.openConnection().getInputStream()));
+            URL versionURL = new URL(versionJson.getJSONObject("downloads").getJSONObject("client").getString("url"));
+            Loki.log.debug("Grabbed Minecraft " + version + " URL: " + versionURL);
+            return versionURL;
+        } catch (Exception e) {
+            Loki.log.error("Failed to resolve client jar URL for " + version, e);
+        }
+        return null;
+    }
+
+    private static void appendResourceContents(StringBuilder xml, Json.JSONObject objects) {
+        if (objects == null) return;
+        java.util.Iterator<String> keys = objects.keys();
+        while (keys.hasNext()) {
+            String key = keys.next();
+            if (key.indexOf('/') < 0) continue; // skip non-resource files
+            Json.JSONObject object = objects.getJSONObject(key);
+            // In-game ThreadDownloadResources reads only <Key> and <Size>, skip <ETag>
+            String escapedKey = key.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+            xml.append("<Contents><Key>").append(escapedKey).append("</Key>")
+                    .append("<Size>").append(object.getLong("size")).append("</Size></Contents>");
+        }
+    }
+
+    // Serve pre-1.6 XML resources list
+    public static byte[] getLegacyResourcesListing() {
+        try {
+            Json.JSONObject index = LauncherHooks.getAssetIndex();
+            StringBuilder xml = new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\"?><ListBucketResult>");
+            appendResourceContents(xml, index.optJSONObject("objects"));
+            appendResourceContents(xml, index.optJSONObject("custom"));
+            xml.append("</ListBucketResult>");
+            return xml.toString().getBytes("UTF-8");
+        } catch (Exception e) {
+            Loki.log.error("Failed to build legacy resources listing", e);
+            return "<?xml version=\"1.0\" encoding=\"UTF-8\"?><ListBucketResult></ListBucketResult>".getBytes();
+        }
+    }
+
+    // Pre-a1.1.2_01 plaintext resources list
+    public static byte[] getLegacyResourcesListingPlain() {
+        try {
+            Json.JSONObject index = LauncherHooks.getAssetIndex();
+            StringBuilder sb = new StringBuilder();
+            appendResourceLines(sb, index.optJSONObject("objects"));
+            appendResourceLines(sb, index.optJSONObject("custom"));
+            return sb.toString().getBytes("UTF-8");
+        } catch (Exception e) {
+            Loki.log.error("Failed to build legacy resources listing", e);
+            return new byte[0];
+        }
+    }
+
+    private static void appendResourceLines(StringBuilder sb, Json.JSONObject objects) {
+        if (objects == null) return;
+        java.util.Iterator<String> keys = objects.keys();
+        while (keys.hasNext()) {
+            String key = keys.next();
+            if (key.indexOf('/') < 0) continue; // skip non-resource files
+            Json.JSONObject object = objects.getJSONObject(key);
+            sb.append(key).append(',').append(object.getLong("size")).append(",0\n");
+        }
+    }
+
+    public static URL getLegacyResourceURL(String key) {
+        try {
+            Json.JSONObject index = LauncherHooks.getAssetIndex();
+            Json.JSONObject object = null;
+            Json.JSONObject objects = index.optJSONObject("objects");
+            Json.JSONObject custom = index.optJSONObject("custom");
+            if (objects != null && objects.has(key)) object = objects.getJSONObject(key);
+            else if (custom != null && custom.has(key)) object = custom.getJSONObject(key);
+            if (object == null) return null;
+
+            String url = object.optString("url", "");
+            if (url.length() != 0) return new URL(url);
+
+            String hash = object.getString("hash");
+            return new URL("https://resources.download.minecraft.net/" + hash.substring(0, 2) + "/" + hash);
+        } catch (Exception e) {
+            Loki.log.error("Failed to resolve legacy resource " + key, e);
+            return null;
+        }
+    }
+
+    public static String rewriteVersionJsonForLegacyLauncher(String versionJson) {
+        try {
+            Json.JSONObject root = new Json.JSONObject(versionJson);
+            root.put("minimumLauncherVersion", 0); // remove restriction
+            // keep installed alphas/betas consistent with the manifest
+            root.put("type", classifyType(root.optString("id", ""), root.optString("type", "release")));
+            LauncherHooks.resolveVersionData(root);
+
+            // Construct minecraftArguments if necessary
+            if (!root.has("minecraftArguments")) {
+                Json.JSONObject arguments = root.optJSONObject("arguments");
+                Json.JSONArray game = arguments != null ? arguments.optJSONArray("game") : null;
+                if (game != null) {
+                    StringBuilder sb = new StringBuilder();
+                    for (int i = 0; i < game.length(); i++) {
+                        Object token = game.get(i);
+                        if (token instanceof String) {
+                            if (sb.length() > 0) sb.append(" ");
+                            sb.append((String) token);
+                        }
+                    }
+                    root.put("minecraftArguments", sb.toString());
+                }
+            }
+
+            Json.JSONArray libraries = root.optJSONArray("libraries");
+            if (libraries != null) {
+                for (int i = 0; i < libraries.length(); i++) {
+                    Json.JSONObject library = libraries.getJSONObject(i);
+                    stripUnsupportedNatives(library);
+                    Json.JSONArray rules = library.optJSONArray("rules");
+                    if (rules == null) continue;
+
+                    Json.JSONArray allowed = new Json.JSONArray();
+                    for (String os : LEGACY_OS_NAMES) {
+                        if (rulesAllowOnOS(rules, os)) allowed.put(os);
+                    }
+
+                    if (allowed.length() < LEGACY_OS_NAMES.length) {
+                        library.put("os", allowed);
+                    }
+                }
+            }
+
+            String arch = System.getProperty("os.arch", "").contains("64") ? "64" : "32";
+            return root.toString().replace("${arch}", arch);
+        } catch (Exception e) {
+            Loki.log.error("Failed to rewrite version JSON", e);
+            return versionJson;
+        }
+    }
+
+    private static boolean rulesAllowOnOS(Json.JSONArray rules, String osName) {
+        String lastAction = "disallow";
+        for (int i = 0; i < rules.length(); i++) {
+            Json.JSONObject rule = rules.getJSONObject(i);
+            Json.JSONObject os = rule.optJSONObject("os");
+            if (os != null) {
+                String ruleOs = os.optString("name", "");
+                if (ruleOs.length() != 0 && !ruleOs.equals(osName)) continue;
+            }
+            lastAction = rule.optString("action", "allow");
+        }
+        return "allow".equals(lastAction);
+    }
+
+    public static String stripUnsupportedNatives(String versionJson) {
+        try {
+            Json.JSONObject root = new Json.JSONObject(versionJson);
+            root.put("type", classifyType(root.optString("id", ""), root.optString("type", "release")));
+            Json.JSONArray libraries = root.optJSONArray("libraries");
+            if (libraries != null) {
+                for (int i = 0; i < libraries.length(); i++) {
+                    stripUnsupportedNatives(libraries.getJSONObject(i));
+                }
+            }
+            return root.toString();
+        } catch (Exception e) {
+            Loki.log.error("Failed to strip unsupported natives", e);
+            return versionJson;
+        }
+    }
+
+    private static void stripUnsupportedNatives(Json.JSONObject library) {
+        Json.JSONObject natives = library.optJSONObject("natives");
+        if (natives == null) return;
+        java.util.List<String> remove = new java.util.ArrayList<String>();
+        java.util.Iterator<String> keys = natives.keys();
+        while (keys.hasNext()) {
+            String key = keys.next();
+            if (!Arrays.asList(LEGACY_OS_NAMES).contains(key)) remove.add(key);
+        }
+        for (String key : remove) natives.remove(key);
     }
 
     public static URLConnection getAshcon(URL originalUrl, URLConnection originalConn, String username) throws UnknownHostException {

@@ -6,7 +6,6 @@ import org.unmojang.loki.util.logger.NilLogger;
 import sun.misc.Unsafe;
 
 import java.io.*;
-import java.lang.management.ManagementFactory;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -14,22 +13,19 @@ import java.net.*;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
-import java.util.Enumeration;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 @SuppressWarnings({"unused", "CallToPrintStackTrace"})
 public class Hooks {
-    public static final Map<String, URLStreamHandler> DEFAULT_HANDLERS = new ConcurrentHashMap<String, URLStreamHandler>();
-    private static final NilLogger log = NilLogger.get("Loki");
     public static boolean OFFLINE_MODE = false;
+    public static final Map<String, URLStreamHandler> DEFAULT_HANDLERS = new ConcurrentHashMap<String, URLStreamHandler>();
+
+    private static final NilLogger log = NilLogger.get("Loki");
     private static final ConcurrentHashMap<String, String> nameToUUIDCache = new ConcurrentHashMap<String, String>();
     private static final ConcurrentHashMap<String, String[]> uuidToTexturesCache = new ConcurrentHashMap<String, String[]>();
 
-    private static String readStream(InputStream in) throws IOException {
+    public static String readStream(InputStream in) throws IOException {
         BufferedReader reader = new BufferedReader(new InputStreamReader(in, "UTF-8"));
         StringBuilder sb = new StringBuilder();
         String line;
@@ -243,28 +239,7 @@ public class Hooks {
     }
 
     public static void injectMCOSELanServerJvmArgs(List<String> command) {
-        try {
-            for (String arg : ManagementFactory.getRuntimeMXBean().getInputArguments()) {
-                if (arg.startsWith("-javaagent:")) {
-                    log.debug("Appending agent to LAN server: " + arg);
-                    command.add(arg);
-                }
-            }
-            Properties props = System.getProperties();
-            Enumeration<?> names = props.propertyNames();
-            while (names.hasMoreElements()) {
-                String key = (String) names.nextElement();
-                if (key.startsWith("Loki.") || key.startsWith("minecraft.api.")) {
-                    String value = props.getProperty(key);
-                    if (value == null) continue;
-                    String jvmArg = "-D" + key + "=" + value;
-                    log.debug("Appending JVM argument to LAN server: " + jvmArg);
-                    command.add(jvmArg);
-                }
-            }
-        } catch (Throwable t) {
-            log.error("Failed to inject LAN server JVM args!", t);
-        }
+        command.addAll(Arrays.asList(LauncherHooks.getLokiJVMArgs()));
     }
 
     // TODO always keep in sync with Ygglib.getUUID

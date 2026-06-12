@@ -50,24 +50,7 @@ public class AllowedDomainTransformer implements ClassFileTransformer {
 
             if (!changed) return null;
 
-            ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES) {
-                @Override
-                protected String getCommonSuperClass(String type1, String type2) {
-                    try {
-                        Class<?> c1 = Class.forName(type1.replace('/', '.'), false, loader);
-                        Class<?> c2 = Class.forName(type2.replace('/', '.'), false, loader);
-                        if (c1.isAssignableFrom(c2)) return type1;
-                        if (c2.isAssignableFrom(c1)) return type2;
-                        if (c1.isInterface() || c2.isInterface()) return "java/lang/Object";
-                        do {
-                            c1 = c1.getSuperclass();
-                        } while (!c1.isAssignableFrom(c2));
-                        return c1.getName().replace('.', '/');
-                    } catch (ClassNotFoundException e) {
-                        return "java/lang/Object"; // fallback
-                    }
-                }
-            };
+            ClassWriter cw = new LoaderAwareClassWriter(ClassWriter.COMPUTE_FRAMES, loader);
             cn.accept(cw);
             return cw.toByteArray();
 
