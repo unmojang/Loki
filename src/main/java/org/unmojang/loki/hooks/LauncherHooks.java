@@ -20,6 +20,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 @SuppressWarnings({"unused", "CallToPrintStackTrace"})
 public class LauncherHooks {
+    private static final File STARTUP_DIR = new File(System.getProperty("user.dir"));
     public static final String VERSION_MANIFEST_URL = "https://mcphackers.org/BetterJSONs/version_manifest_v2.json";
     public static final Map<String, String> libraryUrlMap = new ConcurrentHashMap<String, String>();
 
@@ -40,7 +41,19 @@ public class LauncherHooks {
             List<String> args = new ArrayList<String>();
 
             for (String arg : ManagementFactory.getRuntimeMXBean().getInputArguments()) {
-                if (arg != null && arg.startsWith("-javaagent:")) args.add(arg);
+                if (arg != null && arg.startsWith("-javaagent:")) {
+                    String spec = arg.substring("-javaagent:".length());
+                    int eq = spec.indexOf('=');
+                    String path = (eq >= 0) ? spec.substring(0, eq) : spec;
+                    String opts = (eq >= 0) ? spec.substring(eq) : "";
+
+                    File agentFile = new File(path);
+                    if (!agentFile.isAbsolute()) {
+                        agentFile = new File(STARTUP_DIR, path);
+                    }
+
+                    args.add("-javaagent:" + agentFile.getAbsolutePath() + opts);
+                }
             }
 
             Properties props = System.getProperties();
