@@ -188,6 +188,9 @@ public class LokiUtil {
                     }
             }, new SecureRandom());
             HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
+            // Necessary for Java 27+ HttpClient
+            Method setDefault = SSLContext.class.getMethod("setDefault", SSLContext.class);
+            setDefault.invoke(null, sc);
 
             HttpsURLConnection.setDefaultHostnameVerifier(new HostnameVerifier() {
                 public boolean verify(String hostname, SSLSession session) {
