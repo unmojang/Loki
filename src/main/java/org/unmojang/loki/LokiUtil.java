@@ -15,11 +15,7 @@ import java.security.CodeSource;
 import java.security.ProtectionDomain;
 import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Enumeration;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.jar.*;
 
@@ -35,6 +31,7 @@ public class LokiUtil {
             "skin.prinzeugen.net"
     );
     public static URL LAUNCHER_VERSION_URL = null;
+    public static final Map<String, String> ALI_HOSTS = new HashMap<String, String>();
 
     private static void initManifestAttributes() {
         try {
@@ -258,7 +255,14 @@ public class LokiUtil {
             Json.JSONObject json = new Json.JSONObject(jsonText);
 
             Json.JSONObject meta = json.optJSONObject("meta");
-            if (meta != null) SERVER_NAME = meta.optString("serverName", "");
+            if (meta != null) {
+                SERVER_NAME = meta.optString("serverName", "");
+                // GeyserMC's Floodgate Global Linking
+                // https://github.com/yushijinhun/authlib-injector/pull/295
+                if (meta.optBoolean("feature.floodgate_global_linking", false)) {
+                    ALI_HOSTS.put("api.geysermc.org", authlibInjectorApiLocation + "/geyser");
+                }
+            }
 
             Json.JSONArray skinDomainsArr = json.optJSONArray("skinDomains");
             if (skinDomainsArr != null && !skinDomainsArr.isEmpty() && SERVER_TEXTURE_DOMAINS.isEmpty()) {
@@ -283,7 +287,8 @@ public class LokiUtil {
         System.setProperty("minecraft.api.profiles.host", authlibInjectorApiLocation + "/api");
         System.setProperty("minecraft.api.session.host", authlibInjectorApiLocation + "/sessionserver");
         System.setProperty("minecraft.api.services.host", authlibInjectorApiLocation + "/minecraftservices");
-        System.setProperty("minecraft.api.signaling.host", authlibInjectorApiLocation + "/signaling");
+        ALI_HOSTS.put("signaling-afd.franchise.minecraft-services.net", authlibInjectorApiLocation + "/signaling");
+
         // Velocity
         System.setProperty("mojang.sessionserver", authlibInjectorApiLocation + "/sessionserver/session/minecraft/hasJoined");
 

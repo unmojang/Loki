@@ -32,14 +32,18 @@ public class RequestInterceptor {
         String authHost = System.getProperty("minecraft.api.auth.host");
         String sessionHost = System.getProperty("minecraft.api.session.host");
         String servicesHost = System.getProperty("minecraft.api.services.host");
-        String signalingHost = System.getProperty("minecraft.api.signaling.host");
 
         Map<String, String> tmp = new HashMap<String, String>();
         tmp.put("authserver.mojang.com", authHost != null ? authHost : LokiUtil.MANIFEST_ATTRS.get("AuthHost"));
         tmp.put("api.mojang.com", accountHost != null ? accountHost : LokiUtil.MANIFEST_ATTRS.get("AccountHost"));
         tmp.put("sessionserver.mojang.com", sessionHost != null ? sessionHost : LokiUtil.MANIFEST_ATTRS.get("SessionHost"));
         tmp.put("api.minecraftservices.com", servicesHost != null ? servicesHost : LokiUtil.MANIFEST_ATTRS.get("ServicesHost"));
-        tmp.put("signaling-afd.franchise.minecraft-services.net", signalingHost != null ? signalingHost : LokiUtil.MANIFEST_ATTRS.get("SignalingHost"));
+
+        // authlib-injector specific endpoints
+        for (Map.Entry<String, String> entry : LokiUtil.ALI_HOSTS.entrySet()) {
+            if (entry.getValue() != null) tmp.put(entry.getKey(), entry.getValue());
+        }
+
         YGGDRASIL_MAP = Collections.unmodifiableMap(tmp);
         IS_MOJANG = YGGDRASIL_MAP.get("api.mojang.com").equals("https://api.mojang.com")
                 && YGGDRASIL_MAP.get("sessionserver.mojang.com").equals("https://sessionserver.mojang.com");

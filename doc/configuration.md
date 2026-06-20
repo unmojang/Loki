@@ -79,7 +79,6 @@ authHost=https://authserver.mojang.com
 accountHost=https://api.mojang.com
 sessionHost=https://sessionserver.mojang.com
 servicesHost=https://api.minecraftservices.com
-signalingHost=https://signaling-afd.franchise.minecraft-services.net
 ```
 
 You can also override these properties within the build command:
@@ -97,7 +96,6 @@ AuthHost: https://drasl.unmojang.org/auth
 AccountHost: https://drasl.unmojang.org/account
 SessionHost: https://drasl.unmojang.org/session
 ServicesHost: https://drasl.unmojang.org/services
-SignalingHost: https://signaling-afd.franchise.minecraft-services.net
 ```
 
 [^1]: Username-based profile lookups allow for displaying textures on offline mode servers.
