@@ -86,7 +86,7 @@ public class FetchTexturesByPlayerNameTransformer implements ClassFileTransforme
 
             cn.methods.addAll(newMethods);
 
-            ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
+            ClassWriter cw = new LoaderAwareClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS, loader);
             cn.accept(cw);
             return cw.toByteArray();
 

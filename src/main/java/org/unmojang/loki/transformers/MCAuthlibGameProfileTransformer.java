@@ -67,7 +67,7 @@ public class MCAuthlibGameProfileTransformer implements ClassFileTransformer {
 
             if (!changed) return null;
 
-            ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
+            ClassWriter cw = new LoaderAwareClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS, loader);
             cn.accept(cw);
             return cw.toByteArray();
 
