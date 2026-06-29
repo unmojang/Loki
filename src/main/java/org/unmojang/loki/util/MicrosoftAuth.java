@@ -59,7 +59,7 @@ public final class MicrosoftAuth {
             // Poll on a worker while the modal prompt pumps the event queue, so EDT-driven launchers (Alpha) don't freeze.
             final MicrosoftSignInDialog.Handle prompt = MicrosoftSignInDialog.create(verificationUri, browseUri, userCode);
             final String[][] tokens = new String[1][];
-            Thread poller = new Thread("MSA-poll") {
+            Thread poller = new Thread("Loki-MSA-Poll") {
                 public void run() {
                     try {
                         tokens[0] = pollForToken(deviceCode, pollingInterval, deadline, prompt);

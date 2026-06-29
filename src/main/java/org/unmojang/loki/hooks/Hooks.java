@@ -2,6 +2,7 @@ package org.unmojang.loki.hooks;
 
 import org.unmojang.loki.util.Base64;
 import org.unmojang.loki.util.Json;
+import org.unmojang.loki.util.UuidBatcher;
 import org.unmojang.loki.util.logger.NilLogger;
 import sun.misc.Unsafe;
 
@@ -15,6 +16,10 @@ import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @SuppressWarnings({"unused", "CallToPrintStackTrace"})
 public class Hooks {
@@ -22,8 +27,63 @@ public class Hooks {
     public static final Map<String, URLStreamHandler> DEFAULT_HANDLERS = new ConcurrentHashMap<String, URLStreamHandler>();
 
     private static final NilLogger log = NilLogger.get("Loki");
-    private static final ConcurrentHashMap<String, String> nameToUUIDCache = new ConcurrentHashMap<String, String>();
-    private static final ConcurrentHashMap<String, String[]> uuidToTexturesCache = new ConcurrentHashMap<String, String[]>();
+    private static final int UUID_CACHE_MAX = 256;
+    private static final Map<String, String> nameToUUIDCache = Collections.synchronizedMap(
+            new LinkedHashMap<String, String>(16, 0.75f, true) {
+                protected boolean removeEldestEntry(Map.Entry<String, String> eldest) {
+                    return size() > UUID_CACHE_MAX;
+                }
+            });
+    private static final ConcurrentHashMap<String, TextureEntry> uuidToTexturesCache = new ConcurrentHashMap<String, TextureEntry>();
+    private static final long TEXTURE_CACHE_TTL_MS = 300000L; // 5 minutes
+    private static volatile long textureRateLimitUntil = 0L;
+
+    private static final ConcurrentHashMap<String, Long> negativeLookupCache = new ConcurrentHashMap<String, Long>();
+    private static final long NEGATIVE_CACHE_TTL_MS = 60000L;
+    private static final ConcurrentHashMap<String, Boolean> pendingLookups = new ConcurrentHashMap<String, Boolean>();
+    private static final ExecutorService TEXTURE_FETCH_POOL = Executors.newFixedThreadPool(4, new ThreadFactory() {
+        private final AtomicInteger threadId = new AtomicInteger(1);
+        public Thread newThread(Runnable r) {
+            Thread t = new Thread(r, "Loki-TextureFetch-" + threadId.getAndIncrement());
+            t.setDaemon(true);
+            return t;
+        }
+    });
+
+    private static final UuidBatcher uuidBatcher = new UuidBatcher("Loki-Uuid", new UuidBatcher.Resolver() {
+        public Map<String, String> batchLookup(List<String> usernames) throws Exception {
+            return batchLookupUUIDs(usernames);
+        }
+        public String singleLookup(String username) throws Exception {
+            URL url = new URL(System.getProperty("minecraft.api.account.host", "https://api.mojang.com")
+                    + "/users/profiles/minecraft/" + URLEncoder.encode(username, "UTF-8"));
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(5000);
+
+            int code = conn.getResponseCode();
+            if (code == 200) {
+                return new Json.JSONObject(readStream(conn.getInputStream())).getString("id");
+            }
+            if (code == 429) throw UuidBatcher.rateLimited(conn);
+
+            url = new URL(System.getProperty("minecraft.api.account.host", "https://api.mojang.com")
+                    + "/minecraft/profile/lookup/name/" + URLEncoder.encode(username, "UTF-8"));
+            conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(5000);
+
+            code = conn.getResponseCode();
+            if (code == 200) {
+                return new Json.JSONObject(readStream(conn.getInputStream())).getString("id");
+            }
+            if (code == 429) throw UuidBatcher.rateLimited(conn);
+
+            return null;
+        }
+    });
 
     public static String readStream(InputStream in) throws IOException {
         BufferedReader reader = new BufferedReader(new InputStreamReader(in, "UTF-8"));
@@ -242,54 +302,61 @@ public class Hooks {
         command.addAll(Arrays.asList(LauncherHooks.getLokiJVMArgs()));
     }
 
-    // TODO always keep in sync with Ygglib.getUUID
-    private static String getUUID(String username) throws Exception {
+    private static Map<String, String> batchLookupUUIDs(List<String> usernames) throws Exception {
         URL url = new URL(System.getProperty("minecraft.api.account.host", "https://api.mojang.com")
-                + "/users/profiles/minecraft/" + URLEncoder.encode(username, "UTF-8"));
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-        conn.setRequestMethod("GET");
-        conn.setConnectTimeout(5000);
-        conn.setReadTimeout(5000);
-
-        if (conn.getResponseCode() == 200) {
-            Json.JSONObject obj = new Json.JSONObject(readStream(conn.getInputStream()));
-            return obj.getString("id");
-        }
-
-        // route not implemented? let's try the other one...
-        url = new URL(System.getProperty("minecraft.api.account.host", "https://api.mojang.com")
-                + "/minecraft/profile/lookup/name/" + URLEncoder.encode(username, "UTF-8"));
-        conn = (HttpURLConnection) url.openConnection();
-        conn.setRequestMethod("GET");
-        conn.setConnectTimeout(5000);
-        conn.setReadTimeout(5000);
-
-        if (conn.getResponseCode() == 200) {
-            Json.JSONObject obj = new Json.JSONObject(readStream(conn.getInputStream()));
-            return obj.getString("id");
-        }
-
-        // prehistoric version of BlessingSkin only implements this route
-        url = new URL(System.getProperty("minecraft.api.account.host", "https://api.mojang.com")
                 + "/profiles/minecraft");
-        conn = (HttpURLConnection) url.openConnection();
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("POST");
         conn.setRequestProperty("Content-Type", "application/json");
         conn.setRequestProperty("Accept", "application/json");
         conn.setDoOutput(true);
         conn.setConnectTimeout(5000);
         conn.setReadTimeout(5000);
-        byte[] body = ("[\"" + username + "\"]").getBytes("UTF-8");
-        conn.getOutputStream().write(body);
+
+        StringBuilder body = new StringBuilder("[");
+        for (int i = 0; i < usernames.size(); i++) {
+            if (i > 0) body.append(",");
+            body.append("\"").append(usernames.get(i)).append("\"");
+        }
+        body.append("]");
+        conn.getOutputStream().write(body.toString().getBytes("UTF-8"));
         conn.getOutputStream().close();
 
-        if (conn.getResponseCode() == 200) {
-            String jsonText = readStream(conn.getInputStream());
-            Json.JSONArray arr = new Json.JSONArray(jsonText);
-            return arr.getJSONObject(0).getString("id");
+        int code = conn.getResponseCode();
+        if (code != 200) {
+            if (code == 429) throw UuidBatcher.rateLimited(conn);
+            if (code == 404 || code == 405 || code == 501) {
+                throw new UuidBatcher.EndpointUnavailableException("Batch UUID endpoint returned " + code);
+            }
+            throw new IOException("Batch UUID endpoint returned " + code);
         }
 
-        throw new IOException("No UUID lookup route succeeded for username: " + username);
+        Json.JSONArray arr = new Json.JSONArray(readStream(conn.getInputStream()));
+        Map<String, String> result = new HashMap<String, String>();
+        for (int i = 0; i < arr.length(); i++) {
+            Json.JSONObject obj = arr.getJSONObject(i);
+            result.put(obj.getString("name").toLowerCase(Locale.ENGLISH), obj.getString("id"));
+        }
+        return result;
+    }
+
+    private static final class TextureEntry {
+        final String[] data;
+        final long expiry;
+        TextureEntry(String[] data, long expiry) {
+            this.data = data;
+            this.expiry = expiry;
+        }
+    }
+
+    private static String[] cachedTextures(String uuid) {
+        TextureEntry entry = uuidToTexturesCache.get(uuid);
+        if (entry == null) return null;
+        if (System.currentTimeMillis() >= entry.expiry) {
+            uuidToTexturesCache.remove(uuid, entry);
+            return null;
+        }
+        return entry.data;
     }
 
     private static String[] fetchTexturesData(String uuid) throws Exception {
@@ -299,12 +366,69 @@ public class Hooks {
         conn.setRequestMethod("GET");
         conn.setConnectTimeout(5000);
         conn.setReadTimeout(5000);
+        if (conn.getResponseCode() == 429) throw UuidBatcher.rateLimited(conn);
         if (conn.getResponseCode() != 200) return null;
         Json.JSONArray props = new Json.JSONObject(readStream(conn.getInputStream())).getJSONArray("properties");
         for (int i = 0; i < props.length(); i++) {
             Json.JSONObject prop = props.getJSONObject(i);
             if ("textures".equals(prop.optString("name", ""))) {
                 return new String[]{ prop.getString("value"), prop.optString("signature", null) };
+            }
+        }
+        return null;
+    }
+
+    private static void submitTextureFetch(final String username, final String uuid) {
+        TEXTURE_FETCH_POOL.execute(new Runnable() {
+            public void run() {
+                try {
+                    if (cachedTextures(uuid) == null) {
+                        String[] texturesData = fetchTexturesData(uuid);
+                        if (texturesData == null) {
+                            negativeLookupCache.put(username, System.currentTimeMillis() + NEGATIVE_CACHE_TTL_MS);
+                            return;
+                        }
+                        uuidToTexturesCache.put(uuid, new TextureEntry(texturesData, System.currentTimeMillis() + TEXTURE_CACHE_TTL_MS));
+                        log.info("Successfully fetched missing textures for player " + username);
+                    }
+                } catch (UuidBatcher.RateLimitedException e) {
+                    textureRateLimitUntil = System.currentTimeMillis() + e.retryAfterMs;
+                } catch (Exception e) {
+                    negativeLookupCache.put(username, System.currentTimeMillis() + NEGATIVE_CACHE_TTL_MS);
+                } finally {
+                    pendingLookups.remove(username);
+                }
+            }
+        });
+    }
+
+    private static String[] resolveTextures(final String username) {
+        String uuid = nameToUUIDCache.get(username);
+        if (uuid != null) {
+            String[] cached = cachedTextures(uuid);
+            if (cached != null) return cached;
+        }
+
+        Long expiry = negativeLookupCache.get(username);
+        if (expiry != null && System.currentTimeMillis() < expiry) return null;
+
+        if (System.currentTimeMillis() < textureRateLimitUntil) return null; // back off after a 429
+
+        if (pendingLookups.putIfAbsent(username, Boolean.TRUE) == null) {
+            if (uuid != null) {
+                submitTextureFetch(username, uuid);
+            } else {
+                uuidBatcher.resolve(username, new UuidBatcher.Callback() {
+                    public void onResolved(String name, String resolvedUuid) {
+                        if (resolvedUuid == null) {
+                            negativeLookupCache.put(name, System.currentTimeMillis() + NEGATIVE_CACHE_TTL_MS);
+                            pendingLookups.remove(name);
+                            return;
+                        }
+                        nameToUUIDCache.put(name, resolvedUuid);
+                        submitTextureFetch(name, resolvedUuid);
+                    }
+                });
             }
         }
         return null;
@@ -329,23 +453,9 @@ public class Hooks {
             }
             if (username == null || username.length() == 0) return null;
 
-            String uuid = nameToUUIDCache.get(username);
-            if (uuid == null) {
-                try { uuid = getUUID(username); } catch (Exception e) { return null; }
-                if (uuid == null) return null;
-                nameToUUIDCache.putIfAbsent(username, uuid);
-                uuid = nameToUUIDCache.get(username);
-            }
+            String[] texturesData = resolveTextures(username);
+            if (texturesData == null) return null;
 
-            String[] texturesData = uuidToTexturesCache.get(uuid);
-            if (texturesData == null) {
-                try { texturesData = fetchTexturesData(uuid); } catch (Exception e) { return null; }
-                if (texturesData == null) return null;
-                uuidToTexturesCache.putIfAbsent(uuid, texturesData);
-                texturesData = uuidToTexturesCache.get(uuid);
-            }
-
-            log.info("Successfully fetched missing textures for player " + username);
             Class<?> propertyClass = profile.getClass().getClassLoader()
                     .loadClass("com.mojang.authlib.properties.Property");
             Constructor<?> ctor = propertyClass.getConstructor(String.class, String.class, String.class);

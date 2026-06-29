@@ -4,6 +4,7 @@ import org.unmojang.loki.hooks.Hooks;
 import org.unmojang.loki.hooks.LauncherHooks;
 import org.unmojang.loki.util.Base64;
 import org.unmojang.loki.util.Json;
+import org.unmojang.loki.util.UuidBatcher;
 
 import javax.imageio.ImageIO;
 import javax.net.ssl.HttpsURLConnection;
@@ -13,13 +14,26 @@ import java.io.*;
 import java.net.*;
 import java.security.cert.Certificate;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 @SuppressWarnings("HttpUrlsUsage")
 public class Ygglib {
     private static volatile byte[] reclassifiedManifestCache;
     private static final String[] LEGACY_OS_NAMES = {"windows", "linux", "osx"};
+    private static final int UUID_CACHE_MAX = 256;
+    private static final int TEXTURE_RATE_LIMIT_RETRIES = 3;
+    private static final long MAX_SYNC_RATE_LIMIT_WAIT_MS = 10000L;
+    private static final Map<String, String> nameToUUIDCache = Collections.synchronizedMap(
+            new LinkedHashMap<String, String>(16, 0.75f, true) {
+                protected boolean removeEldestEntry(Map.Entry<String, String> eldest) {
+                    return size() > UUID_CACHE_MAX;
+                }
+            });
 
     public static String readStream(InputStream in) throws IOException {
         BufferedReader reader = new BufferedReader(new InputStreamReader(in, "UTF-8"));
@@ -48,80 +62,124 @@ public class Ygglib {
         return params;
     }
 
-    public static String getUUID(String username) throws Exception {
-        try {
-            URL skinUrl = new URL("https://api.mojang.com/users/profiles/minecraft/" + URLEncoder.encode(username, "UTF-8"));
-            skinUrl = getYggdrasilUrl(skinUrl, null);
-            URLStreamHandler handler = Hooks.DEFAULT_HANDLERS.get(skinUrl.getProtocol());
-            HttpURLConnection conn = RequestInterceptor.openWithParent(skinUrl, handler);
-            conn.setRequestMethod("GET");
-            conn.setConnectTimeout(5000);
-            conn.setReadTimeout(5000);
-
-            if (conn.getResponseCode() == 200) {
-                Json.JSONObject obj = new Json.JSONObject(readStream(conn.getInputStream()));
-                return obj.getString("id");
-            }
-
-            // route not implemented? let's try the other one...
-            skinUrl = new URL("https://api.mojang.com/minecraft/profile/lookup/name/" + URLEncoder.encode(username, "UTF-8"));
-            skinUrl = getYggdrasilUrl(skinUrl, null);
-            handler = Hooks.DEFAULT_HANDLERS.get(skinUrl.getProtocol());
-            conn = RequestInterceptor.openWithParent(skinUrl, handler);
-            conn.setRequestMethod("GET");
-            conn.setConnectTimeout(5000);
-            conn.setReadTimeout(5000);
-
-            if (conn.getResponseCode() == 200) {
-                Json.JSONObject obj = new Json.JSONObject(readStream(conn.getInputStream()));
-                return obj.getString("id");
-            }
-
-            // prehistoric version of BlessingSkin only implements this route
-            skinUrl = new URL("https://api.mojang.com/profiles/minecraft");
-            skinUrl = getYggdrasilUrl(skinUrl, null);
-            handler = Hooks.DEFAULT_HANDLERS.get(skinUrl.getProtocol());
-            conn = RequestInterceptor.openWithParent(skinUrl, handler);
-            conn.setRequestMethod("POST");
-            conn.setRequestProperty("Content-Type", "application/json");
-            conn.setRequestProperty("Accept", "application/json");
-            conn.setDoOutput(true);
-            conn.setConnectTimeout(5000);
-            conn.setReadTimeout(5000);
-            byte[] body = ("[\"" + username + "\"]").getBytes("UTF-8");
-            conn.getOutputStream().write(body);
-            conn.getOutputStream().close();
-
-            if (conn.getResponseCode() == 200) {
-                String jsonText = readStream(conn.getInputStream());
-                Json.JSONArray arr = new Json.JSONArray(jsonText);
-                return arr.getJSONObject(0).getString("id");
-            }
-
-            throw new IOException("No UUID lookup route succeeded for username: " + username);
-        } catch (UnknownHostException e) {
-            throw e;
-        } catch (Exception e) {
-            Loki.log.error("Failed to get UUID for " + username);
-            throw e;
+    private static final UuidBatcher UUID_BATCHER = new UuidBatcher("Loki-Uuid", new UuidBatcher.Resolver() {
+        public Map<String, String> batchLookup(List<String> usernames) throws Exception {
+            return batchLookupUUIDs(usernames);
         }
+        public String singleLookup(String username) throws Exception {
+            try {
+                URL skinUrl = new URL("https://api.mojang.com/users/profiles/minecraft/" + URLEncoder.encode(username, "UTF-8"));
+                skinUrl = getYggdrasilUrl(skinUrl, null);
+                URLStreamHandler handler = Hooks.DEFAULT_HANDLERS.get(skinUrl.getProtocol());
+                HttpURLConnection conn = RequestInterceptor.openWithParent(skinUrl, handler);
+                conn.setRequestMethod("GET");
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(5000);
+
+                int code = conn.getResponseCode();
+                if (code == 200) {
+                    return new Json.JSONObject(readStream(conn.getInputStream())).getString("id");
+                }
+                if (code == 429) throw UuidBatcher.rateLimited(conn);
+
+                // route not implemented? let's try the other one...
+                skinUrl = new URL("https://api.mojang.com/minecraft/profile/lookup/name/" + URLEncoder.encode(username, "UTF-8"));
+                skinUrl = getYggdrasilUrl(skinUrl, null);
+                handler = Hooks.DEFAULT_HANDLERS.get(skinUrl.getProtocol());
+                conn = RequestInterceptor.openWithParent(skinUrl, handler);
+                conn.setRequestMethod("GET");
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(5000);
+
+                code = conn.getResponseCode();
+                if (code == 200) {
+                    return new Json.JSONObject(readStream(conn.getInputStream())).getString("id");
+                }
+                if (code == 429) throw UuidBatcher.rateLimited(conn);
+
+                return null;
+            } catch (UnknownHostException e) {
+                throw e;
+            } catch (Exception e) {
+                Loki.log.error("Failed to get UUID for " + username);
+                throw e;
+            }
+        }
+    });
+
+    public static String getUUID(String username) throws Exception {
+        String cached = nameToUUIDCache.get(username);
+        if (cached != null) return cached;
+
+        String uuid = UUID_BATCHER.getUUID(username);
+        if (uuid == null) throw new IOException("No UUID lookup route succeeded for username: " + username);
+        nameToUUIDCache.put(username, uuid);
+        return uuid;
     }
 
+    private static Map<String, String> batchLookupUUIDs(List<String> usernames) throws Exception {
+        URL url = new URL("https://api.mojang.com/profiles/minecraft");
+        url = getYggdrasilUrl(url, null);
+        URLStreamHandler handler = Hooks.DEFAULT_HANDLERS.get(url.getProtocol());
+        HttpURLConnection conn = RequestInterceptor.openWithParent(url, handler);
+        conn.setRequestMethod("POST");
+        conn.setRequestProperty("Content-Type", "application/json");
+        conn.setRequestProperty("Accept", "application/json");
+        conn.setDoOutput(true);
+        conn.setConnectTimeout(5000);
+        conn.setReadTimeout(5000);
+
+        StringBuilder body = new StringBuilder("[");
+        for (int i = 0; i < usernames.size(); i++) {
+            if (i > 0) body.append(",");
+            body.append("\"").append(usernames.get(i)).append("\"");
+        }
+        body.append("]");
+        conn.getOutputStream().write(body.toString().getBytes("UTF-8"));
+        conn.getOutputStream().close();
+
+        int code = conn.getResponseCode();
+        if (code != 200) {
+            if (code == 429) throw UuidBatcher.rateLimited(conn);
+            if (code == 404 || code == 405 || code == 501) {
+                throw new UuidBatcher.EndpointUnavailableException("Batch UUID endpoint returned " + code);
+            }
+            throw new IOException("Batch UUID endpoint returned " + code);
+        }
+
+        Json.JSONArray arr = new Json.JSONArray(readStream(conn.getInputStream()));
+        Map<String, String> result = new HashMap<String, String>();
+        for (int i = 0; i < arr.length(); i++) {
+            Json.JSONObject obj = arr.getJSONObject(i);
+            result.put(obj.getString("name").toLowerCase(Locale.ENGLISH), obj.getString("id"));
+        }
+        return result;
+    }
+
+    @SuppressWarnings("BusyWait")
     public static String getTexturesProperty(String uuid, boolean returnProfileJson) throws Exception {
         try {
             URL textureUrl = new URL("https://sessionserver.mojang.com/session/minecraft/profile/" + URLEncoder.encode(uuid, "UTF-8") + "?unsigned=false");
             textureUrl = getYggdrasilUrl(textureUrl, null);
             URLStreamHandler handler = Hooks.DEFAULT_HANDLERS.get(textureUrl.getProtocol());
-            HttpURLConnection conn = RequestInterceptor.openWithParent(textureUrl, handler);
-            conn.setRequestMethod("GET");
-            conn.setConnectTimeout(5000);
-            conn.setReadTimeout(5000);
 
-            String profileJson = readStream(conn.getInputStream());
-            if (returnProfileJson) return profileJson;
-            Json.JSONObject profileObj = new Json.JSONObject(profileJson);
-            String texturesBase64 = profileObj.getJSONArray("properties").getJSONObject(0).getString("value");
-            return new String(Base64.decode(texturesBase64), "UTF-8");
+            for (int attempt = 0; ; attempt++) {
+                HttpURLConnection conn = RequestInterceptor.openWithParent(textureUrl, handler);
+                conn.setRequestMethod("GET");
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(5000);
+
+                if (conn.getResponseCode() == 429 && attempt < TEXTURE_RATE_LIMIT_RETRIES) {
+                    Thread.sleep(Math.min(UuidBatcher.rateLimited(conn).retryAfterMs, MAX_SYNC_RATE_LIMIT_WAIT_MS));
+                    continue;
+                }
+
+                String profileJson = readStream(conn.getInputStream());
+                if (returnProfileJson) return profileJson;
+                Json.JSONObject profileObj = new Json.JSONObject(profileJson);
+                String texturesBase64 = profileObj.getJSONArray("properties").getJSONObject(0).getString("value");
+                return new String(Base64.decode(texturesBase64), "UTF-8");
+            }
         } catch (Exception e) {
             Loki.log.error("Failed to get textures property for " + uuid);
             throw e;
