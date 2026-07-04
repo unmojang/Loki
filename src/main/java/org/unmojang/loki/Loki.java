@@ -8,16 +8,16 @@ import java.lang.instrument.Instrumentation;
 public class Loki {
     public static final NilLogger log = NilLogger.get("Loki");
 
-    public static final Boolean chat_restrictions =  Boolean.getBoolean("Loki.chat_restrictions");
-    public static Boolean disable_factory = Boolean.getBoolean("Loki.disable_factory");
-    public static final Boolean disable_profile_lookup = Boolean.getBoolean("Loki.disable_profile_lookup");
-    public static final Boolean enable_patchy =  Boolean.getBoolean("Loki.enable_patchy");
-    public static final Boolean enable_snooper =  Boolean.getBoolean("Loki.enable_snooper");
-    public static final Boolean enforce_secure_profile = Boolean.getBoolean("Loki.enforce_secure_profile");
-    public static final Boolean launcher_trigger_update = Boolean.getBoolean("Loki.launcher_trigger_update");
+    public static final boolean chat_restrictions =  Boolean.getBoolean("Loki.chat_restrictions");
+    public static boolean disable_factory = Boolean.getBoolean("Loki.disable_factory");
+    public static final boolean disable_profile_lookup = Boolean.getBoolean("Loki.disable_profile_lookup");
+    public static final boolean enable_patchy =  Boolean.getBoolean("Loki.enable_patchy");
+    public static final boolean enable_snooper =  Boolean.getBoolean("Loki.enable_snooper");
+    public static final boolean enforce_secure_profile = Boolean.getBoolean("Loki.enforce_secure_profile");
+    public static final boolean launcher_trigger_update = Boolean.getBoolean("Loki.launcher_trigger_update");
     public static final String launcher_version = System.getProperty("Loki.launcher_version");
-    public static final Boolean modded_capes = Boolean.getBoolean("Loki.modded_capes");
-    public static final Boolean username_validation = Boolean.getBoolean("Loki.username_validation");
+    public static final boolean modded_capes = Boolean.getBoolean("Loki.modded_capes");
+    public static final boolean username_validation = Boolean.getBoolean("Loki.username_validation");
 
     public static void premain(String agentArgs, Instrumentation inst) {
         log.info("Hello Loki " + Loki.class.getPackage().getImplementationVersion() + " World!");
@@ -88,6 +88,6 @@ public class Loki {
         LokiUtil.retransformClass("java.net.InetAddress", inst);
 
         // Apply 1.21.9+ fixes
-        LokiUtil.apply1219Fixes();
+        LokiUtil.apply1_21_9Fixes();
     }
 }

@@ -11,6 +11,7 @@ import java.math.BigInteger;
 import java.net.*;
 import java.security.MessageDigest;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.zip.*;
 
 public class RequestInterceptor {
@@ -33,20 +34,15 @@ public class RequestInterceptor {
         String sessionHost = System.getProperty("minecraft.api.session.host");
         String servicesHost = System.getProperty("minecraft.api.services.host");
 
-        Map<String, String> tmp = new HashMap<String, String>();
-        tmp.put("authserver.mojang.com", authHost != null ? authHost : LokiUtil.MANIFEST_ATTRS.get("AuthHost"));
-        tmp.put("api.mojang.com", accountHost != null ? accountHost : LokiUtil.MANIFEST_ATTRS.get("AccountHost"));
-        tmp.put("sessionserver.mojang.com", sessionHost != null ? sessionHost : LokiUtil.MANIFEST_ATTRS.get("SessionHost"));
-        tmp.put("api.minecraftservices.com", servicesHost != null ? servicesHost : LokiUtil.MANIFEST_ATTRS.get("ServicesHost"));
+        Map<String, String> tmp = new ConcurrentHashMap<String, String>();
+        putIfNotNull(tmp, "authserver.mojang.com", authHost != null ? authHost : LokiUtil.MANIFEST_ATTRS.get("AuthHost"));
+        putIfNotNull(tmp, "api.mojang.com", accountHost != null ? accountHost : LokiUtil.MANIFEST_ATTRS.get("AccountHost"));
+        putIfNotNull(tmp, "sessionserver.mojang.com", sessionHost != null ? sessionHost : LokiUtil.MANIFEST_ATTRS.get("SessionHost"));
+        putIfNotNull(tmp, "api.minecraftservices.com", servicesHost != null ? servicesHost : LokiUtil.MANIFEST_ATTRS.get("ServicesHost"));
 
-        // authlib-injector specific endpoints
-        for (Map.Entry<String, String> entry : LokiUtil.ALI_HOSTS.entrySet()) {
-            if (entry.getValue() != null) tmp.put(entry.getKey(), entry.getValue());
-        }
-
-        YGGDRASIL_MAP = Collections.unmodifiableMap(tmp);
-        IS_MOJANG = YGGDRASIL_MAP.get("api.mojang.com").equals("https://api.mojang.com")
-                && YGGDRASIL_MAP.get("sessionserver.mojang.com").equals("https://sessionserver.mojang.com");
+        YGGDRASIL_MAP = tmp;
+        IS_MOJANG = "https://api.mojang.com".equals(YGGDRASIL_MAP.get("api.mojang.com"))
+                && "https://sessionserver.mojang.com".equals(YGGDRASIL_MAP.get("sessionserver.mojang.com"));
 
         INTERCEPTED_DOMAINS = new HashSet<String>(Arrays.asList(
                 "s3.amazonaws.com",
@@ -73,6 +69,15 @@ public class RequestInterceptor {
             INTERCEPTED_DOMAINS.add("161.35.130.99"); // Cloaks+
             INTERCEPTED_DOMAINS.add("api.rumblecapes.xyz");
         }
+    }
+
+    private static void putIfNotNull(Map<String, String> map, String key, String value) {
+        if (value != null) map.put(key, value);
+    }
+
+    // authlib-injector specific endpoints
+    public static void registerAliHost(String host, String url) {
+        if (host != null && url != null) YGGDRASIL_MAP.put(host, url);
     }
 
     public static void setURLFactory() {
@@ -287,25 +292,20 @@ public class RequestInterceptor {
 
             // Mojang Status
             if (host.equals("status.mojang.com") && path.equals("/check")) {
-                if (Hooks.OFFLINE_MODE) {
-                    return Ygglib.FakeURLConnection(originalUrl, originalConn, 200, (
-                            "[{\"minecraft.net\":\"red\"},{\"login.minecraft.net\":\"red\"}," +
-                                    "{\"session.minecraft.net\":\"red\"},{\"account.mojang.com\":\"red\"}," +
-                                    "{\"auth.mojang.com\":\"red\"},{\"skins.minecraft.net\":\"red\"}," +
-                                    "{\"authserver.mojang.com\":\"red\"},{\"sessionserver.mojang.com\":\"red\"}," +
-                                    "{\"api.mojang.com\":\"red\"},{\"textures.minecraft.net\":\"red\"}," +
-                                    "{\"mojang.com\":\"red\"}]\n"
-                    ).getBytes("UTF-8"));
-                } else {
-                    return Ygglib.FakeURLConnection(originalUrl, originalConn, 200, (
-                            "[{\"minecraft.net\":\"green\"},{\"login.minecraft.net\":\"green\"}," +
-                                    "{\"session.minecraft.net\":\"green\"},{\"account.mojang.com\":\"green\"}," +
-                                    "{\"auth.mojang.com\":\"green\"},{\"skins.minecraft.net\":\"green\"}," +
-                                    "{\"authserver.mojang.com\":\"green\"},{\"sessionserver.mojang.com\":\"green\"}," +
-                                    "{\"api.mojang.com\":\"green\"},{\"textures.minecraft.net\":\"green\"}," +
-                                    "{\"mojang.com\":\"green\"}]\n"
-                    ).getBytes("UTF-8"));
+                String color = Hooks.OFFLINE_MODE ? "red" : "green";
+                String[] services = {
+                        "minecraft.net", "login.minecraft.net", "session.minecraft.net",
+                        "account.mojang.com", "auth.mojang.com", "skins.minecraft.net",
+                        "authserver.mojang.com", "sessionserver.mojang.com", "api.mojang.com",
+                        "textures.minecraft.net", "mojang.com"
+                };
+                StringBuilder status = new StringBuilder("[");
+                for (int i = 0; i < services.length; i++) {
+                    if (i > 0) status.append(",");
+                    status.append("{\"").append(services[i]).append("\":\"").append(color).append("\"}");
                 }
+                status.append("]\n");
+                return Ygglib.FakeURLConnection(originalUrl, originalConn, 200, status.toString().getBytes("UTF-8"));
             }
 
             // Misc
@@ -343,7 +343,7 @@ public class RequestInterceptor {
         return originalConn;
     }
 
-    private static HttpURLConnection openMirroredConnection(URL targetUrl, HttpURLConnection httpConn) throws IOException {
+    public static HttpURLConnection mirrorHttpURLConnection(URL targetUrl, HttpURLConnection httpConn) throws IOException {
         URLStreamHandler handler = Hooks.DEFAULT_HANDLERS.get(targetUrl.getProtocol());
         final HttpURLConnection targetConn = openWithParent(targetUrl, handler);
 
@@ -371,30 +371,8 @@ public class RequestInterceptor {
         return targetConn;
     }
 
-    public static HttpURLConnection mirrorHttpURLConnection(URL targetUrl, HttpURLConnection httpConn) throws IOException {
-        final HttpURLConnection targetConn = openMirroredConnection(targetUrl, httpConn);
-
-        // Mirror body if present
-        if (httpConn.getDoOutput()) {
-            targetConn.setDoOutput(true);
-            InputStream is = null;
-            OutputStream os = null;
-            try {
-                is = httpConn.getInputStream();
-                os = targetConn.getOutputStream();
-                byte[] buf = new byte[8192];
-                int r;
-                while ((r = is.read(buf)) != -1) os.write(buf, 0, r);
-            } finally {
-                if (is != null) is.close();
-                if (os != null) os.close();
-            }
-        }
-        return targetConn;
-    }
-
     public static HttpURLConnection mirrorHttpURLConnectionWithETag(final URL targetUrl, HttpURLConnection httpConn) throws IOException {
-        final HttpURLConnection targetConn = openMirroredConnection(targetUrl, httpConn);
+        final HttpURLConnection targetConn = mirrorHttpURLConnection(targetUrl, httpConn);
 
         // Preload the response to compute an ETag
         byte[] data;
@@ -420,7 +398,7 @@ public class RequestInterceptor {
         Set<String> seen = new HashSet<String>();
         byte[] buf = new byte[8192];
         for (String u : urls) {
-            ZipInputStream zin = new ZipInputStream(openMirroredConnection(new URL(u), httpConn).getInputStream());
+            ZipInputStream zin = new ZipInputStream(mirrorHttpURLConnection(new URL(u), httpConn).getInputStream());
             try {
                 ZipEntry entry;
                 while ((entry = zin.getNextEntry()) != null) {
@@ -545,9 +523,15 @@ public class RequestInterceptor {
 
         String fmlVersionStr = parts[parts.length - 1];
         String[] verParts = fmlVersionStr.split("\\.");
-        int major = verParts.length > 0 ? Integer.parseInt(verParts[0]) : 0;
-        int minor = verParts.length > 1 ? Integer.parseInt(verParts[1]) : 0;
-        int patch = verParts.length > 2 ? Integer.parseInt(verParts[2]) : 0;
+        int major, minor, patch;
+        try {
+            major = verParts.length > 0 ? Integer.parseInt(verParts[0]) : 0;
+            minor = verParts.length > 1 ? Integer.parseInt(verParts[1]) : 0;
+            patch = verParts.length > 2 ? Integer.parseInt(verParts[2]) : 0;
+        } catch (NumberFormatException e) {
+            Loki.log.warn("Could not parse FML version from " + filename);
+            return;
+        }
 
         // If major is 48, ensure we are running 48.0.31 or below
         if (major == 48 && (minor > 0 || (minor == 0 && patch > 31))) {

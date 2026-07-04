@@ -38,7 +38,13 @@ public class Hooks {
     private static final long TEXTURE_CACHE_TTL_MS = 300000L; // 5 minutes
     private static volatile long textureRateLimitUntil = 0L;
 
-    private static final ConcurrentHashMap<String, Long> negativeLookupCache = new ConcurrentHashMap<String, Long>();
+    private static final int NEGATIVE_CACHE_MAX = 512;
+    private static final Map<String, Long> negativeLookupCache = Collections.synchronizedMap(
+            new LinkedHashMap<String, Long>(16, 0.75f) {
+                protected boolean removeEldestEntry(Map.Entry<String, Long> eldest) {
+                    return size() > NEGATIVE_CACHE_MAX;
+                }
+            });
     private static final long NEGATIVE_CACHE_TTL_MS = 60000L;
     private static final ConcurrentHashMap<String, Boolean> pendingLookups = new ConcurrentHashMap<String, Boolean>();
     private static final ExecutorService TEXTURE_FETCH_POOL = Executors.newFixedThreadPool(4, new ThreadFactory() {
@@ -113,7 +119,7 @@ public class Hooks {
 
     public static String[] transformMainArgs(String[] args, String serverName) {
         for (int i = 0; i < args.length; i++) {
-            if (i + 1 > args.length) break;
+            if (i + 1 >= args.length) break;
             if ("--userType".equals(args[i]) && "mojang".equals(args[i + 1])) {
                 args[i + 1] = "msa";
                 log.info("Setting accountType to msa");
@@ -173,21 +179,23 @@ public class Hooks {
         return sig;
     }
 
+    private static void replaceStaticField(Class<?> owner, String fieldName, Object value) throws Exception {
+        Field field = owner.getDeclaredField(fieldName);
+        field.setAccessible(true);
+
+        Field unsafeField = Unsafe.class.getDeclaredField("theUnsafe");
+        unsafeField.setAccessible(true);
+        Unsafe unsafe = (Unsafe) unsafeField.get(null);
+
+        Object staticBase = unsafe.staticFieldBase(field);
+        long staticOffset = unsafe.staticFieldOffset(field);
+        unsafe.putObject(staticBase, staticOffset, value);
+    }
+
     public static void replaceMCAuthlibGameProfileSignature(Class<?> gameProfileClass) {
         try {
             log.debug("Replacing Mojang public key in MCAuthlib GameProfile");
-            PublicKey publicKey = getPublicKey();
-
-            Field pubKeyField = gameProfileClass.getDeclaredField("SIGNATURE_KEY");
-            pubKeyField.setAccessible(true);
-
-            Field unsafeField = Unsafe.class.getDeclaredField("theUnsafe");
-            unsafeField.setAccessible(true);
-            Unsafe unsafe = (Unsafe) unsafeField.get(null);
-
-            Object staticBase = unsafe.staticFieldBase(pubKeyField);
-            long staticOffset = unsafe.staticFieldOffset(pubKeyField);
-            unsafe.putObject(staticBase, staticOffset, publicKey);
+            replaceStaticField(gameProfileClass, "SIGNATURE_KEY", getPublicKey());
         } catch (Exception e) {
             throw new RuntimeException("Failed to replace yggdrasil public key!", e);
         }
@@ -196,18 +204,7 @@ public class Hooks {
     public static void replaceBungeeCordMojangKey(Class<?> encUtilClass) {
         try {
             log.debug("Replacing Mojang public key in BungeeCord");
-            PublicKey publicKey = getPublicKey();
-
-            Field keyField = encUtilClass.getDeclaredField("MOJANG_KEY");
-            keyField.setAccessible(true);
-
-            Field unsafeField = Unsafe.class.getDeclaredField("theUnsafe");
-            unsafeField.setAccessible(true);
-            Unsafe unsafe = (Unsafe) unsafeField.get(null);
-
-            Object staticBase = unsafe.staticFieldBase(keyField);
-            long staticOffset = unsafe.staticFieldOffset(keyField);
-            unsafe.putObject(staticBase, staticOffset, publicKey);
+            replaceStaticField(encUtilClass, "MOJANG_KEY", getPublicKey());
         } catch (Exception e) {
             throw new RuntimeException("Failed to replace yggdrasil public key!", e);
         }
@@ -316,7 +313,7 @@ public class Hooks {
         StringBuilder body = new StringBuilder("[");
         for (int i = 0; i < usernames.size(); i++) {
             if (i > 0) body.append(",");
-            body.append("\"").append(usernames.get(i)).append("\"");
+            body.append(Json.JSONObject.quote(usernames.get(i)));
         }
         body.append("]");
         conn.getOutputStream().write(body.toString().getBytes("UTF-8"));

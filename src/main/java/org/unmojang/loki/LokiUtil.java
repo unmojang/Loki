@@ -31,7 +31,6 @@ public class LokiUtil {
             "skin.prinzeugen.net"
     );
     public static URL LAUNCHER_VERSION_URL = null;
-    public static final Map<String, String> ALI_HOSTS = new HashMap<String, String>();
 
     private static void initManifestAttributes() {
         try {
@@ -145,15 +144,24 @@ public class LokiUtil {
     }
 
     public static String normalizeUrl(String url) {
-        if (!url.startsWith("http://") && !url.startsWith("https://")) {
+        String lower = url.toLowerCase(Locale.ENGLISH);
+        if (!lower.startsWith("http://") && !lower.startsWith("https://")) {
             url = "https://" + url;
         }
         return url;
     }
 
+    public static String canonicalizeUrl(String url) {
+        url = normalizeUrl(url);
+        int schemeEnd = url.indexOf("://") + 3;
+        int pathStart = url.indexOf('/', schemeEnd);
+        if (pathStart == -1) pathStart = url.length();
+        return url.substring(0, pathStart).toLowerCase(Locale.ENGLISH) + url.substring(pathStart);
+    }
+
     private static void checkConnectivity(String serverUrl) {
         if (Hooks.OFFLINE_MODE || serverUrl == null || serverUrl.length() == 0) return;
-        String url = normalizeUrl(serverUrl.toLowerCase());
+        String url = canonicalizeUrl(serverUrl);
         try {
             URL parsedUrl = new URL(url);
             String host = parsedUrl.getHost();
@@ -206,7 +214,7 @@ public class LokiUtil {
     private static void conditionallySetUserAgent(String url) {
         if (url == null || url.length() == 0) return;
         try {
-            String host = new URL(normalizeUrl(url.toLowerCase())).getHost();
+            String host = new URL(canonicalizeUrl(url)).getHost();
             if (MISCONFIGURED_API_SERVERS.contains(host)) {
                 System.setProperty("http.agent", "Loki/" + LokiUtil.class.getPackage().getImplementationVersion());
                 Loki.log.debug("Overriding default user agent (blocked by Cloudflare)");
@@ -233,6 +241,7 @@ public class LokiUtil {
             conn.setDoInput(true);
             conn.connect();
             String apiLocation = conn.getHeaderField("X-Authlib-Injector-Api-Location");
+            if (apiLocation == null) return null;
             if (server.startsWith("http://")) return apiLocation.replaceFirst("^https://", "http://");
             return apiLocation;
         } catch (Exception e) {
@@ -263,7 +272,7 @@ public class LokiUtil {
                 // GeyserMC's Floodgate Global Linking
                 // https://github.com/yushijinhun/authlib-injector/pull/295
                 if (meta.optBoolean("feature.floodgate_global_linking", false)) {
-                    ALI_HOSTS.put("api.geysermc.org", authlibInjectorApiLocation + "/geyser");
+                    RequestInterceptor.registerAliHost("api.geysermc.org", authlibInjectorApiLocation + "/geyser");
                 }
             }
 
@@ -280,7 +289,7 @@ public class LokiUtil {
     }
 
     private static void initAuthlibInjectorAPI(String server) {
-        server = normalizeUrl(server.toLowerCase());
+        server = canonicalizeUrl(server);
         String authlibInjectorApiLocation = getAuthlibInjectorApiLocation(server);
         if (authlibInjectorApiLocation == null) authlibInjectorApiLocation = server;
         Loki.log.info("Using authlib-injector API Server: " + authlibInjectorApiLocation);
@@ -290,7 +299,7 @@ public class LokiUtil {
         System.setProperty("minecraft.api.profiles.host", authlibInjectorApiLocation + "/api");
         System.setProperty("minecraft.api.session.host", authlibInjectorApiLocation + "/sessionserver");
         System.setProperty("minecraft.api.services.host", authlibInjectorApiLocation + "/minecraftservices");
-        ALI_HOSTS.put("signaling-afd.franchise.minecraft-services.net", authlibInjectorApiLocation + "/signaling");
+        RequestInterceptor.registerAliHost("signaling-afd.franchise.minecraft-services.net", authlibInjectorApiLocation + "/signaling");
 
         // Velocity
         System.setProperty("mojang.sessionserver", authlibInjectorApiLocation + "/sessionserver/session/minecraft/hasJoined");
@@ -298,11 +307,14 @@ public class LokiUtil {
         initServerMetadata(authlibInjectorApiLocation);
     }
 
-    public static void apply1219Fixes() {
+    public static void apply1_21_9Fixes() {
+        String accountHost = RequestInterceptor.YGGDRASIL_MAP.get("api.mojang.com");
+        if (accountHost == null) return;
         if (System.getProperty("minecraft.api.profiles.host") == null) {
-            System.setProperty("minecraft.api.profiles.host", RequestInterceptor.YGGDRASIL_MAP.get("api.mojang.com"));
-        } else if (System.getProperty("minecraft.api.account.host") == null) {
-            System.setProperty("minecraft.api.account.host", RequestInterceptor.YGGDRASIL_MAP.get("api.mojang.com"));
+            System.setProperty("minecraft.api.profiles.host", accountHost);
+        }
+        if (System.getProperty("minecraft.api.account.host") == null) {
+            System.setProperty("minecraft.api.account.host", accountHost);
         }
     }
 
@@ -352,7 +364,8 @@ public class LokiUtil {
 
     private static void hookFutureClassLoaders(Instrumentation inst, File jarFile) throws Exception {
         final URL jarUrl = jarFile.toURI().toURL();
-        final Map<ClassLoader, Boolean> injectedLoaders = new ConcurrentHashMap<ClassLoader, Boolean>();
+        final Map<ClassLoader, Boolean> injectedLoaders =
+                Collections.synchronizedMap(new WeakHashMap<ClassLoader, Boolean>());
         ClassFileTransformer injector = new ClassFileTransformer() {
             public byte[] transform(ClassLoader loader, String name, Class<?> c, ProtectionDomain pd, byte[] bytes) {
                 if (loader == null || injectedLoaders.containsKey(loader)) return null;

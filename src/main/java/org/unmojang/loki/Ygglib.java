@@ -54,7 +54,7 @@ public class Ygglib {
         Map<String, String> params = new HashMap<String, String>();
         String[] entries = query.split("&");
         for (String entry : entries) {
-            String[] pair = entry.split("=");
+            String[] pair = entry.split("=", 2);
             if (pair.length == 2) {
                 params.put(pair[0], pair[1]);
             }
@@ -132,7 +132,7 @@ public class Ygglib {
         StringBuilder body = new StringBuilder("[");
         for (int i = 0; i < usernames.size(); i++) {
             if (i > 0) body.append(",");
-            body.append("\"").append(usernames.get(i)).append("\"");
+            body.append(Json.JSONObject.quote(usernames.get(i)));
         }
         body.append("]");
         conn.getOutputStream().write(body.toString().getBytes("UTF-8"));
@@ -314,11 +314,11 @@ public class Ygglib {
                 os = conn.getOutputStream();
                 StringBuilder payload = new StringBuilder();
                 payload.append("{")
-                        .append("\"accessToken\": \"").append(accessToken).append("\",")
-                        .append("\"selectedProfile\": \"").append(uuid).append("\"");
+                        .append("\"accessToken\": ").append(Json.JSONObject.quote(accessToken)).append(",")
+                        .append("\"selectedProfile\": ").append(Json.JSONObject.quote(uuid));
 
                 if (serverId != null) {
-                    payload.append(",\"serverId\": \"").append(serverId).append("\"");
+                    payload.append(",\"serverId\": ").append(Json.JSONObject.quote(serverId));
                 }
                 payload.append("}");
                 os.write(payload.toString().getBytes("UTF-8"));
@@ -331,7 +331,7 @@ public class Ygglib {
             }
         } catch (Exception e) {
             Loki.log.error("joinServer failed", e);
-            return FakeURLConnection(originalUrl, originalConn, 200, e.getMessage().getBytes("UTF-8"));
+            return FakeURLConnection(originalUrl, originalConn, 200, e.toString().getBytes("UTF-8"));
         }
         return FakeURLConnection(originalUrl, originalConn, 200, "Bad login".getBytes("UTF-8"));
     }
@@ -362,7 +362,7 @@ public class Ygglib {
             }
         } catch (Exception e) {
             Loki.log.error("checkServer failed", e);
-            return FakeURLConnection(originalUrl, originalConn, 200, e.getMessage().getBytes("UTF-8"));
+            return FakeURLConnection(originalUrl, originalConn, 200, e.toString().getBytes("UTF-8"));
         }
         return FakeURLConnection(originalUrl, originalConn, 200, "NO".getBytes("UTF-8"));
     }
@@ -658,10 +658,10 @@ public class Ygglib {
 
             String responseJson = "{\n" +
                     "  \"uuid\": \"" + uuid + "\",\n" +
-                    "  \"username\": \"" + username + "\",\n" +
+                    "  \"username\": " + Json.JSONObject.quote(username) + ",\n" +
                     "  \"username_history\": [\n" +
                     "    {\n" +
-                    "      \"username\": \"" + username + "\"\n" +
+                    "      \"username\": " + Json.JSONObject.quote(username) + "\n" +
                     "    }\n" +
                     "  ],\n" +
                     "  \"textures\": {\n" +
@@ -683,7 +683,7 @@ public class Ygglib {
         }
     }
 
-    public static URLConnection getElyBy(URL originalUrl, URLConnection originalConn, String username) {
+    public static URLConnection getElyBy(URL originalUrl, URLConnection originalConn, String username) throws UnknownHostException {
         try {
             String uuid = getUUID(username);
             Loki.log.debug("UUID of " + username + ": " + uuid);
@@ -714,6 +714,8 @@ public class Ygglib {
             }
 
             return FakeURLConnection(originalUrl, originalConn, 200, texturesObj.toString().getBytes("UTF-8"));
+        } catch (UnknownHostException e) {
+            throw e;
         } catch (Exception e) {
             Loki.log.error("getElyBy failed");
             throw new RuntimeException(e);
@@ -783,7 +785,7 @@ public class Ygglib {
         public FakeHttpURLConnection(URL url, int code, byte[] data) {
             super(url);
             this.code = code;
-            this.data = data;
+            this.data = data != null ? data : new byte[0];
         }
 
         @Override
@@ -820,7 +822,7 @@ public class Ygglib {
         public FakeHttpsURLConnection(URL url, int code, byte[] data) {
             super(url);
             this.code = code;
-            this.data = data;
+            this.data = data != null ? data : new byte[0];
         }
 
         @Override

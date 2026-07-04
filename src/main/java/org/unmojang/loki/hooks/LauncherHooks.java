@@ -14,6 +14,7 @@ import java.lang.reflect.Method;
 import java.net.HttpURLConnection;
 import java.net.Proxy;
 import java.net.URL;
+import java.net.URLDecoder;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -85,6 +86,12 @@ public class LauncherHooks {
         try {
             String user = urlParameters.split("user=")[1].split("&")[0];
             String password = urlParameters.split("password=")[1].split("&")[0];
+            try {
+                String decodedUser = URLDecoder.decode(user, "UTF-8");
+                String decodedPassword = URLDecoder.decode(password, "UTF-8");
+                user = decodedUser;
+                password = decodedPassword;
+            } catch (IllegalArgumentException ignored) {}
 
             URL url = new URL(baseUrl + "/authenticate");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -95,8 +102,8 @@ public class LauncherHooks {
             String payload =
                     "{"
                             + "\"agent\":{\"name\":\"Minecraft\",\"version\":1},"
-                            + "\"username\":\"" + user + "\","
-                            + "\"password\":\"" + password + "\""
+                            + "\"username\":" + Json.JSONObject.quote(user) + ","
+                            + "\"password\":" + Json.JSONObject.quote(password)
                             + "}";
             OutputStream os = conn.getOutputStream();
             os.write(payload.getBytes("UTF-8"));
