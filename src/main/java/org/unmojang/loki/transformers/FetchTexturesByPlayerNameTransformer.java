@@ -18,7 +18,8 @@ public class FetchTexturesByPlayerNameTransformer implements ClassFileTransforme
                             ProtectionDomain protectionDomain, byte[] classfileBuffer) {
 
         if (Loki.disable_profile_lookup) return null;
-        if (!"com/mojang/authlib/yggdrasil/YggdrasilMinecraftSessionService".equals(className)) return null;
+        if (!"com/mojang/authlib/yggdrasil/YggdrasilMinecraftSessionService".equals(className)
+                && !"com/mojang/authlib/services/MinecraftServicesSessionService".equals(className)) return null;
 
         try {
             ClassNode cn = new ClassNode();

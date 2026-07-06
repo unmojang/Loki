@@ -35,6 +35,7 @@ public class Loki {
         RequestInterceptor.setURLFactory();
         inst.addTransformer(new YggdrasilURLTransformer()); // Transform Yggdrasil URL strings
         inst.addTransformer(new AppletParameterTransformer()); // Fetch mppass for classic multiplayer
+        inst.addTransformer(new DiscoveryServiceTransformer()); // Feed authlib a crafted discovery doc. 26.3+
 
         // Textures
         inst.addTransformer(new AllowedDomainTransformer()); // Allowed texture domains. 1.7.6-1.16.5, 1.17-1.19.2, 1.19.3+

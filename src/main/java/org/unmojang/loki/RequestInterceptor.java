@@ -45,6 +45,7 @@ public class RequestInterceptor {
                 && "https://sessionserver.mojang.com".equals(YGGDRASIL_MAP.get("sessionserver.mojang.com"));
 
         INTERCEPTED_DOMAINS = new HashSet<String>(Arrays.asList(
+                "discovery.minecraftservices.com",
                 "s3.amazonaws.com",
                 "www.minecraft.net",
                 "skins.minecraft.net",
@@ -143,6 +144,17 @@ public class RequestInterceptor {
                 return originalConn;
             }
         } else if (INTERCEPTED_DOMAINS.contains(host)) {
+            // Endpoint discovery (26.3+)
+            if (host.equals("discovery.minecraftservices.com")) {
+                try {
+                    Loki.log.info("Intercepting discovery request");
+                    return Ygglib.FakeURLConnection(originalUrl, originalConn, 200, Hooks.getDiscoveryJson().getBytes("UTF-8"));
+                } catch (Exception e) {
+                    Loki.log.error("Failed to serve discovery document", e);
+                    return originalConn;
+                }
+            }
+
             // Authentication
             if (path.equals("/game/joinserver.jsp")) {
                 Loki.log.info("Intercepting joinserver request");

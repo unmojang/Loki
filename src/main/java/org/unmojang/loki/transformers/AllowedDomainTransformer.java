@@ -19,6 +19,7 @@ public class AllowedDomainTransformer implements ClassFileTransformer {
         // Target MCAuthlib too (used in MojangFix and Ears mods, possibly more)
         if (!className.equals("com/mojang/authlib/yggdrasil/YggdrasilMinecraftSessionService")
                 && !className.equals("com/mojang/authlib/yggdrasil/TextureUrlChecker")
+                && !className.equals("com/mojang/authlib/services/MinecraftServicesDiscoveryService")
                 && !className.endsWith("/data/GameProfile")) return null;
 
         try {
@@ -40,7 +41,8 @@ public class AllowedDomainTransformer implements ClassFileTransformer {
                         mn.instructions.add(new InsnNode(Opcodes.ICONST_1));
                         mn.instructions.add(new InsnNode(Opcodes.IRETURN));
                     } else {
-                        buildDomainCheck(mn, skinDomains);
+                        int urlSlot = (mn.access & Opcodes.ACC_STATIC) != 0 ? 0 : 1; // <=26.2 : 26.3+
+                        buildDomainCheck(mn, skinDomains, urlSlot, urlSlot + 1);
                     }
 
                     Loki.log.debug("Patching " + LokiUtil.getFqmn(className, mn.name, mn.desc));
@@ -60,7 +62,7 @@ public class AllowedDomainTransformer implements ClassFileTransformer {
         }
     }
 
-    private static void buildDomainCheck(MethodNode mn, List<String> skinDomains) {
+    private static void buildDomainCheck(MethodNode mn, List<String> skinDomains, int urlSlot, int hostSlot) {
         LabelNode tryStart = new LabelNode();
         LabelNode tryEnd = new LabelNode();
         LabelNode handler = new LabelNode();
@@ -74,15 +76,15 @@ public class AllowedDomainTransformer implements ClassFileTransformer {
         il.add(tryStart);
         il.add(new TypeInsnNode(Opcodes.NEW, "java/net/URL"));
         il.add(new InsnNode(Opcodes.DUP));
-        il.add(new VarInsnNode(Opcodes.ALOAD, 0));
+        il.add(new VarInsnNode(Opcodes.ALOAD, urlSlot));
         il.add(new MethodInsnNode(Opcodes.INVOKESPECIAL, "java/net/URL", "<init>", "(Ljava/lang/String;)V", false));
         il.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "java/net/URL", "getHost", "()Ljava/lang/String;", false));
         il.add(tryEnd);
-        il.add(new VarInsnNode(Opcodes.ASTORE, 1));
+        il.add(new VarInsnNode(Opcodes.ASTORE, hostSlot));
 
         // Default domains: host.endsWith(".minecraft.net"), host.endsWith(".mojang.com")
         for (String d : new String[]{".minecraft.net", ".mojang.com"}) {
-            il.add(new VarInsnNode(Opcodes.ALOAD, 1));
+            il.add(new VarInsnNode(Opcodes.ALOAD, hostSlot));
             il.add(new LdcInsnNode(d));
             il.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "java/lang/String", "endsWith", "(Ljava/lang/String;)Z", false));
             il.add(new JumpInsnNode(Opcodes.IFNE, returnTrue));
@@ -90,7 +92,7 @@ public class AllowedDomainTransformer implements ClassFileTransformer {
 
         // Skin domains: host.endsWith(d)
         for (String d : skinDomains) {
-            il.add(new VarInsnNode(Opcodes.ALOAD, 1));
+            il.add(new VarInsnNode(Opcodes.ALOAD, hostSlot));
             il.add(new LdcInsnNode(d));
             il.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "java/lang/String", "endsWith", "(Ljava/lang/String;)Z", false));
             il.add(new JumpInsnNode(Opcodes.IFNE, returnTrue));

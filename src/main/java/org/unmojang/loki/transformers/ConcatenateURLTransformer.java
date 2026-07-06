@@ -10,7 +10,6 @@ import org.unmojang.loki.LokiUtil;
 import java.lang.instrument.ClassFileTransformer;
 import java.security.ProtectionDomain;
 
-
 public class ConcatenateURLTransformer implements ClassFileTransformer {
 
     public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,

@@ -9,7 +9,9 @@ import sun.misc.Unsafe;
 import java.io.*;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.net.*;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
@@ -90,6 +92,138 @@ public class Hooks {
             return null;
         }
     });
+
+    public static Object constantSupplier(final Object value) {
+        try {
+            Class<?> supplier = Class.forName("java.util.function.Supplier");
+            return Proxy.newProxyInstance(Hooks.class.getClassLoader(), new Class<?>[]{supplier},
+                    new InvocationHandler() {
+                        public Object invoke(Object proxy, Method method, Object[] args) {
+                            String name = method.getName();
+                            if ("hashCode".equals(name)) return System.identityHashCode(proxy);
+                            if ("equals".equals(name)) return proxy == args[0];
+                            if ("toString".equals(name)) return "ConstantSupplier(" + value + ")";
+                            return value; // Supplier.get()
+                        }
+                    });
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException("java.util.function.Supplier unavailable", e);
+        }
+    }
+
+    public static Object buildServicesKeySet(final ClassLoader cl) {
+        try {
+            Class<?> keyInfoClass = Class.forName("com.mojang.authlib.services.ServicesKeyInfo", false, cl);
+            final Object keyInfo = Proxy.newProxyInstance(cl, new Class<?>[]{keyInfoClass},
+                    new InvocationHandler() {
+                        public Object invoke(Object proxy, Method method, Object[] args) {
+                            String name = method.getName();
+                            if ("validateProperty".equals(name)) return Boolean.TRUE;
+                            if ("signature".equals(name)) return servicesKeySignature();
+                            if ("keyBitCount".equals(name) || "signatureBitCount".equals(name)) return 4096;
+                            if ("hashCode".equals(name)) return System.identityHashCode(proxy);
+                            if ("equals".equals(name)) return proxy == args[0];
+                            if ("toString".equals(name)) return "LokiServicesKeyInfo";
+                            return null;
+                        }
+                    });
+            final List<Object> keys = Collections.singletonList(keyInfo);
+
+            Class<?> keySetClass = Class.forName("com.mojang.authlib.services.ServicesKeySet", false, cl);
+            return Proxy.newProxyInstance(cl, new Class<?>[]{keySetClass},
+                    new InvocationHandler() {
+                        public Object invoke(Object proxy, Method method, Object[] args) {
+                            String name = method.getName();
+                            if ("keys".equals(name)) return keys;
+                            if ("hashCode".equals(name)) return System.identityHashCode(proxy);
+                            if ("equals".equals(name)) return proxy == args[0];
+                            if ("toString".equals(name)) return "LokiServicesKeySet";
+                            return Collections.emptyList();
+                        }
+                    });
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to build Loki ServicesKeySet", e);
+        }
+    }
+
+    private static volatile PublicKey servicesPublicKey;
+
+    private static Signature servicesKeySignature() {
+        if (!Boolean.getBoolean("Loki.enforce_secure_profile")) return createDummySignature();
+        try {
+            PublicKey key = servicesPublicKey;
+            if (key == null) servicesPublicKey = key = getPublicKey();
+            Signature signature = Signature.getInstance("SHA1withRSA");
+            signature.initVerify(key);
+            return signature;
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to build services key signature", e);
+        }
+    }
+
+    public static String getDiscoveryJson() {
+        String session = System.getProperty("minecraft.api.session.host", "https://sessionserver.mojang.com");
+        if (session.endsWith("/")) session = session.substring(0, session.length() - 1);
+        String services = System.getProperty("minecraft.api.services.host", "https://api.minecraftservices.com");
+        if (services.endsWith("/")) services = services.substring(0, services.length() - 1);
+
+        Json.JSONObject authentication = newEndpoints();
+        putEndpoint(authentication, "getPublicKeys", services + "/publickeys", null);
+
+        Json.JSONObject sessionEp = newEndpoints();
+        putEndpoint(sessionEp, "join", session + "/session/minecraft/join", null);
+        putEndpoint(sessionEp, "verify", session + "/session/minecraft/hasJoined", null);
+        putEndpoint(sessionEp, "getProfileById", session + "/session/minecraft/profile/{profileId}", null);
+
+        Json.JSONObject player = newEndpoints();
+        putEndpoint(player, "getCertificates", services + "/player/certificates", null);
+        putEndpoint(player, "getBlocklist", services + "/privacy/blocklist", null);
+        putEndpoint(player, "getAttributes", services + "/player/attributes", null);
+        putEndpoint(player, "updateAttributes", services + "/player/attributes", null);
+        putEndpoint(player, "sendReport", services + "/player/report", null);
+        putEndpoint(player, "getFriends", services + "/player/friends", null);
+        putEndpoint(player, "updateFriends", services + "/player/friends", null);
+        putEndpoint(player, "updatePresence", services + "/player/presence", null);
+
+        // Handled in AllowedDomainTransformer, this is a stub
+        Json.JSONArray textureUris = new Json.JSONArray();
+        textureUris.put("http://textures.minecraft.net/texture/{textureId}");
+        textureUris.put("https://textures.minecraft.net/texture/{textureId}");
+        Json.JSONObject profiles = newEndpoints();
+        putEndpoint(profiles, "getByName", services + "/minecraft/profile/lookup/name/{name}", null);
+        putEndpoint(profiles, "getManyByName", services + "/minecraft/profile/lookup/bulk/byname", null);
+        putEndpoint(profiles, "getTexture", "http://textures.minecraft.net/texture/{textureId}", textureUris);
+
+        Json.JSONObject telemetry = newEndpoints();
+        putEndpoint(telemetry, "sendEvents", services + "/eventlog/v1/events", null);
+
+        Json.JSONObject discovery = new Json.JSONObject();
+        discovery.put("product", "minecraft");
+        discovery.put("authentication", authentication);
+        discovery.put("session", sessionEp);
+        discovery.put("player", player);
+        discovery.put("profiles", profiles);
+        discovery.put("telemetry", telemetry);
+
+        Json.JSONObject root = new Json.JSONObject();
+        root.put("environment", "PROD");
+        root.put("product", "minecraft");
+        root.put("discovery", discovery);
+        return root.toString();
+    }
+
+    private static Json.JSONObject newEndpoints() {
+        Json.JSONObject holder = new Json.JSONObject();
+        holder.put("endpoints", new Json.JSONObject());
+        return holder;
+    }
+
+    private static void putEndpoint(Json.JSONObject holder, String key, String uri, Json.JSONArray validUris) {
+        Json.JSONObject endpoint = new Json.JSONObject();
+        endpoint.put("uri", uri);
+        if (validUris != null) endpoint.put("validUris", validUris);
+        holder.getJSONObject("endpoints").put(key, endpoint);
+    }
 
     public static String readStream(InputStream in) throws IOException {
         BufferedReader reader = new BufferedReader(new InputStreamReader(in, "UTF-8"));
