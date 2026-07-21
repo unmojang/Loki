@@ -1,6 +1,8 @@
 package org.unmojang.loki.util.logger;
 
 import java.io.PrintStream;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -8,7 +10,12 @@ import java.util.Date;
 public class AdHocLogImpl implements NilLogImpl {
     private static final boolean DEBUG = Boolean.getBoolean("Loki.debug");
     private static final boolean TRACE = Boolean.getBoolean("Loki.trace");
-    private static final DateFormat fmt = new SimpleDateFormat("HH:mm:ss");
+    // SimpleDateFormat isn't thread-safe and Loki logs from many threads
+    private static final ThreadLocal<DateFormat> fmt = new ThreadLocal<DateFormat>() {
+        protected DateFormat initialValue() {
+            return new SimpleDateFormat("HH:mm:ss");
+        }
+    };
 
     private final PrintStream out = System.out;
     private final String name;
@@ -22,10 +29,16 @@ public class AdHocLogImpl implements NilLogImpl {
     }
 
     private void log(String tag, String message, Throwable t) {
+        // write to output stream once to prevent interleaving
+        StringBuilder sb = new StringBuilder();
+        sb.append(String.format("[%s] [%s/%s]: %s%n", fmt.get().format(new Date()), name, tag, message));
         if (t != null) {
-            t.printStackTrace(out);
+            StringWriter sw = new StringWriter();
+            t.printStackTrace(new PrintWriter(sw));
+            sb.append(sw);
         }
-        out.printf("[%s] [%s/%s]: %s%n", fmt.format(new Date()), name, tag, message);
+        out.print(sb);
+        out.flush();
     }
 
     public boolean isTraceEnabled() {

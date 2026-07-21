@@ -18,7 +18,7 @@ public class LokiAlternativesTransformer implements ClassFileTransformer {
     public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,
                             ProtectionDomain protectionDomain, byte[] classfileBuffer) {
 
-        if (LokiUtil.JAVA_MAJOR <= 5) return null;
+        if (className == null || LokiUtil.JAVA_MAJOR <= 5) return null;
         if (!className.equals("moe/yushi/authlibinjector/transform/ClassTransformer") &&
                 !className.equals("org/to2mbn/authlibinjector/transform/ClassTransformer") &&
                 !className.equals("moe/yushi/authlibinjector/Premain") &&
@@ -81,7 +81,7 @@ public class LokiAlternativesTransformer implements ClassFileTransformer {
 
             if (!changed) return null;
 
-            ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
+            ClassWriter cw = new LoaderAwareClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS, loader);
             cn.accept(cw);
             return cw.toByteArray();
 

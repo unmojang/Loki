@@ -10,23 +10,28 @@ public class Base64 {
     static {
         Arrays.fill(base64Inv, -1);
         for (int i = 0; i < base64Chars.length; i++) base64Inv[base64Chars[i]] = i;
-        base64Inv['='] = 0;
+        // base64url alphabet
+        base64Inv['-'] = 62;
+        base64Inv['_'] = 63;
     }
 
     public static byte[] decode(String s) {
         s = s.replaceAll("\\s", "");
         int len = s.length();
         ByteArrayOutputStream out = new ByteArrayOutputStream((len * 3) / 4);
-        int i = 0;
-        while (i < len) {
-            int b0 = base64Inv[s.charAt(i++) & 0xFF];
-            int b1 = base64Inv[s.charAt(i++) & 0xFF];
-            int b2 = i < len ? base64Inv[s.charAt(i++) & 0xFF] : 0;
-            int b3 = i < len ? base64Inv[s.charAt(i++) & 0xFF] : 0;
-
-            out.write((b0 << 2) | (b1 >> 4));
-            if (s.charAt(i - 2) != '=') out.write(((b1 & 0xF) << 4) | (b2 >> 2));
-            if (s.charAt(i - 1) != '=') out.write(((b2 & 0x3) << 6) | b3);
+        int buffer = 0;
+        int bits = 0;
+        for (int i = 0; i < len; i++) {
+            char c = s.charAt(i);
+            if (c == '=') break;
+            int v = c < 256 ? base64Inv[c] : -1;
+            if (v < 0) throw new IllegalArgumentException("Illegal base64 character: " + c);
+            buffer = (buffer << 6) | v;
+            bits += 6;
+            if (bits >= 8) {
+                bits -= 8;
+                out.write((buffer >> bits) & 0xFF);
+            }
         }
         return out.toByteArray();
     }

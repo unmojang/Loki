@@ -23,12 +23,15 @@ public class NilLogger {
         StringBuffer buf = new StringBuffer();
         Matcher m = BRACES_PATTERN.matcher(message);
         Throwable t = null;
-        if (params != null && params.length > 0 && params[params.length-1] instanceof Throwable) {
-            t = (Throwable)params[params.length-1];
+        int argCount = params != null ? params.length : 0;
+        // trailing Throwable isn't a substitution arg
+        if (argCount > 0 && params[argCount - 1] instanceof Throwable) {
+            t = (Throwable) params[argCount - 1];
+            argCount--;
         }
         int i = 0;
         while (m.find()) {
-            m.appendReplacement(buf, params != null && i < params.length ? String.valueOf(params[i]).replace("\\", "\\\\").replace("$", "\\$") : "{}");
+            m.appendReplacement(buf, i < argCount ? String.valueOf(params != null ? params[i] : null).replace("\\", "\\\\").replace("$", "\\$") : "{}");
             i++;
         }
         m.appendTail(buf);

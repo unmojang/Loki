@@ -16,7 +16,7 @@ public class BungeeCordTransformer implements ClassFileTransformer {
     public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,
                             ProtectionDomain protectionDomain, byte[] classfileBuffer) {
 
-        if (!className.startsWith("net/md_5/bungee/")) return null;
+        if (className == null || !className.startsWith("net/md_5/bungee/")) return null;
 
         try {
             ClassNode cn = new ClassNode();

@@ -15,7 +15,7 @@ public class UsernameCharacterCheckTransformer implements ClassFileTransformer {
     public byte[] transform(final ClassLoader loader, String className, Class<?> classBeingRedefined,
                             ProtectionDomain protectionDomain, byte[] classfileBuffer) {
 
-        if (Loki.username_validation || className.startsWith("java/") || className.startsWith("javax/")) return null;
+        if (Loki.username_validation || className == null || className.startsWith("java/") || className.startsWith("javax/")) return null;
 
         try {
             ClassNode cn = new ClassNode();
@@ -86,7 +86,7 @@ public class UsernameCharacterCheckTransformer implements ClassFileTransformer {
                             AbstractInsnNode scan = mi.getPrevious();
                             boolean found = false;
                             int safety = 0;
-                            while (scan != null && safety++ < 50) {
+                            while (scan != null && safety < 50) {
                                 if (scan instanceof LdcInsnNode) {
                                     LdcInsnNode ldc = (LdcInsnNode) scan;
                                     if ("Invalid characters in username".equals(ldc.cst)) {
@@ -94,11 +94,9 @@ public class UsernameCharacterCheckTransformer implements ClassFileTransformer {
                                     }
                                     break;
                                 }
-                                if (scan instanceof FrameNode || scan instanceof LabelNode || scan instanceof LineNumberNode) {
-                                    scan = scan.getPrevious();
-                                    continue;
+                                if (!(scan instanceof FrameNode || scan instanceof LabelNode || scan instanceof LineNumberNode)) {
+                                    safety++;
                                 }
-                                if (++safety > 20) break;
                                 scan = scan.getPrevious();
                             }
 

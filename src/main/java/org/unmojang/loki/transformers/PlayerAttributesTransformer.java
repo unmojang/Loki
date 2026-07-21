@@ -19,7 +19,7 @@ public class PlayerAttributesTransformer implements ClassFileTransformer {
     public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,
                             ProtectionDomain protectionDomain, byte[] classfileBuffer) {
 
-        if (!className.startsWith("com/mojang/authlib/")) return null;
+        if (className == null || !className.startsWith("com/mojang/authlib/")) return null;
 
         List<String> snooperMethods = Arrays.asList("telemetryAllowed", "getTelemetry", "getOptionalTelemetry");
         List<String> chatMethods = Arrays.asList("chatAllowed", "getOnlineChat");
@@ -58,7 +58,7 @@ public class PlayerAttributesTransformer implements ClassFileTransformer {
 
             if (!changed) return null;
 
-            ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
+            ClassWriter cw = new LoaderAwareClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS, loader);
             cn.accept(cw);
             return cw.toByteArray();
 

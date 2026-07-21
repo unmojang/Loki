@@ -16,7 +16,7 @@ public class YggdrasilURLTransformer implements ClassFileTransformer {
     public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,
                             ProtectionDomain protectionDomain, byte[] classfileBuffer) {
 
-        if (className.startsWith("org/unmojang/loki/")) return null; // let's not patch ourselves
+        if (className == null || className.startsWith("org/unmojang/loki/")) return null; // let's not patch ourselves
 
         try {
             ClassNode cn = new ClassNode();

@@ -13,7 +13,7 @@ public class ClassicUsernameLengthTransformer implements ClassFileTransformer {
     public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,
                             ProtectionDomain protectionDomain, byte[] classfileBuffer) {
 
-        if (Loki.username_validation || !className.startsWith("com/mojang/minecraft/server")) return null;
+        if (className == null || Loki.username_validation || !className.startsWith("com/mojang/minecraft/server")) return null;
 
         try {
             ClassNode cn = new ClassNode();

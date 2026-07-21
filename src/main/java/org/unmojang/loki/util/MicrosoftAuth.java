@@ -1,6 +1,5 @@
 package org.unmojang.loki.util;
 
-import org.unmojang.loki.hooks.Hooks;
 import org.unmojang.loki.util.logger.NilLogger;
 
 import java.io.ByteArrayOutputStream;
@@ -256,7 +255,7 @@ public final class MicrosoftAuth {
             // Wait out the poll interval, but wake immediately if the user cancels.
             synchronized (prompt.lock) {
                 if (prompt.cancelled) break;
-                prompt.lock.wait(interval * 1000L);
+                prompt.lock.wait(Math.max(1000L, interval * 1000L));
                 if (prompt.cancelled) break;
             }
 
@@ -302,7 +301,7 @@ public final class MicrosoftAuth {
 
         int code = conn.getResponseCode();
         InputStream in = (code >= 200 && code < 300) ? conn.getInputStream() : conn.getErrorStream();
-        String text = in != null ? Hooks.readStream(in) : "";
+        String text = in != null ? HttpUtil.readStream(in) : "";
         return text.length() == 0 ? new Json.JSONObject() : new Json.JSONObject(text);
     }
 }

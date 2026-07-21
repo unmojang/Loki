@@ -30,12 +30,14 @@ public class UuidBatcher {
     }
 
     public static class EndpointUnavailableException extends Exception {
+        private static final long serialVersionUID = 1L;
         public EndpointUnavailableException(String message) {
             super(message);
         }
     }
 
     public static class RateLimitedException extends Exception {
+        private static final long serialVersionUID = 1L;
         public final long retryAfterMs;
         public RateLimitedException(long retryAfterMs) {
             super("Rate limited, retry after " + retryAfterMs + "ms");

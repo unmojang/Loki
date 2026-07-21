@@ -56,6 +56,7 @@ public class BouncyCastleUtils {
             @Override
             public String[] getSupportedCipherSuites() { return factory.getSupportedCipherSuites(); }
 
+            @Override public Socket createSocket() throws IOException { return wrap(factory.createSocket()); }
             @Override public Socket createSocket(Socket s, String host, int port, boolean autoClose) throws IOException { return wrap(factory.createSocket(s, host, port, autoClose)); }
             @Override public Socket createSocket(String host, int port) throws IOException { return wrap(factory.createSocket(host, port)); }
             @Override public Socket createSocket(String host, int port, InetAddress localHost, int localPort) throws IOException { return wrap(factory.createSocket(host, port, localHost, localPort)); }

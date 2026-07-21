@@ -1,6 +1,7 @@
 package org.unmojang.loki.hooks;
 
 import org.unmojang.loki.util.Base64;
+import org.unmojang.loki.util.HttpUtil;
 import org.unmojang.loki.util.Json;
 import org.unmojang.loki.util.UuidBatcher;
 import org.unmojang.loki.util.logger.NilLogger;
@@ -58,38 +59,19 @@ public class Hooks {
         }
     });
 
+    private static final HttpUtil.ConnectionFactory ACCOUNT_API = new HttpUtil.ConnectionFactory() {
+        public HttpURLConnection open(String pathSuffix) throws Exception {
+            String base = System.getProperty("minecraft.api.account.host", "https://api.mojang.com");
+            return (HttpURLConnection) new URL(base + pathSuffix).openConnection();
+        }
+    };
+
     private static final UuidBatcher uuidBatcher = new UuidBatcher("Loki-Uuid", new UuidBatcher.Resolver() {
         public Map<String, String> batchLookup(List<String> usernames) throws Exception {
-            return batchLookupUUIDs(usernames);
+            return HttpUtil.batchLookupUUIDs(ACCOUNT_API, usernames);
         }
         public String singleLookup(String username) throws Exception {
-            URL url = new URL(System.getProperty("minecraft.api.account.host", "https://api.mojang.com")
-                    + "/users/profiles/minecraft/" + URLEncoder.encode(username, "UTF-8"));
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            conn.setRequestMethod("GET");
-            conn.setConnectTimeout(5000);
-            conn.setReadTimeout(5000);
-
-            int code = conn.getResponseCode();
-            if (code == 200) {
-                return new Json.JSONObject(readStream(conn.getInputStream())).getString("id");
-            }
-            if (code == 429) throw UuidBatcher.rateLimited(conn);
-
-            url = new URL(System.getProperty("minecraft.api.account.host", "https://api.mojang.com")
-                    + "/minecraft/profile/lookup/name/" + URLEncoder.encode(username, "UTF-8"));
-            conn = (HttpURLConnection) url.openConnection();
-            conn.setRequestMethod("GET");
-            conn.setConnectTimeout(5000);
-            conn.setReadTimeout(5000);
-
-            code = conn.getResponseCode();
-            if (code == 200) {
-                return new Json.JSONObject(readStream(conn.getInputStream())).getString("id");
-            }
-            if (code == 429) throw UuidBatcher.rateLimited(conn);
-
-            return null;
+            return HttpUtil.singleLookupUUID(ACCOUNT_API, username);
         }
     });
 
@@ -225,17 +207,6 @@ public class Hooks {
         holder.getJSONObject("endpoints").put(key, endpoint);
     }
 
-    public static String readStream(InputStream in) throws IOException {
-        BufferedReader reader = new BufferedReader(new InputStreamReader(in, "UTF-8"));
-        StringBuilder sb = new StringBuilder();
-        String line;
-        while ((line = reader.readLine()) != null) {
-            sb.append(line);
-        }
-        reader.close();
-        return sb.toString();
-    }
-
     // thanks yushijinhun!
     // https://github.com/yushijinhun/authlib-injector/blob/aff141877cccaec8c5ffe7a542efa139cc64bcde/src/main/java/moe/yushi/authlibinjector/transform/support/ConcatenateURLTransformUnit.java
     // https://github.com/yushijinhun/authlib-injector/issues/126
@@ -363,8 +334,10 @@ public class Hooks {
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("GET");
         conn.setDoInput(true);
+        conn.setConnectTimeout(5000);
+        conn.setReadTimeout(5000);
 
-        Json.JSONObject jsonObject = new Json.JSONObject(readStream(conn.getInputStream()));
+        Json.JSONObject jsonObject = new Json.JSONObject(HttpUtil.readStream(conn.getInputStream()));
         Json.JSONArray profilePropertyKeys = jsonObject.getJSONArray("profilePropertyKeys");
         if (profilePropertyKeys == null || profilePropertyKeys.isEmpty()) {
             throw new IllegalStateException("profilePropertyKeys not found in response");
@@ -423,7 +396,7 @@ public class Hooks {
             conn.setReadTimeout(5000);
             conn.setRequestProperty("Authorization", "Bearer " + accessToken);
             if (conn.getResponseCode() != 200) return mppass;
-            mppass = readStream(conn.getInputStream());
+            mppass = HttpUtil.readStream(conn.getInputStream());
         } catch (Exception ignored) {}
         log.debug("Fetched MpPass: " + mppass);
         return mppass;
@@ -431,44 +404,6 @@ public class Hooks {
 
     public static void injectMCOSELanServerJvmArgs(List<String> command) {
         command.addAll(Arrays.asList(LauncherHooks.getLokiJVMArgs()));
-    }
-
-    private static Map<String, String> batchLookupUUIDs(List<String> usernames) throws Exception {
-        URL url = new URL(System.getProperty("minecraft.api.account.host", "https://api.mojang.com")
-                + "/profiles/minecraft");
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-        conn.setRequestMethod("POST");
-        conn.setRequestProperty("Content-Type", "application/json");
-        conn.setRequestProperty("Accept", "application/json");
-        conn.setDoOutput(true);
-        conn.setConnectTimeout(5000);
-        conn.setReadTimeout(5000);
-
-        StringBuilder body = new StringBuilder("[");
-        for (int i = 0; i < usernames.size(); i++) {
-            if (i > 0) body.append(",");
-            body.append(Json.JSONObject.quote(usernames.get(i)));
-        }
-        body.append("]");
-        conn.getOutputStream().write(body.toString().getBytes("UTF-8"));
-        conn.getOutputStream().close();
-
-        int code = conn.getResponseCode();
-        if (code != 200) {
-            if (code == 429) throw UuidBatcher.rateLimited(conn);
-            if (code == 404 || code == 405 || code == 501) {
-                throw new UuidBatcher.EndpointUnavailableException("Batch UUID endpoint returned " + code);
-            }
-            throw new IOException("Batch UUID endpoint returned " + code);
-        }
-
-        Json.JSONArray arr = new Json.JSONArray(readStream(conn.getInputStream()));
-        Map<String, String> result = new HashMap<String, String>();
-        for (int i = 0; i < arr.length(); i++) {
-            Json.JSONObject obj = arr.getJSONObject(i);
-            result.put(obj.getString("name").toLowerCase(Locale.ENGLISH), obj.getString("id"));
-        }
-        return result;
     }
 
     private static final class TextureEntry {
@@ -499,7 +434,7 @@ public class Hooks {
         conn.setReadTimeout(5000);
         if (conn.getResponseCode() == 429) throw UuidBatcher.rateLimited(conn);
         if (conn.getResponseCode() != 200) return null;
-        Json.JSONArray props = new Json.JSONObject(readStream(conn.getInputStream())).getJSONArray("properties");
+        Json.JSONArray props = new Json.JSONObject(HttpUtil.readStream(conn.getInputStream())).getJSONArray("properties");
         for (int i = 0; i < props.length(); i++) {
             Json.JSONObject prop = props.getJSONObject(i);
             if ("textures".equals(prop.optString("name", ""))) {

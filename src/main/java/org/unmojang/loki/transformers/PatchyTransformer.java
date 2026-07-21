@@ -15,7 +15,7 @@ public class PatchyTransformer implements ClassFileTransformer {
     public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,
                             ProtectionDomain protectionDomain, byte[] classfileBuffer) {
 
-        if (!className.startsWith("com/mojang/patchy/") || Loki.enable_patchy) return null;
+        if (className == null || !className.startsWith("com/mojang/patchy/") || Loki.enable_patchy) return null;
 
         try {
             ClassNode cn = new ClassNode();
@@ -42,7 +42,7 @@ public class PatchyTransformer implements ClassFileTransformer {
 
             if (!changed) return null;
 
-            ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
+            ClassWriter cw = new LoaderAwareClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS, loader);
             cn.accept(cw);
             return cw.toByteArray();
 

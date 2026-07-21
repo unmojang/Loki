@@ -15,7 +15,7 @@ public class ReIndevGetSkinTransformer implements ClassFileTransformer {
     public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,
                             ProtectionDomain protectionDomain, byte[] classfileBuffer) {
 
-        if (!className.endsWith("ThreadGetSkin")) return null;
+        if (className == null || !className.endsWith("ThreadGetSkin")) return null;
 
         try {
             ClassNode cn = new ClassNode();

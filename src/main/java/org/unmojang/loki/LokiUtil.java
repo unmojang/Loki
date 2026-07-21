@@ -2,6 +2,7 @@ package org.unmojang.loki;
 
 import org.unmojang.loki.hooks.*;
 import org.unmojang.loki.util.BouncyCastleUtils;
+import org.unmojang.loki.util.HttpUtil;
 import org.unmojang.loki.util.Json;
 
 import javax.net.ssl.*;
@@ -239,6 +240,8 @@ public class LokiUtil {
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
             conn.setDoInput(true);
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(5000);
             conn.connect();
             String apiLocation = conn.getHeaderField("X-Authlib-Injector-Api-Location");
             if (apiLocation == null) return null;
@@ -263,7 +266,7 @@ public class LokiUtil {
             conn.connect();
 
             if (conn.getResponseCode() != 200) return;
-            String jsonText = Ygglib.readStream(conn.getInputStream());
+            String jsonText = HttpUtil.readStream(conn.getInputStream());
             Json.JSONObject json = new Json.JSONObject(jsonText);
 
             Json.JSONObject meta = json.optJSONObject("meta");

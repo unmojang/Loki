@@ -17,7 +17,7 @@ public class MCAuthlibGameProfileTransformer implements ClassFileTransformer {
     public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,
                             ProtectionDomain protectionDomain, byte[] classfileBuffer) {
 
-        if (!className.endsWith("/data/GameProfile")) return null;
+        if (className == null || !className.endsWith("/data/GameProfile")) return null;
 
         try {
             ClassNode cn = new ClassNode();

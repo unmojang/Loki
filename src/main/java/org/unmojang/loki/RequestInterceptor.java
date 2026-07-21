@@ -2,6 +2,7 @@ package org.unmojang.loki;
 
 import org.unmojang.loki.hooks.Hooks;
 import org.unmojang.loki.hooks.LauncherHooks;
+import org.unmojang.loki.util.HttpUtil;
 import sun.misc.Unsafe;
 
 import java.io.*;
@@ -223,7 +224,7 @@ public class RequestInterceptor {
                                 // Adapt the modern version JSON for older 1.6 launchers
                                 URLStreamHandler handler = Hooks.DEFAULT_HANDLERS.get(versionJsonURL.getProtocol());
                                 String rewritten = Ygglib.rewriteVersionJsonForLegacyLauncher(
-                                        Ygglib.readStream(openWithParent(versionJsonURL, handler).getInputStream()));
+                                        HttpUtil.readStream(openWithParent(versionJsonURL, handler).getInputStream()));
                                 return Ygglib.FakeURLConnection(originalUrl, originalConn, 200, rewritten.getBytes("UTF-8"));
                             }
                         } else if (path.endsWith(".jar")) {
@@ -257,7 +258,7 @@ public class RequestInterceptor {
                 try {
                     URLStreamHandler handler = Hooks.DEFAULT_HANDLERS.get(originalUrl.getProtocol());
                     String rewritten = Ygglib.stripUnsupportedNatives(
-                            Ygglib.readStream(openWithParent(originalUrl, handler).getInputStream()));
+                            HttpUtil.readStream(openWithParent(originalUrl, handler).getInputStream()));
                     return Ygglib.FakeURLConnection(originalUrl, originalConn, 200, rewritten.getBytes("UTF-8"));
                 } catch (Exception e) {
                     Loki.log.error("Failed to rewrite BetterJSONs version JSON", e);
@@ -328,10 +329,22 @@ public class RequestInterceptor {
             }
 
             if (host.equals("minotar.net") && (path.startsWith("/helm") || path.startsWith("/avatar"))) {
-                String username = path.split("/")[2];
-                int res = Integer.parseInt(path.split("/")[3].replaceFirst("\\..*$", ""));
-                Loki.log.info(String.format("Intercepting minotar.net lookup for %s (%s px)", username, res));
-                return Ygglib.getMinotar(originalUrl, originalConn, username, res);
+                try {
+                    String[] segments = path.split("/");
+                    if (segments.length < 3 || segments[2].length() == 0) return originalConn;
+                    String username = segments[2].replaceFirst("\\.[A-Za-z0-9]+$", "");
+                    int res = 64;
+                    if (segments.length > 3) {
+                        try {
+                            res = Integer.parseInt(segments[3].replaceFirst("\\..*$", ""));
+                        } catch (NumberFormatException ignored) {}
+                    }
+                    Loki.log.info(String.format("Intercepting minotar.net lookup for %s (%s px)", username, res));
+                    return Ygglib.getMinotar(originalUrl, originalConn, username, res);
+                } catch (Exception e) {
+                    Loki.log.error("Failed to intercept " + originalUrl, e);
+                    return originalConn;
+                }
             }
 
             if (host.equals("skinsystem.ely.by") && path.startsWith("/textures")) {

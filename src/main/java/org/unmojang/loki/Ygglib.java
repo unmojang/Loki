@@ -3,6 +3,7 @@ package org.unmojang.loki;
 import org.unmojang.loki.hooks.Hooks;
 import org.unmojang.loki.hooks.LauncherHooks;
 import org.unmojang.loki.util.Base64;
+import org.unmojang.loki.util.HttpUtil;
 import org.unmojang.loki.util.Json;
 import org.unmojang.loki.util.UuidBatcher;
 
@@ -18,7 +19,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 @SuppressWarnings("HttpUrlsUsage")
@@ -34,17 +34,6 @@ public class Ygglib {
                     return size() > UUID_CACHE_MAX;
                 }
             });
-
-    public static String readStream(InputStream in) throws IOException {
-        BufferedReader reader = new BufferedReader(new InputStreamReader(in, "UTF-8"));
-        StringBuilder sb = new StringBuilder();
-        String line;
-        while ((line = reader.readLine()) != null) {
-            sb.append(line);
-        }
-        reader.close();
-        return sb.toString();
-    }
 
     public static String getUsernameFromPath(String path) {
         return path.substring(path.lastIndexOf('/') + 1).replaceFirst("\\.png$", "");
@@ -62,42 +51,21 @@ public class Ygglib {
         return params;
     }
 
+    private static final HttpUtil.ConnectionFactory ACCOUNT_API = new HttpUtil.ConnectionFactory() {
+        public HttpURLConnection open(String pathSuffix) throws Exception {
+            URL url = getYggdrasilUrl(new URL("https://api.mojang.com" + pathSuffix), null);
+            URLStreamHandler handler = Hooks.DEFAULT_HANDLERS.get(url.getProtocol());
+            return RequestInterceptor.openWithParent(url, handler);
+        }
+    };
+
     private static final UuidBatcher UUID_BATCHER = new UuidBatcher("Loki-Uuid", new UuidBatcher.Resolver() {
         public Map<String, String> batchLookup(List<String> usernames) throws Exception {
-            return batchLookupUUIDs(usernames);
+            return HttpUtil.batchLookupUUIDs(ACCOUNT_API, usernames);
         }
         public String singleLookup(String username) throws Exception {
             try {
-                URL skinUrl = new URL("https://api.mojang.com/users/profiles/minecraft/" + URLEncoder.encode(username, "UTF-8"));
-                skinUrl = getYggdrasilUrl(skinUrl, null);
-                URLStreamHandler handler = Hooks.DEFAULT_HANDLERS.get(skinUrl.getProtocol());
-                HttpURLConnection conn = RequestInterceptor.openWithParent(skinUrl, handler);
-                conn.setRequestMethod("GET");
-                conn.setConnectTimeout(5000);
-                conn.setReadTimeout(5000);
-
-                int code = conn.getResponseCode();
-                if (code == 200) {
-                    return new Json.JSONObject(readStream(conn.getInputStream())).getString("id");
-                }
-                if (code == 429) throw UuidBatcher.rateLimited(conn);
-
-                // route not implemented? let's try the other one...
-                skinUrl = new URL("https://api.mojang.com/minecraft/profile/lookup/name/" + URLEncoder.encode(username, "UTF-8"));
-                skinUrl = getYggdrasilUrl(skinUrl, null);
-                handler = Hooks.DEFAULT_HANDLERS.get(skinUrl.getProtocol());
-                conn = RequestInterceptor.openWithParent(skinUrl, handler);
-                conn.setRequestMethod("GET");
-                conn.setConnectTimeout(5000);
-                conn.setReadTimeout(5000);
-
-                code = conn.getResponseCode();
-                if (code == 200) {
-                    return new Json.JSONObject(readStream(conn.getInputStream())).getString("id");
-                }
-                if (code == 429) throw UuidBatcher.rateLimited(conn);
-
-                return null;
+                return HttpUtil.singleLookupUUID(ACCOUNT_API, username);
             } catch (UnknownHostException e) {
                 throw e;
             } catch (Exception e) {
@@ -115,45 +83,6 @@ public class Ygglib {
         if (uuid == null) throw new IOException("No UUID lookup route succeeded for username: " + username);
         nameToUUIDCache.put(username, uuid);
         return uuid;
-    }
-
-    private static Map<String, String> batchLookupUUIDs(List<String> usernames) throws Exception {
-        URL url = new URL("https://api.mojang.com/profiles/minecraft");
-        url = getYggdrasilUrl(url, null);
-        URLStreamHandler handler = Hooks.DEFAULT_HANDLERS.get(url.getProtocol());
-        HttpURLConnection conn = RequestInterceptor.openWithParent(url, handler);
-        conn.setRequestMethod("POST");
-        conn.setRequestProperty("Content-Type", "application/json");
-        conn.setRequestProperty("Accept", "application/json");
-        conn.setDoOutput(true);
-        conn.setConnectTimeout(5000);
-        conn.setReadTimeout(5000);
-
-        StringBuilder body = new StringBuilder("[");
-        for (int i = 0; i < usernames.size(); i++) {
-            if (i > 0) body.append(",");
-            body.append(Json.JSONObject.quote(usernames.get(i)));
-        }
-        body.append("]");
-        conn.getOutputStream().write(body.toString().getBytes("UTF-8"));
-        conn.getOutputStream().close();
-
-        int code = conn.getResponseCode();
-        if (code != 200) {
-            if (code == 429) throw UuidBatcher.rateLimited(conn);
-            if (code == 404 || code == 405 || code == 501) {
-                throw new UuidBatcher.EndpointUnavailableException("Batch UUID endpoint returned " + code);
-            }
-            throw new IOException("Batch UUID endpoint returned " + code);
-        }
-
-        Json.JSONArray arr = new Json.JSONArray(readStream(conn.getInputStream()));
-        Map<String, String> result = new HashMap<String, String>();
-        for (int i = 0; i < arr.length(); i++) {
-            Json.JSONObject obj = arr.getJSONObject(i);
-            result.put(obj.getString("name").toLowerCase(Locale.ENGLISH), obj.getString("id"));
-        }
-        return result;
     }
 
     @SuppressWarnings("BusyWait")
@@ -174,7 +103,7 @@ public class Ygglib {
                     continue;
                 }
 
-                String profileJson = readStream(conn.getInputStream());
+                String profileJson = HttpUtil.readStream(conn.getInputStream());
                 if (returnProfileJson) return profileJson;
                 Json.JSONObject profileObj = new Json.JSONObject(profileJson);
                 String texturesBase64 = profileObj.getJSONArray("properties").getJSONObject(0).getString("value");
@@ -455,7 +384,10 @@ public class Ygglib {
             URL versionJsonURL = getVersionJsonURL(version);
             if (versionJsonURL == null) return null;
 
-            Json.JSONObject versionJson = new Json.JSONObject(Ygglib.readStream(versionJsonURL.openConnection().getInputStream()));
+            URLConnection conn = versionJsonURL.openConnection();
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(5000);
+            Json.JSONObject versionJson = new Json.JSONObject(HttpUtil.readStream(conn.getInputStream()));
             URL versionURL = new URL(versionJson.getJSONObject("downloads").getJSONObject("client").getString("url"));
             Loki.log.debug("Grabbed Minecraft " + version + " URL: " + versionURL);
             return versionURL;

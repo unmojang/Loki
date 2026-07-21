@@ -17,10 +17,10 @@ public class AllowedDomainTransformer implements ClassFileTransformer {
                             ProtectionDomain protectionDomain, byte[] classfileBuffer) {
 
         // Target MCAuthlib too (used in MojangFix and Ears mods, possibly more)
-        if (!className.equals("com/mojang/authlib/yggdrasil/YggdrasilMinecraftSessionService")
+        if (className == null || (!className.equals("com/mojang/authlib/yggdrasil/YggdrasilMinecraftSessionService")
                 && !className.equals("com/mojang/authlib/yggdrasil/TextureUrlChecker")
                 && !className.equals("com/mojang/authlib/services/MinecraftServicesDiscoveryService")
-                && !className.endsWith("/data/GameProfile")) return null;
+                && !className.endsWith("/data/GameProfile"))) return null;
 
         try {
             ClassNode cn = new ClassNode();

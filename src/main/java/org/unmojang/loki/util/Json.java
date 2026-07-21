@@ -762,12 +762,7 @@ public class Json {
                 // Use syntaxError(..) to include error location
 
                 if (key != null) {
-                    // Check if key exists
-                    if (this.opt(key) != null) {
-                        // key already exists
-                        throw x.syntaxError("Duplicate key \"" + key + "\"");
-                    }
-                    // Only add value if non-null
+                    // Duplicate keys: last value wins
                     Object value = x.nextValue();
                     if (value != null) {
                         this.put(key, value);

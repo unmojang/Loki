@@ -1,5 +1,6 @@
 package org.unmojang.loki.hooks;
 
+import org.unmojang.loki.util.HttpUtil;
 import org.unmojang.loki.util.Json;
 import org.unmojang.loki.util.MicrosoftAuth;
 import org.unmojang.loki.util.logger.NilLogger;
@@ -109,7 +110,7 @@ public class LauncherHooks {
             os.write(payload.getBytes("UTF-8"));
             os.flush();
             os.close();
-            return new Json.JSONObject(Hooks.readStream(conn.getInputStream()));
+            return new Json.JSONObject(HttpUtil.readStream(conn.getInputStream()));
         } catch (Exception ignored) {}
         return null;
     }
@@ -577,7 +578,10 @@ public class LauncherHooks {
             }
             if (versionUrl == null) return;
 
-            Json.JSONObject versionJson = new Json.JSONObject(Hooks.readStream(new URL(versionUrl).openConnection().getInputStream()));
+            HttpURLConnection conn = (HttpURLConnection) new URL(versionUrl).openConnection();
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(5000);
+            Json.JSONObject versionJson = new Json.JSONObject(HttpUtil.readStream(conn.getInputStream()));
             resolveVersionData(versionJson);
         } catch (Throwable t) {
             t.printStackTrace();
@@ -590,7 +594,9 @@ public class LauncherHooks {
         synchronized (LauncherHooks.class) {
             if (cachedManifestRoot != null) return cachedManifestRoot;
             HttpURLConnection conn = (HttpURLConnection) new URL(VERSION_MANIFEST_URL).openConnection();
-            cachedManifestRoot = new Json.JSONObject(Hooks.readStream(conn.getInputStream()));
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(5000);
+            cachedManifestRoot = new Json.JSONObject(HttpUtil.readStream(conn.getInputStream()));
             return cachedManifestRoot;
         }
     }
@@ -607,7 +613,9 @@ public class LauncherHooks {
         synchronized (LauncherHooks.class) {
             if (url.equals(cachedAssetIndexUrl) && assetIndexCache != null) return assetIndexCache;
             HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
-            assetIndexCache = new Json.JSONObject(Hooks.readStream(conn.getInputStream()));
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(5000);
+            assetIndexCache = new Json.JSONObject(HttpUtil.readStream(conn.getInputStream()));
             cachedAssetIndexUrl = url;
             return assetIndexCache;
         }
