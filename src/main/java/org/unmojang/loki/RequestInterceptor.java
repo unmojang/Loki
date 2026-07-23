@@ -391,7 +391,7 @@ public class RequestInterceptor {
         // Omniarchive rejects the Java user agent
         String targetHost = targetUrl.getHost();
         if (targetHost != null && targetHost.endsWith("omniarchive.uk")) {
-            targetConn.setRequestProperty("User-Agent", "Loki/" + LokiUtil.class.getPackage().getImplementationVersion());
+            targetConn.setRequestProperty("User-Agent", "Loki/" + LokiUtil.getAgentVersion());
         }
         return targetConn;
     }

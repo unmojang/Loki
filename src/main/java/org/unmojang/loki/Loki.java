@@ -8,6 +8,7 @@ import java.lang.instrument.Instrumentation;
 public class Loki {
     public static final NilLogger log = NilLogger.get("Loki");
 
+    public static final boolean auto_update = Boolean.getBoolean("Loki.auto_update");
     public static final boolean chat_restrictions =  Boolean.getBoolean("Loki.chat_restrictions");
     public static boolean disable_factory = Boolean.getBoolean("Loki.disable_factory");
     public static final boolean disable_profile_lookup = Boolean.getBoolean("Loki.disable_profile_lookup");
@@ -20,7 +21,9 @@ public class Loki {
     public static final boolean username_validation = Boolean.getBoolean("Loki.username_validation");
 
     public static void premain(String agentArgs, Instrumentation inst) {
-        log.info("Hello Loki " + Loki.class.getPackage().getImplementationVersion() + " World!");
+        if (auto_update && LokiUpdater.updateAndSwap(agentArgs, inst)) return;
+
+        log.info("Hello Loki " + LokiUtil.getAgentVersion() + " World!");
         LokiUtil.earlyInit(agentArgs, inst);
 
         // Kill Loki alternatives so that Loki won't break

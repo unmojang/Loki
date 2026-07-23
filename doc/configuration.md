@@ -19,6 +19,11 @@ Loki supports JVM arguments to enable or disable some behaviour.
   -DLoki.trace=true
   ```
 
+- Automatically update Loki in place on startup (skipped when offline)
+  ```
+  -DLoki.auto_update=true
+  ```
+
 - Re-enable chat restrictions
   ```
   -DLoki.chat_restrictions=true

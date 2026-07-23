@@ -34,6 +34,7 @@ public class LokiUtil {
     public static URL LAUNCHER_VERSION_URL = null;
 
     private static void initManifestAttributes() {
+        if (!MANIFEST_ATTRS.isEmpty()) return;
         try {
             CodeSource codeSource = LokiUtil.class.getProtectionDomain().getCodeSource();
             if (codeSource != null && codeSource.getLocation() != null) {
@@ -52,7 +53,14 @@ public class LokiUtil {
         }
     }
 
-    private static boolean areWeOnline(final String host, final int port) {
+    public static String getAgentVersion() {
+        initManifestAttributes();
+        String version = MANIFEST_ATTRS.get("Implementation-Version");
+        return version != null ? version : Loki.class.getPackage().getImplementationVersion();
+    }
+
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
+    static boolean areWeOnline(final String host, final int port) {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         Future<Boolean> future = executor.submit(new Callable<Boolean>() {
             public Boolean call() {
@@ -217,8 +225,8 @@ public class LokiUtil {
         try {
             String host = new URL(canonicalizeUrl(url)).getHost();
             if (MISCONFIGURED_API_SERVERS.contains(host)) {
-                System.setProperty("http.agent", "Loki/" + LokiUtil.class.getPackage().getImplementationVersion());
-                Loki.log.debug("Overriding default user agent (blocked by Cloudflare)");
+                System.setProperty("http.agent", "Loki/" + LokiUtil.getAgentVersion());
+                Loki.log.debug("Overriding default user agent (blocked by API server)");
             }
         } catch (MalformedURLException ignored) {}
     }

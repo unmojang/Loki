@@ -7,5 +7,6 @@
 }
 
 # Loaded dynamically
+-keep class org.unmojang.loki.UpdateApplier { *; }
 -keep class org.unmojang.loki.hooks.** { *; }
 -keep class org.unmojang.loki.util.** { *; }
