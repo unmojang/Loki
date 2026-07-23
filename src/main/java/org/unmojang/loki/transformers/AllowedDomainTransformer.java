@@ -16,10 +16,12 @@ public class AllowedDomainTransformer implements ClassFileTransformer {
     public byte[] transform(final ClassLoader loader, String className, Class<?> classBeingRedefined,
                             ProtectionDomain protectionDomain, byte[] classfileBuffer) {
 
-        // Target MCAuthlib too (used in MojangFix and Ears mods, possibly more)
         if (className == null || (!className.equals("com/mojang/authlib/yggdrasil/YggdrasilMinecraftSessionService")
                 && !className.equals("com/mojang/authlib/yggdrasil/TextureUrlChecker")
                 && !className.equals("com/mojang/authlib/services/MinecraftServicesDiscoveryService")
+                // CustomPlayerModels GameProfile
+                && !className.equals("com/tom/cpm/retro/GameProfile")
+                // MCAuthlib (used in MojangFix and Ears mods, possibly more)
                 && !className.endsWith("/data/GameProfile"))) return null;
 
         try {
@@ -47,6 +49,19 @@ public class AllowedDomainTransformer implements ClassFileTransformer {
 
                     Loki.log.debug("Patching " + LokiUtil.getFqmn(className, mn.name, mn.desc));
                     changed = true;
+                }
+
+                // CPM's domain check is too simple to patch skinDomains support into, and who cares anyway?
+                if (className.equals("com/tom/cpm/retro/GameProfile")) {
+                    for (AbstractInsnNode insn = mn.instructions.getFirst(); insn != null; insn = insn.getNext()) {
+                        if (insn instanceof LdcInsnNode
+                                && "http://textures.minecraft.net/texture/".equals(((LdcInsnNode) insn).cst)) {
+                            ((LdcInsnNode) insn).cst = "";
+
+                            Loki.log.debug("Patching " + LokiUtil.getFqmn(className, mn.name, mn.desc));
+                            changed = true;
+                        }
+                    }
                 }
             }
 
