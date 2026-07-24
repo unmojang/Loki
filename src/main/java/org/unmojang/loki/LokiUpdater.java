@@ -27,44 +27,42 @@ public class LokiUpdater {
         String version;
         try {
             String current = LokiUtil.getAgentVersion();
-            if (current == null) return false; // not running from a release jar
+            if (current == null) return false;
 
             File agentJar = new File(Loki.class.getProtectionDomain().getCodeSource().getLocation().toURI());
             if (!agentJar.isFile()) return false;
-            File[] siblings = agentJar.getParentFile().listFiles();
-            if (siblings != null) { // temp downloads orphaned by a crashed session
-                for (File f : siblings) {
-                    if (f.getName().startsWith("Loki-update-") && f.getName().endsWith(".jar")) deleteQuietly(f);
-                }
-            }
             File newJar = new File(agentJar.getPath() + ".new");
+            File partial = new File(agentJar.getPath() + ".new.part");
+            deleteQuietly(newJar);
+            deleteQuietly(partial);
 
-            String pending = readAgentJarVersion(newJar);
-            if (pending != null && compareVersions(pending, current) > 0) {
-                Loki.log.info("Resuming pending update " + current + " -> " + pending);
-                version = pending;
-            } else {
-                deleteQuietly(newJar);
+            if (!LokiUtil.areWeOnline(UPDATE_HOST, 443)) {
+                Loki.log.warn("Skipping update check, " + UPDATE_HOST + " is unreachable");
+                return false;
+            }
 
-                if (!LokiUtil.areWeOnline(UPDATE_HOST, 443)) {
-                    Loki.log.warn("Skipping update check, " + UPDATE_HOST + " is unreachable");
-                    return false;
-                }
+            Json.JSONObject release = fetchLatestRelease(current);
+            if (release == null) return false;
+            version = release.optString("tag_name", "").replaceFirst("^v", "");
+            if (version.length() == 0 || compareVersions(version, current) <= 0) {
+                Loki.log.info("Loki is up to date (" + current + ")");
+                return false;
+            }
 
-                Json.JSONObject release = fetchLatestRelease(current);
-                if (release == null) return false;
-                String latest = release.optString("tag_name", "").replaceFirst("^v", "");
-                if (latest.length() == 0 || compareVersions(latest, current) <= 0) {
-                    Loki.log.info("Loki is up to date (" + current + ")");
-                    return false;
-                }
+            String downloadUrl = findJarAssetUrl(release);
+            if (downloadUrl == null) return false;
 
-                String downloadUrl = findJarAssetUrl(release);
-                if (downloadUrl == null) return false;
-
-                Loki.log.info("Updating Loki " + current + " -> " + latest);
-                if (!downloadToNewJar(downloadUrl, newJar, agentJar, current)) return false;
-                version = latest;
+            Loki.log.info("Updating Loki " + current + " -> " + version);
+            download(downloadUrl, partial, current);
+            if (readAgentJarVersion(partial) == null) {
+                Loki.log.error("Downloaded update is not a valid Loki agent, ignoring it");
+                deleteQuietly(partial);
+                return false;
+            }
+            if (!partial.renameTo(newJar)) { // .new appears atomically for a concurrent applier
+                Loki.log.error("Could not move the downloaded update to " + newJar);
+                deleteQuietly(partial);
+                return false;
             }
             newPremain = prepareSwap(agentJar, newJar);
         } catch (Throwable t) {
@@ -74,7 +72,7 @@ public class LokiUpdater {
         if (newPremain == null) return false;
 
         System.setProperty("Loki.auto_update.done", "true");
-        Loki.log.info("Swapping to updated Loki " + version);
+        Loki.log.debug("Swapping to updated Loki " + version);
         try {
             newPremain.invoke(null, agentArgs, inst);
         } catch (Throwable t) {
@@ -117,21 +115,6 @@ public class LokiUpdater {
             }
         }
         return null;
-    }
-
-    private static boolean downloadToNewJar(String url, File newJar, File agentJar, String current) throws IOException {
-        File temp = File.createTempFile("Loki-update-", ".jar", agentJar.getParentFile());
-        download(url, temp, current);
-        if (readAgentJarVersion(temp) == null) {
-            Loki.log.error("Downloaded update is not a valid Loki agent, ignoring it");
-            deleteQuietly(temp);
-            return false;
-        }
-        if (temp.renameTo(newJar)) return true;
-
-        deleteQuietly(temp); // another Loki process won the race
-        String raced = readAgentJarVersion(newJar);
-        return raced != null && compareVersions(raced, current) > 0;
     }
 
     private static void download(String url, File dest, String currentVersion) throws IOException {
@@ -234,12 +217,12 @@ public class LokiUpdater {
     }
 
     private static void scheduleWindowsReplaceOnExit(final File agentJar, final File newJar) {
-        final File applierDir = extractApplier();
+        final File java = findJavaBinary();
+        final File applierDir = java == null ? null : extractApplier();
         if (applierDir == null) {
             Loki.log.warn("Could not set up the update applier; the update was left at " + newJar);
             return;
         }
-        final File java = findJavaBinary();
         Runtime.getRuntime().addShutdownHook(new Thread("Loki-update-applier") {
             public void run() {
                 try {
@@ -286,8 +269,7 @@ public class LokiUpdater {
         File javaw = new File(bin, "javaw.exe");
         if (javaw.isFile()) return javaw;
         File javaExe = new File(bin, "java.exe");
-        if (javaExe.isFile()) return javaExe;
-        return new File(bin, "java");
+        return javaExe.isFile() ? javaExe : null;
     }
 
     private static void deleteQuietly(File file) {
