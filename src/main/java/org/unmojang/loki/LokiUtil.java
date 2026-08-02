@@ -131,7 +131,8 @@ public class LokiUtil {
             conn.connect();
             return true;
         } catch (SSLHandshakeException e) {
-            if (e.getMessage().endsWith("handshake_failure")) exitBrokenTLS();
+            String message = e.getMessage();
+            if (message != null && message.endsWith("handshake_failure")) exitBrokenTLS();
             return false;
         } catch (UnknownHostException e) {
             throw e;

@@ -43,9 +43,11 @@ jobs:
         run: ant clean build
 
       - name: Extract version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
         run: echo "RELEASE_TAG=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
 
       - name: Generate release notes
+        if: startsWith(github.ref, 'refs/tags/v')
         run: |
           GH_REPO="${{ github.repository }}"
           TAG=${GITHUB_REF#refs/tags/}
@@ -61,6 +63,7 @@ jobs:
           } > RELEASE_NOTES.md
 
       - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.ref_name }}
@@ -69,5 +72,6 @@ jobs:
           draft: false
           prerelease: false
           files: build/dist/Loki-${{ env.RELEASE_TAG }}.jar
+          fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -20,21 +20,26 @@ public class LokiUpdater {
     private static final String UPDATE_HOST = "api.github.com";
     private static final String RELEASES_URL = "https://" + UPDATE_HOST + "/repos/unmojang/Loki/releases/latest";
 
+    private static File pendingBackup;
+    private static Thread applierHook;
+
     public static boolean updateAndSwap(String agentArgs, Instrumentation inst) {
         if (Boolean.getBoolean("Loki.auto_update.done")) return false;
 
         Method newPremain;
         String version;
+        File agentJar;
         try {
             String current = LokiUtil.getAgentVersion();
             if (current == null) return false;
 
-            File agentJar = new File(Loki.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+            agentJar = new File(Loki.class.getProtectionDomain().getCodeSource().getLocation().toURI());
             if (!agentJar.isFile()) return false;
             File newJar = new File(agentJar.getPath() + ".new");
             File partial = new File(agentJar.getPath() + ".new.part");
             deleteQuietly(newJar);
             deleteQuietly(partial);
+            deleteQuietly(new File(agentJar.getPath() + ".old")); // we're running fine, so a leftover backup is stale
 
             if (!LokiUtil.areWeOnline(UPDATE_HOST, 443)) {
                 Loki.log.warn("Skipping update check, " + UPDATE_HOST + " is unreachable");
@@ -76,14 +81,42 @@ public class LokiUpdater {
         try {
             newPremain.invoke(null, agentArgs, inst);
         } catch (Throwable t) {
-            Loki.log.error("The updated Loki " + version + " failed to initialize! Disable");
-            Loki.log.error("automatic updates to keep using the current version.");
+            Loki.log.error("The updated Loki " + version + " failed to initialize!");
+            rollbackSwap(agentJar);
             Throwable cause = (t instanceof InvocationTargetException && t.getCause() != null) ? t.getCause() : t;
             if (cause instanceof Error) throw (Error) cause;
             if (cause instanceof RuntimeException) throw (RuntimeException) cause;
             throw new RuntimeException(cause);
         }
+        commitSwap();
         return true;
+    }
+
+    private static void commitSwap() {
+        if (pendingBackup != null) {
+            deleteQuietly(pendingBackup);
+            pendingBackup = null;
+        }
+        applierHook = null;
+    }
+
+    private static void rollbackSwap(File agentJar) {
+        if (applierHook != null) {
+            try { Runtime.getRuntime().removeShutdownHook(applierHook); } catch (Throwable ignored) {}
+            applierHook = null;
+            deleteQuietly(new File(agentJar.getPath() + ".new"));
+            Loki.log.error("The update has been discarded.");
+            return;
+        }
+        File backup = pendingBackup;
+        if (backup == null) return;
+        pendingBackup = null;
+        if (agentJar.delete() && backup.renameTo(agentJar)) {
+            Loki.log.error("The previous version has been restored.");
+        } else {
+            Loki.log.error("Could not restore the previous version automatically, it remains at " + backup);
+            Loki.log.error("Restore it manually over " + agentJar + " or disable automatic updates.");
+        }
     }
 
     private static Json.JSONObject fetchLatestRelease(String currentVersion) {
@@ -199,7 +232,7 @@ public class LokiUpdater {
         File backup = new File(agentJar.getPath() + ".old");
         if (agentJar.renameTo(backup)) {
             if (newJar.renameTo(agentJar)) {
-                deleteQuietly(backup);
+                pendingBackup = backup;
                 return agentJar;
             }
             if (!backup.renameTo(agentJar)) {
@@ -223,7 +256,7 @@ public class LokiUpdater {
             Loki.log.warn("Could not set up the update applier; the update was left at " + newJar);
             return;
         }
-        Runtime.getRuntime().addShutdownHook(new Thread("Loki-update-applier") {
+        applierHook = new Thread("Loki-update-applier") {
             public void run() {
                 try {
                     ProcessBuilder pb = new ProcessBuilder(java.getAbsolutePath(),
@@ -238,7 +271,8 @@ public class LokiUpdater {
                     pb.start();
                 } catch (Throwable ignored) {}
             }
-        });
+        };
+        Runtime.getRuntime().addShutdownHook(applierHook);
     }
 
     private static File extractApplier() {
