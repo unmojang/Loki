@@ -136,6 +136,9 @@
             </classpath>
             <arg value="@proguard.pro"/>
             <arg value="-dontoptimize" unless:set="proguard.haslibs"/>
+            <!-- Without platform libraryjars, every java.* reference is unresolved; suppress the noise -->
+            <arg value="-dontwarn" unless:set="proguard.haslibs"/>
+            <arg value="**" unless:set="proguard.haslibs"/>
             <arg value="-injars"/>
             <arg file="${temp.dir}/${artifact}-${version}-fat.jar"/>
             <arg value="-outjars"/>

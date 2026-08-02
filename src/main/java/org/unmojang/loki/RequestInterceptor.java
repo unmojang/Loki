@@ -399,21 +399,32 @@ public class RequestInterceptor {
     public static HttpURLConnection mirrorHttpURLConnectionWithETag(final URL targetUrl, HttpURLConnection httpConn) throws IOException {
         final HttpURLConnection targetConn = mirrorHttpURLConnection(targetUrl, httpConn);
 
-        // Preload the response to compute an ETag
-        byte[] data;
+        // Spill to a temp file while hashing so a large jar isn't held in memory
+        File spill = File.createTempFile("loki-mirror", ".tmp");
+        spill.deleteOnExit();
+        String etag;
+        InputStream is = null;
+        OutputStream os = null;
         try {
-            InputStream is = targetConn.getInputStream();
-            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            is = targetConn.getInputStream();
+            os = new FileOutputStream(spill);
             byte[] buf = new byte[8192];
             int r;
-            while ((r = is.read(buf)) != -1) bos.write(buf, 0, r);
-            is.close();
-            data = bos.toByteArray();
-        } catch (IOException e) {
+            while ((r = is.read(buf)) != -1) {
+                md.update(buf, 0, r);
+                os.write(buf, 0, r);
+            }
+            etag = formatEtag(md.digest());
+        } catch (Exception e) {
+            if (!spill.delete()) spill.deleteOnExit();
             targetConn.disconnect();
-            throw e;
+            throw e instanceof IOException ? (IOException) e : new IOException(e);
+        } finally {
+            if (is != null) try { is.close(); } catch (IOException ignored) {}
+            if (os != null) try { os.close(); } catch (IOException ignored) {}
         }
-        return byteServingConnection(data, targetUrl, targetConn);
+        return fileServingConnection(spill, etag, targetUrl, targetConn);
     }
 
     // Construct fat JARs for applet launcher
@@ -459,16 +470,42 @@ public class RequestInterceptor {
         };
     }
 
+    // Serves a temp file as the connection body, deleting it once the caller disconnects
+    private static HttpURLConnection fileServingConnection(final File file, final String etag, URL url, final HttpURLConnection backing) {
+        return new HttpURLConnection(url) {
+            @Override public void connect() {}
+            @Override public InputStream getInputStream() throws IOException {
+                return new BufferedInputStream(new FileInputStream(file));
+            }
+            @Override public String getHeaderField(String name) {
+                if ("ETag".equalsIgnoreCase(name)) return etag;
+                return backing != null ? backing.getHeaderField(name) : null;
+            }
+            @Override public int getResponseCode() throws IOException {
+                return backing != null ? backing.getResponseCode() : 200;
+            }
+            @Override public void disconnect() {
+                if (!file.delete()) file.deleteOnExit();
+                if (backing != null) backing.disconnect();
+            }
+            @Override public boolean usingProxy() { return backing != null && backing.usingProxy(); }
+        };
+    }
+
     private static String md5Etag(byte[] data) {
         try {
             MessageDigest md = MessageDigest.getInstance("MD5");
-            BigInteger bi = new BigInteger(1, md.digest(data));
-            StringBuilder etag = new StringBuilder(bi.toString(16));
-            while (etag.length() < 32) etag.insert(0, "0");
-            return "\"" + etag + "\"";
+            return formatEtag(md.digest(data));
         } catch (Exception e) {
             return null;
         }
+    }
+
+    private static String formatEtag(byte[] digest) {
+        BigInteger bi = new BigInteger(1, digest);
+        StringBuilder etag = new StringBuilder(bi.toString(16));
+        while (etag.length() < 32) etag.insert(0, "0");
+        return "\"" + etag + "\"";
     }
 
     private static URLStreamHandler getSystemURLHandler(String protocol) throws Exception {

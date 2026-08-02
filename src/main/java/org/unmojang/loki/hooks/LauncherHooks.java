@@ -106,10 +106,14 @@ public class LauncherHooks {
                             + "\"username\":" + Json.JSONObject.quote(user) + ","
                             + "\"password\":" + Json.JSONObject.quote(password)
                             + "}";
-            OutputStream os = conn.getOutputStream();
-            os.write(payload.getBytes("UTF-8"));
-            os.flush();
-            os.close();
+            OutputStream os = null;
+            try {
+                os = conn.getOutputStream();
+                os.write(payload.getBytes("UTF-8"));
+                os.flush();
+            } finally {
+                if (os != null) os.close();
+            }
             return new Json.JSONObject(HttpUtil.readStream(conn.getInputStream()));
         } catch (Exception ignored) {}
         return null;

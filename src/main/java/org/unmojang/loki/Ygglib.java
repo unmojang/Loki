@@ -238,29 +238,33 @@ public class Ygglib {
             url = getYggdrasilUrl(url, null);
             URLStreamHandler handler = Hooks.DEFAULT_HANDLERS.get(url.getProtocol());
             HttpURLConnection conn = RequestInterceptor.openWithParent(url, handler);
-            conn.setDoOutput(true);
-            conn.setRequestMethod("POST");
-            conn.setRequestProperty("Content-Type", "application/json");
-            conn.setRequestProperty("Accept", "application/json");
-            OutputStream os = null;
             try {
-                os = conn.getOutputStream();
-                StringBuilder payload = new StringBuilder();
-                payload.append("{")
-                        .append("\"accessToken\": ").append(Json.JSONObject.quote(accessToken)).append(",")
-                        .append("\"selectedProfile\": ").append(Json.JSONObject.quote(uuid));
+                conn.setDoOutput(true);
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setRequestProperty("Accept", "application/json");
+                OutputStream os = null;
+                try {
+                    os = conn.getOutputStream();
+                    StringBuilder payload = new StringBuilder();
+                    payload.append("{")
+                            .append("\"accessToken\": ").append(Json.JSONObject.quote(accessToken)).append(",")
+                            .append("\"selectedProfile\": ").append(Json.JSONObject.quote(uuid));
 
-                if (serverId != null) {
-                    payload.append(",\"serverId\": ").append(Json.JSONObject.quote(serverId));
+                    if (serverId != null) {
+                        payload.append(",\"serverId\": ").append(Json.JSONObject.quote(serverId));
+                    }
+                    payload.append("}");
+                    os.write(payload.toString().getBytes("UTF-8"));
+                } finally {
+                    if (os != null) os.close();
                 }
-                payload.append("}");
-                os.write(payload.toString().getBytes("UTF-8"));
-            } finally {
-                if (os != null) os.close();
-            }
 
-            if (conn.getResponseCode() == 204) {
-                return FakeURLConnection(originalUrl, originalConn, 200, "OK".getBytes("UTF-8"));
+                if (conn.getResponseCode() == 204) {
+                    return FakeURLConnection(originalUrl, originalConn, 200, "OK".getBytes("UTF-8"));
+                }
+            } finally {
+                conn.disconnect();
             }
         } catch (Exception e) {
             Loki.log.error("joinServer failed", e);
@@ -285,13 +289,17 @@ public class Ygglib {
             url = getYggdrasilUrl(url, null);
             URLStreamHandler handler = Hooks.DEFAULT_HANDLERS.get(url.getProtocol());
             HttpURLConnection conn = RequestInterceptor.openWithParent(url, handler);
-            conn.setDoInput(true);
-            conn.setDoOutput(false);
-            conn.setRequestMethod("GET");
-            conn.connect();
+            try {
+                conn.setDoInput(true);
+                conn.setDoOutput(false);
+                conn.setRequestMethod("GET");
+                conn.connect();
 
-            if (conn.getResponseCode() == 200) {
-                return FakeURLConnection(originalUrl, originalConn, 200, "YES".getBytes("UTF-8"));
+                if (conn.getResponseCode() == 200) {
+                    return FakeURLConnection(originalUrl, originalConn, 200, "YES".getBytes("UTF-8"));
+                }
+            } finally {
+                conn.disconnect();
             }
         } catch (Exception e) {
             Loki.log.error("checkServer failed", e);

@@ -34,7 +34,7 @@ public class InetAddressTransformer implements ClassFileTransformer {
 
         try {
             ClassReader cr = new ClassReader(classfileBuffer);
-            ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
+            ClassWriter cw = new LoaderAwareClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS, loader);
             ClassVisitor cv = new ClassVisitor(ASM9, cw) {
                 @Override
                 public MethodVisitor visitMethod(int access, final String name, final String descriptor,

@@ -120,7 +120,7 @@ public class UuidBatcher {
         } catch (RateLimitedException e) {
             rateLimitUntil = System.currentTimeMillis() + e.retryAfterMs;
             for (Request request : batch) {
-                if (request.rateLimitAttempts++ < MAX_RATE_LIMIT_RETRIES) {
+                if (request.rateLimitAttempts.getAndIncrement() < MAX_RATE_LIMIT_RETRIES) {
                     queue.add(request);
                 } else {
                     request.complete(null, e);
@@ -150,7 +150,7 @@ public class UuidBatcher {
                     uuid = resolver.singleLookup(req.username);
                 } catch (RateLimitedException e) {
                     rateLimitUntil = System.currentTimeMillis() + e.retryAfterMs;
-                    if (req.rateLimitAttempts++ < MAX_RATE_LIMIT_RETRIES) {
+                    if (req.rateLimitAttempts.getAndIncrement() < MAX_RATE_LIMIT_RETRIES) {
                         submitSingle(req);
                         return;
                     }
@@ -212,7 +212,7 @@ public class UuidBatcher {
         volatile String uuid;
         volatile Exception error;
         volatile boolean done;
-        int rateLimitAttempts;
+        final AtomicInteger rateLimitAttempts = new AtomicInteger(); // touched from batch and fallback-pool threads
 
         Request(String username) { this.username = username; }
 

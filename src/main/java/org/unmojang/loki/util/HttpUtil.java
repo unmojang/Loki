@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URLEncoder;
 import java.util.HashMap;
@@ -22,13 +23,16 @@ public final class HttpUtil {
 
     public static String readStream(InputStream in) throws IOException {
         BufferedReader reader = new BufferedReader(new InputStreamReader(in, "UTF-8"));
-        StringBuilder sb = new StringBuilder();
-        String line;
-        while ((line = reader.readLine()) != null) {
-            sb.append(line);
+        try {
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                sb.append(line);
+            }
+            return sb.toString();
+        } finally {
+            reader.close();
         }
-        reader.close();
-        return sb.toString();
     }
 
     public static Map<String, String> batchLookupUUIDs(ConnectionFactory factory, List<String> usernames) throws Exception {
@@ -46,8 +50,12 @@ public final class HttpUtil {
             body.append(Json.JSONObject.quote(usernames.get(i)));
         }
         body.append("]");
-        conn.getOutputStream().write(body.toString().getBytes("UTF-8"));
-        conn.getOutputStream().close();
+        OutputStream os = conn.getOutputStream();
+        try {
+            os.write(body.toString().getBytes("UTF-8"));
+        } finally {
+            os.close();
+        }
 
         int code = conn.getResponseCode();
         if (code != 200) {

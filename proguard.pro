@@ -1,5 +1,5 @@
 -dontobfuscate
--dontwarn **
+-dontwarn org.bouncycastle.**
 -dontnote **
 
 -keep class org.unmojang.loki.Loki {

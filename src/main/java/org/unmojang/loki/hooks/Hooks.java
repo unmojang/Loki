@@ -336,6 +336,9 @@ public class Hooks {
         conn.setDoInput(true);
         conn.setConnectTimeout(5000);
         conn.setReadTimeout(5000);
+        if (conn.getResponseCode() != 200) {
+            throw new IOException("publickeys endpoint returned HTTP " + conn.getResponseCode());
+        }
 
         Json.JSONObject jsonObject = new Json.JSONObject(HttpUtil.readStream(conn.getInputStream()));
         Json.JSONArray profilePropertyKeys = jsonObject.getJSONArray("profilePropertyKeys");

@@ -128,6 +128,7 @@ public class LokiUpdater {
             conn.setReadTimeout(5000);
             if (conn.getResponseCode() != 200) {
                 Loki.log.error("Update check returned HTTP " + conn.getResponseCode());
+                conn.disconnect();
                 return null;
             }
             return new Json.JSONObject(HttpUtil.readStream(conn.getInputStream()));
@@ -158,6 +159,8 @@ public class LokiUpdater {
         InputStream in = null;
         OutputStream out = null;
         try {
+            int code = conn.getResponseCode();
+            if (code != 200) throw new IOException("Update download returned HTTP " + code);
             in = conn.getInputStream();
             out = new FileOutputStream(dest);
             byte[] buffer = new byte[8192];

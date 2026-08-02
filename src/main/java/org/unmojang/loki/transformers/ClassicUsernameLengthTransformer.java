@@ -25,11 +25,12 @@ public class ClassicUsernameLengthTransformer implements ClassFileTransformer {
             for (MethodNode mn : cn.methods) {
                 if (mn.instructions == null) continue;
 
-                for (int i = 0; i < mn.instructions.size() - 2; i++) {
+                AbstractInsnNode[] insns = mn.instructions.toArray();
+                for (int i = 0; i < insns.length - 2; i++) {
                     // ALOAD 0, LDC "Illegal name.", INVOKE*
-                    AbstractInsnNode a = mn.instructions.get(i);
-                    AbstractInsnNode b = mn.instructions.get(i + 1);
-                    AbstractInsnNode c = mn.instructions.get(i + 2);
+                    AbstractInsnNode a = insns[i];
+                    AbstractInsnNode b = insns[i + 1];
+                    AbstractInsnNode c = insns[i + 2];
 
                     if (a instanceof VarInsnNode && b instanceof LdcInsnNode && c instanceof MethodInsnNode) {
                         if (a.getOpcode() == Opcodes.ALOAD && ((VarInsnNode) a).var == 0
