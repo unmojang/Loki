@@ -1,56 +1,37 @@
 package org.unmojang.loki.transformers;
 
-import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.*;
 import org.unmojang.loki.Loki;
 import org.unmojang.loki.LokiUtil;
 
-import java.lang.instrument.ClassFileTransformer;
-import java.security.ProtectionDomain;
+public class OneSixLauncherLibraryTransformer extends LokiTransformer {
 
-public class OneSixLauncherLibraryTransformer implements ClassFileTransformer {
+    protected boolean matches(String className) {
+        return "net/minecraft/launcher/updater/Library".equals(className)
+                || "net/minecraft/launcher/versions/Library".equals(className);
+    }
 
-    public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,
-                            ProtectionDomain protectionDomain, byte[] classfileBuffer) {
+    protected boolean patch(ClassNode cn, String className) {
+        boolean changed = false;
 
-        if (!"net/minecraft/launcher/updater/Library".equals(className)
-                && !"net/minecraft/launcher/versions/Library".equals(className)) return null;
-
-        try {
-            ClassNode cn = new ClassNode();
-            ClassReader cr = new ClassReader(classfileBuffer);
-            cr.accept(cn, 0);
-
-            boolean changed = false;
-
-            for (MethodNode mn : cn.methods) {
-                if ("getArtifactBaseDir".equals(mn.name) && "()Ljava/lang/String;".equals(mn.desc)) {
-                    replaceWithHook(mn, className, "getLibraryArtifactBaseDir", "(Ljava/lang/String;)Ljava/lang/String;", false);
-                    Loki.log.debug("Patching " + LokiUtil.getFqmn(className, mn.name, mn.desc));
-                    changed = true;
-                } else if ("getArtifactFilename".equals(mn.name) && "(Ljava/lang/String;)Ljava/lang/String;".equals(mn.desc)) {
-                    replaceWithHook(mn, className, "getLibraryArtifactFilename", "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;", true);
-                    Loki.log.debug("Patching " + LokiUtil.getFqmn(className, mn.name, mn.desc));
-                    changed = true;
-                } else if ("getArtifactFilename".equals(mn.name) && "()Ljava/lang/String;".equals(mn.desc)) {
-                    replaceWithHook(mn, className, "getLibraryArtifactFilename", "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;", false);
-                    Loki.log.debug("Patching " + LokiUtil.getFqmn(className, mn.name, mn.desc));
-                    changed = true;
-                }
+        for (MethodNode mn : cn.methods) {
+            if ("getArtifactBaseDir".equals(mn.name) && "()Ljava/lang/String;".equals(mn.desc)) {
+                replaceWithHook(mn, className, "getLibraryArtifactBaseDir", "(Ljava/lang/String;)Ljava/lang/String;", false);
+                Loki.log.debug("Patching " + LokiUtil.getFqmn(className, mn.name, mn.desc));
+                changed = true;
+            } else if ("getArtifactFilename".equals(mn.name) && "(Ljava/lang/String;)Ljava/lang/String;".equals(mn.desc)) {
+                replaceWithHook(mn, className, "getLibraryArtifactFilename", "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;", true);
+                Loki.log.debug("Patching " + LokiUtil.getFqmn(className, mn.name, mn.desc));
+                changed = true;
+            } else if ("getArtifactFilename".equals(mn.name) && "()Ljava/lang/String;".equals(mn.desc)) {
+                replaceWithHook(mn, className, "getLibraryArtifactFilename", "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;", false);
+                Loki.log.debug("Patching " + LokiUtil.getFqmn(className, mn.name, mn.desc));
+                changed = true;
             }
-
-            if (!changed) return null;
-
-            ClassWriter cw = new LoaderAwareClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS, loader);
-            cn.accept(cw);
-            return cw.toByteArray();
-
-        } catch (Throwable t) {
-            Loki.log.error("Failed to transform " + className + "!", t);
-            return null;
         }
+
+        return changed;
     }
 
     private static void replaceWithHook(MethodNode mn, String owner, String hookName, String hookDesc, boolean hasClassifierParam) {

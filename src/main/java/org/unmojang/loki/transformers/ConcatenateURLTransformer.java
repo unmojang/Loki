@@ -1,65 +1,46 @@
 package org.unmojang.loki.transformers;
 
-import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.*;
 import org.unmojang.loki.Loki;
 import org.unmojang.loki.LokiUtil;
 
-import java.lang.instrument.ClassFileTransformer;
-import java.security.ProtectionDomain;
+public class ConcatenateURLTransformer extends LokiTransformer {
 
-public class ConcatenateURLTransformer implements ClassFileTransformer {
+    protected boolean matches(String className) {
+        return "com/mojang/authlib/HttpAuthenticationService".equals(className);
+    }
 
-    public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,
-                            ProtectionDomain protectionDomain, byte[] classfileBuffer) {
+    protected boolean patch(ClassNode cn, String className) {
+        boolean changed = false;
 
-        if (!"com/mojang/authlib/HttpAuthenticationService".equals(className)) return null;
+        for (MethodNode mn : cn.methods) {
+            if ("concatenateURL".equals(mn.name)
+                    && "(Ljava/net/URL;Ljava/lang/String;)Ljava/net/URL;".equals(mn.desc)) {
 
-        try {
-            ClassNode cn = new ClassNode();
-            ClassReader cr = new ClassReader(classfileBuffer);
-            cr.accept(cn, 0);
+                mn.instructions.clear();
+                mn.tryCatchBlocks.clear();
+                if (mn.localVariables != null) mn.localVariables.clear();
 
-            boolean changed = false;
+                InsnList insns = new InsnList();
+                insns.add(new VarInsnNode(Opcodes.ALOAD, 0)); // url
+                insns.add(new VarInsnNode(Opcodes.ALOAD, 1)); // query
+                insns.add(new MethodInsnNode(
+                        Opcodes.INVOKESTATIC,
+                        "org/unmojang/loki/hooks/Hooks",
+                        "concatenateURL",
+                        "(Ljava/net/URL;Ljava/lang/String;)Ljava/net/URL;",
+                        false
+                ));
+                insns.add(new InsnNode(Opcodes.ARETURN));
 
-            for (MethodNode mn : cn.methods) {
-                if ("concatenateURL".equals(mn.name)
-                        && "(Ljava/net/URL;Ljava/lang/String;)Ljava/net/URL;".equals(mn.desc)) {
-
-                    mn.instructions.clear();
-                    mn.tryCatchBlocks.clear();
-                    if (mn.localVariables != null) mn.localVariables.clear();
-
-                    InsnList insns = new InsnList();
-                    insns.add(new VarInsnNode(Opcodes.ALOAD, 0)); // url
-                    insns.add(new VarInsnNode(Opcodes.ALOAD, 1)); // query
-                    insns.add(new MethodInsnNode(
-                            Opcodes.INVOKESTATIC,
-                            "org/unmojang/loki/hooks/Hooks",
-                            "concatenateURL",
-                            "(Ljava/net/URL;Ljava/lang/String;)Ljava/net/URL;",
-                            false
-                    ));
-                    insns.add(new InsnNode(Opcodes.ARETURN));
-
-                    mn.instructions.add(insns);
-                    Loki.log.debug("Patching " + LokiUtil.getFqmn(className, mn.name, mn.desc));
-                    changed = true;
-                    break;
-                }
+                mn.instructions.add(insns);
+                Loki.log.debug("Patching " + LokiUtil.getFqmn(className, mn.name, mn.desc));
+                changed = true;
+                break;
             }
-
-            if (!changed) return null;
-
-            ClassWriter cw = new LoaderAwareClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS, loader);
-            cn.accept(cw);
-            return cw.toByteArray();
-
-        } catch (Throwable t) {
-            Loki.log.error("Failed to transform " + className + "!", t);
-            return null;
         }
+
+        return changed;
     }
 }

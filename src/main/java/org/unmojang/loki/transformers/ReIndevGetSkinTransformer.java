@@ -1,66 +1,52 @@
 package org.unmojang.loki.transformers;
 
-import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.*;
 import org.unmojang.loki.Loki;
 import org.unmojang.loki.LokiUtil;
 
-import java.lang.instrument.ClassFileTransformer;
-import java.security.ProtectionDomain;
+public class ReIndevGetSkinTransformer extends LokiTransformer {
 
-public class ReIndevGetSkinTransformer implements ClassFileTransformer {
+    protected boolean matches(String className) {
+        return className.endsWith("ThreadGetSkin");
+    }
 
-    public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,
-                            ProtectionDomain protectionDomain, byte[] classfileBuffer) {
+    protected int writerFlags(String className) {
+        return ClassWriter.COMPUTE_MAXS;
+    }
 
-        if (className == null || !className.endsWith("ThreadGetSkin")) return null;
+    protected boolean patch(ClassNode cn, String className) {
+        boolean changed = false;
 
-        try {
-            ClassNode cn = new ClassNode();
-            ClassReader cr = new ClassReader(classfileBuffer);
-            cr.accept(cn, 0);
+        for (MethodNode mn : cn.methods) {
+            if (!"run".equals(mn.name) || !"()V".equals(mn.desc)) continue;
 
-            boolean changed = false;
+            for (AbstractInsnNode insn : mn.instructions.toArray()) {
+                if (insn.getOpcode() != Opcodes.ASTORE || insn.getPrevious() == null
+                        || !(insn.getPrevious() instanceof MethodInsnNode)) continue;
 
-            for (MethodNode mn : cn.methods) {
-                if (!"run".equals(mn.name) || !"()V".equals(mn.desc)) continue;
+                MethodInsnNode prev = (MethodInsnNode) insn.getPrevious();
 
-                for (AbstractInsnNode insn : mn.instructions.toArray()) {
-                    if (insn.getOpcode() != Opcodes.ASTORE || insn.getPrevious() == null
-                            || !(insn.getPrevious() instanceof MethodInsnNode)) continue;
+                if ("<init>".equals(prev.name) && "java/lang/String".equals(prev.owner)) {
+                    InsnList insns = new InsnList();
+                    insns.add(new VarInsnNode(Opcodes.ALOAD, ((VarInsnNode) insn).var));
+                    insns.add(new MethodInsnNode(
+                            Opcodes.INVOKESTATIC,
+                            "org/unmojang/loki/hooks/Hooks",
+                            "transformProfileJson",
+                            "(Ljava/lang/String;)Ljava/lang/String;",
+                            false
+                    ));
+                    insns.add(new VarInsnNode(Opcodes.ASTORE, ((VarInsnNode) insn).var));
 
-                    MethodInsnNode prev = (MethodInsnNode) insn.getPrevious();
-
-                    if ("<init>".equals(prev.name) && "java/lang/String".equals(prev.owner)) {
-                        InsnList insns = new InsnList();
-                        insns.add(new VarInsnNode(Opcodes.ALOAD, ((VarInsnNode) insn).var));
-                        insns.add(new MethodInsnNode(
-                                Opcodes.INVOKESTATIC,
-                                "org/unmojang/loki/hooks/Hooks",
-                                "transformProfileJson",
-                                "(Ljava/lang/String;)Ljava/lang/String;",
-                                false
-                        ));
-                        insns.add(new VarInsnNode(Opcodes.ASTORE, ((VarInsnNode) insn).var));
-
-                        mn.instructions.insert(insn, insns);
-                        Loki.log.debug("Patching " + LokiUtil.getFqmn(className, mn.name, mn.desc));
-                        changed = true;
-                    }
+                    mn.instructions.insert(insn, insns);
+                    Loki.log.debug("Patching " + LokiUtil.getFqmn(className, mn.name, mn.desc));
+                    changed = true;
                 }
             }
-
-            if (!changed) return null;
-
-            ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS);
-            cn.accept(cw);
-            return cw.toByteArray();
-
-        } catch (Throwable t) {
-            Loki.log.error("Failed to transform " + className + "!", t);
-            return null;
         }
+
+        return changed;
     }
 }

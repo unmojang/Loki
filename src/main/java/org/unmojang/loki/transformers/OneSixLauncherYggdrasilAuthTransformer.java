@@ -1,22 +1,17 @@
 package org.unmojang.loki.transformers;
 
-import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.*;
 import org.unmojang.loki.Loki;
 import org.unmojang.loki.LokiUtil;
 
-import java.lang.instrument.ClassFileTransformer;
-import java.security.ProtectionDomain;
 import java.util.ArrayList;
 import java.util.List;
 
-public class OneSixLauncherYggdrasilAuthTransformer implements ClassFileTransformer {
+public class OneSixLauncherYggdrasilAuthTransformer extends LokiTransformer {
 
-    public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,
-                            ProtectionDomain protectionDomain, byte[] classfileBuffer) {
-
+    protected boolean matches(String className) {
         boolean isMojangHttp = "com/mojang/authlib/HttpAuthenticationService".equals(className);
         boolean isHopperUtil = "net/minecraft/hopper/Util".equals(className);
         boolean isNetYggdrasil = "net/minecraft/launcher/authentication/yggdrasil/YggdrasilAuthenticationService".equals(className);
@@ -25,64 +20,67 @@ public class OneSixLauncherYggdrasilAuthTransformer implements ClassFileTransfor
         boolean isLegacyAuth = "net/minecraft/launcher/authentication/LegacyAuthenticationService".equals(className); // ~1.0
         boolean isAuthDb = "net/minecraft/launcher/profile/AuthenticationDatabase".equals(className)                  // ~1.6.93
                 || "net/minecraft/launcher/authentication/AuthenticationDatabase".equals(className);                  // ~1.3
-        if (!isMojangHttp && !isHopperUtil && !isAuthService && !isOldAuth && !isLegacyAuth && !isAuthDb) return null;
+        return isMojangHttp || isHopperUtil || isAuthService || isOldAuth || isLegacyAuth || isAuthDb;
+    }
 
-        try {
-            ClassNode cn = new ClassNode();
-            ClassReader cr = new ClassReader(classfileBuffer);
-            cr.accept(cn, 0);
+    protected int writerFlags(String className) {
+        boolean isMojangHttp = "com/mojang/authlib/HttpAuthenticationService".equals(className);
+        boolean isHopperUtil = "net/minecraft/hopper/Util".equals(className);
+        return (isMojangHttp || isHopperUtil)
+                ? ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS
+                : ClassWriter.COMPUTE_MAXS;
+    }
 
-            boolean changed = false;
+    protected boolean patch(ClassNode cn, String className) {
+        boolean isMojangHttp = "com/mojang/authlib/HttpAuthenticationService".equals(className);
+        boolean isHopperUtil = "net/minecraft/hopper/Util".equals(className);
+        boolean isNetYggdrasil = "net/minecraft/launcher/authentication/yggdrasil/YggdrasilAuthenticationService".equals(className);
+        boolean isAuthService = isNetYggdrasil || "com/mojang/authlib/yggdrasil/YggdrasilUserAuthentication".equals(className);
+        boolean isOldAuth = "net/minecraft/launcher/authentication/OldAuthentication".equals(className);              // ~0.7
+        boolean isLegacyAuth = "net/minecraft/launcher/authentication/LegacyAuthenticationService".equals(className); // ~1.0
+        boolean isAuthDb = "net/minecraft/launcher/profile/AuthenticationDatabase".equals(className)                  // ~1.6.93
+                || "net/minecraft/launcher/authentication/AuthenticationDatabase".equals(className);                  // ~1.3
 
-            for (MethodNode mn : cn.methods) {
-                if (isMojangHttp && "performPostRequest".equals(mn.name)
-                        && "(Ljava/net/URL;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;".equals(mn.desc)) {
-                    injectAuthInterception(mn, 1, 2); // instance: url=1, post=2
-                    changed = true;
-                } else if (isHopperUtil && "performPost".equals(mn.name)
-                        && "(Ljava/net/URL;Ljava/lang/String;Ljava/net/Proxy;Ljava/lang/String;Z)Ljava/lang/String;".equals(mn.desc)) {
-                    injectAuthInterception(mn, 0, 1); // static: url=0, post=1
-                    changed = true;
-                } else if ((isAuthService && ("logIn".equals(mn.name) || "logInWithPassword".equals(mn.name)
-                        || "logInWithToken".equals(mn.name)))
-                        || (isLegacyAuth && "logIn".equals(mn.name))) {
-                    changed |= neutralizeCredentialGuards(mn);
-                } else if (isAuthService && "loadFromStorage".equals(mn.name)) {
-                    changed |= filterStoredAccessToken(mn);
-                } else if ((isNetYggdrasil && "logOut".equals(mn.name) && "()V".equals(mn.desc))
-                        || (isLegacyAuth && "logOut".equals(mn.name) && "()V".equals(mn.desc))
-                        || (isOldAuth && "clearLastSuccessfulResponse".equals(mn.name))) {
+        boolean changed = false;
 
-                    InsnList patch = new InsnList();
-                    patch.add(new VarInsnNode(Opcodes.ALOAD, 0));
-                    patch.add(new MethodInsnNode(Opcodes.INVOKESTATIC, "org/unmojang/loki/hooks/LauncherHooks", "onAuthLogOut", "(Ljava/lang/Object;)V", false));
-                    mn.instructions.insert(patch);
-                    changed = true;
-                } else if (isAuthDb && "removeUUID".equals(mn.name) && "(Ljava/lang/String;)V".equals(mn.desc)) {
-                    InsnList patch = new InsnList();
-                    patch.add(new VarInsnNode(Opcodes.ALOAD, 1)); // uuid
-                    patch.add(new MethodInsnNode(Opcodes.INVOKESTATIC, "org/unmojang/loki/hooks/LauncherHooks", "onAccountRemoved",
-                            "(Ljava/lang/String;)V", false));
-                    mn.instructions.insert(patch);
-                    changed = true;
-                } else {
-                    continue;
-                }
-                Loki.log.debug("Patching " + LokiUtil.getFqmn(className, mn.name, mn.desc) + " for Microsoft login");
+        for (MethodNode mn : cn.methods) {
+            if (isMojangHttp && "performPostRequest".equals(mn.name)
+                    && "(Ljava/net/URL;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;".equals(mn.desc)) {
+                injectAuthInterception(mn, 1, 2); // instance: url=1, post=2
+                changed = true;
+            } else if (isHopperUtil && "performPost".equals(mn.name)
+                    && "(Ljava/net/URL;Ljava/lang/String;Ljava/net/Proxy;Ljava/lang/String;Z)Ljava/lang/String;".equals(mn.desc)) {
+                injectAuthInterception(mn, 0, 1); // static: url=0, post=1
+                changed = true;
+            } else if ((isAuthService && ("logIn".equals(mn.name) || "logInWithPassword".equals(mn.name)
+                    || "logInWithToken".equals(mn.name)))
+                    || (isLegacyAuth && "logIn".equals(mn.name))) {
+                changed |= neutralizeCredentialGuards(mn);
+            } else if (isAuthService && "loadFromStorage".equals(mn.name)) {
+                changed |= filterStoredAccessToken(mn);
+            } else if ((isNetYggdrasil && "logOut".equals(mn.name) && "()V".equals(mn.desc))
+                    || (isLegacyAuth && "logOut".equals(mn.name) && "()V".equals(mn.desc))
+                    || (isOldAuth && "clearLastSuccessfulResponse".equals(mn.name))) {
+
+                InsnList patch = new InsnList();
+                patch.add(new VarInsnNode(Opcodes.ALOAD, 0));
+                patch.add(new MethodInsnNode(Opcodes.INVOKESTATIC, "org/unmojang/loki/hooks/LauncherHooks", "onAuthLogOut", "(Ljava/lang/Object;)V", false));
+                mn.instructions.insert(patch);
+                changed = true;
+            } else if (isAuthDb && "removeUUID".equals(mn.name) && "(Ljava/lang/String;)V".equals(mn.desc)) {
+                InsnList patch = new InsnList();
+                patch.add(new VarInsnNode(Opcodes.ALOAD, 1)); // uuid
+                patch.add(new MethodInsnNode(Opcodes.INVOKESTATIC, "org/unmojang/loki/hooks/LauncherHooks", "onAccountRemoved",
+                        "(Ljava/lang/String;)V", false));
+                mn.instructions.insert(patch);
+                changed = true;
+            } else {
+                continue;
             }
-
-            if (!changed) return null;
-
-            ClassWriter cw = (isMojangHttp || isHopperUtil)
-                    ? new LoaderAwareClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS, loader)
-                    : new ClassWriter(ClassWriter.COMPUTE_MAXS);
-            cn.accept(cw);
-            return cw.toByteArray();
-
-        } catch (Throwable t) {
-            Loki.log.error("Failed to transform " + className + "!", t);
-            return null;
+            Loki.log.debug("Patching " + LokiUtil.getFqmn(className, mn.name, mn.desc) + " for Microsoft login");
         }
+
+        return changed;
     }
 
     // String loki = maybeYggdrasilAuth(url, post); if (loki != null) return loki;

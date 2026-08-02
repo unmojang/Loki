@@ -1,7 +1,5 @@
 package org.unmojang.loki.transformers;
 
-import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.InsnNode;
@@ -9,47 +7,30 @@ import org.objectweb.asm.tree.MethodNode;
 import org.unmojang.loki.Loki;
 import org.unmojang.loki.LokiUtil;
 
-import java.lang.instrument.ClassFileTransformer;
-import java.security.ProtectionDomain;
+public class SignatureValidTransformer extends LokiTransformer {
 
-public class SignatureValidTransformer implements ClassFileTransformer {
+    protected boolean matches(String className) {
+        return "com/mojang/authlib/properties/Property".equals(className);
+    }
 
-    public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,
-                            ProtectionDomain protectionDomain, byte[] classfileBuffer) {
+    protected boolean patch(ClassNode cn, String className) {
+        boolean changed = false;
 
-        if (!"com/mojang/authlib/properties/Property".equals(className)) return null;
+        for (MethodNode mn : cn.methods) {
+            if (mn.name.equals("isSignatureValid") && mn.desc.equals("(Ljava/security/PublicKey;)Z")) {
+                mn.instructions.clear();
+                mn.tryCatchBlocks.clear();
+                if (mn.localVariables != null) mn.localVariables.clear();
 
-        try {
-            ClassNode cn = new ClassNode();
-            ClassReader cr = new ClassReader(classfileBuffer);
-            cr.accept(cn, 0);
+                mn.instructions.add(new InsnNode(Opcodes.ICONST_1));
+                mn.instructions.add(new InsnNode(Opcodes.IRETURN));
 
-            boolean changed = false;
-
-            for (MethodNode mn : cn.methods) {
-                if (mn.name.equals("isSignatureValid") && mn.desc.equals("(Ljava/security/PublicKey;)Z")) {
-                    mn.instructions.clear();
-                    mn.tryCatchBlocks.clear();
-                    if (mn.localVariables != null) mn.localVariables.clear();
-
-                    mn.instructions.add(new InsnNode(Opcodes.ICONST_1));
-                    mn.instructions.add(new InsnNode(Opcodes.IRETURN));
-
-                    Loki.log.debug("Patching " + LokiUtil.getFqmn(className, mn.name, mn.desc));
-                    changed = true;
-                    break;
-                }
+                Loki.log.debug("Patching " + LokiUtil.getFqmn(className, mn.name, mn.desc));
+                changed = true;
+                break;
             }
-
-            if (!changed) return null;
-
-            ClassWriter cw = new LoaderAwareClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS, loader);
-            cn.accept(cw);
-            return cw.toByteArray();
-
-        } catch (Throwable t) {
-            Loki.log.error("Failed to transform " + className + "!", t);
-            return null;
         }
+
+        return changed;
     }
 }

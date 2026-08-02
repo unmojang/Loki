@@ -1,46 +1,33 @@
 package org.unmojang.loki.transformers;
 
-import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.*;
 import org.unmojang.loki.Loki;
 import org.unmojang.loki.LokiUtil;
 
-import java.lang.instrument.ClassFileTransformer;
-import java.security.ProtectionDomain;
+public class OneSixLauncherGameRunnerTransformer extends LokiTransformer {
 
-public class OneSixLauncherGameRunnerTransformer implements ClassFileTransformer {
+    protected boolean matches(String className) {
+        return "net/minecraft/launcher/game/MinecraftGameRunner".equals(className)   // new
+                || "net/minecraft/launcher/GameLauncher".equals(className);          // old
+    }
 
-    public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,
-                            ProtectionDomain protectionDomain, byte[] classfileBuffer) {
+    protected int writerFlags(String className) {
+        return ClassWriter.COMPUTE_MAXS;
+    }
 
-        boolean isGameRunner = "net/minecraft/launcher/game/MinecraftGameRunner".equals(className);  // new
-        boolean isGameLauncher = "net/minecraft/launcher/GameLauncher".equals(className);            // old
-        if (!isGameRunner && !isGameLauncher) return null;
+    protected boolean patch(ClassNode cn, String className) {
+        boolean isGameRunner = "net/minecraft/launcher/game/MinecraftGameRunner".equals(className);
 
-        try {
-            ClassNode cn = new ClassNode();
-            ClassReader cr = new ClassReader(classfileBuffer);
-            cr.accept(cn, 0);
+        boolean changed = false;
 
-            boolean changed = false;
-
-            for (MethodNode mn : cn.methods) {
-                if (!"launchGame".equals(mn.name) || !"()V".equals(mn.desc)) continue;
-                changed |= isGameRunner ? patchGameRunner(className, mn) : patchGameLauncher(className, mn);
-            }
-
-            if (!changed) return null;
-
-            ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS);
-            cn.accept(cw);
-            return cw.toByteArray();
-
-        } catch (Throwable t) {
-            Loki.log.error("Failed to transform " + className + "!", t);
-            return null;
+        for (MethodNode mn : cn.methods) {
+            if (!"launchGame".equals(mn.name) || !"()V".equals(mn.desc)) continue;
+            changed |= isGameRunner ? patchGameRunner(className, mn) : patchGameLauncher(className, mn);
         }
+
+        return changed;
     }
 
     private static boolean patchGameRunner(String className, MethodNode mn) {

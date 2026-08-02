@@ -5,52 +5,35 @@ import org.objectweb.asm.tree.*;
 import org.unmojang.loki.Loki;
 import org.unmojang.loki.LokiUtil;
 
-import java.lang.instrument.ClassFileTransformer;
-import java.security.ProtectionDomain;
+public class TitleScreenTransformer extends LokiTransformer {
 
-public class TitleScreenTransformer implements ClassFileTransformer {
+    protected boolean matches(String className) {
+        return LokiUtil.SERVER_NAME.length() != 0
+                && "net/minecraft/client/gui/screens/TitleScreen".equals(className);
+    }
 
-    public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,
-                            ProtectionDomain protectionDomain, byte[] classfileBuffer) {
+    protected boolean patch(ClassNode cn, String className) {
+        boolean changed = false;
 
-        if (LokiUtil.SERVER_NAME.length() == 0
-                || !"net/minecraft/client/gui/screens/TitleScreen".equals(className)) return null;
+        for (MethodNode mn : cn.methods) {
+            for (AbstractInsnNode node : mn.instructions.toArray()) {
+                if (node.getOpcode() != Opcodes.INVOKEINTERFACE) continue;
+                MethodInsnNode min = (MethodInsnNode) node;
+                if (!"net/minecraft/WorldVersion".equals(min.owner) ||
+                        !"name".equals(min.name) ||
+                        !"()Ljava/lang/String;".equals(min.desc)) continue;
 
-        try {
-            ClassNode cn = new ClassNode();
-            ClassReader cr = new ClassReader(classfileBuffer);
-            cr.accept(cn, 0);
+                InsnList insns = new InsnList();
+                insns.add(new LdcInsnNode("/" + LokiUtil.SERVER_NAME));
+                insns.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "java/lang/String", "concat",
+                        "(Ljava/lang/String;)Ljava/lang/String;", false));
+                mn.instructions.insert(node, insns);
 
-            boolean changed = false;
-
-            for (MethodNode mn : cn.methods) {
-                for (AbstractInsnNode node : mn.instructions.toArray()) {
-                    if (node.getOpcode() != Opcodes.INVOKEINTERFACE) continue;
-                    MethodInsnNode min = (MethodInsnNode) node;
-                    if (!"net/minecraft/WorldVersion".equals(min.owner) ||
-                            !"name".equals(min.name) ||
-                            !"()Ljava/lang/String;".equals(min.desc)) continue;
-
-                    InsnList insns = new InsnList();
-                    insns.add(new LdcInsnNode("/" + LokiUtil.SERVER_NAME));
-                    insns.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "java/lang/String", "concat",
-                            "(Ljava/lang/String;)Ljava/lang/String;", false));
-                    mn.instructions.insert(node, insns);
-
-                    Loki.log.debug("Patching " + LokiUtil.getFqmn(className, mn.name, mn.desc));
-                    changed = true;
-                }
+                Loki.log.debug("Patching " + LokiUtil.getFqmn(className, mn.name, mn.desc));
+                changed = true;
             }
-
-            if (!changed) return null;
-
-            ClassWriter cw = new LoaderAwareClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS, loader);
-            cn.accept(cw);
-            return cw.toByteArray();
-
-        } catch (Throwable t) {
-            Loki.log.error("Failed to transform " + className + "!", t);
-            return null;
         }
+
+        return changed;
     }
 }

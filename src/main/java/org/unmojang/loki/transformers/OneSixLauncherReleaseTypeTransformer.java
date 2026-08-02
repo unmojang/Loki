@@ -1,43 +1,33 @@
 package org.unmojang.loki.transformers;
 
-import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.*;
 import org.unmojang.loki.Loki;
 import org.unmojang.loki.LokiUtil;
 
-import java.lang.instrument.ClassFileTransformer;
-import java.security.ProtectionDomain;
+public class OneSixLauncherReleaseTypeTransformer extends LokiTransformer {
 
-public class OneSixLauncherReleaseTypeTransformer implements ClassFileTransformer {
-
-    public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,
-                            ProtectionDomain protectionDomain, byte[] classfileBuffer) {
-
+    protected boolean matches(String className) {
         boolean isProfile = "net/minecraft/launcher/profile/Profile".equals(className);
         boolean isReleaseType = "net/minecraft/launcher/versions/ReleaseType".equals(className);
         boolean isEnumAdapter = "net/minecraft/launcher/updater/LowerCaseEnumTypeAdapterFactory".equals(className);
-        if (!isProfile && !isReleaseType && !isEnumAdapter) return null;
+        return isProfile || isReleaseType || isEnumAdapter;
+    }
 
-        try {
-            ClassNode cn = new ClassNode();
-            ClassReader cr = new ClassReader(classfileBuffer);
-            cr.accept(cn, 0);
+    protected int writerFlags(String className) {
+        return ClassWriter.COMPUTE_MAXS;
+    }
 
-            boolean changed = isProfile ? defaultOldVersionsOn(className, cn)
-                    : isReleaseType ? underscoreReleaseTypeNames(className, cn)
-                    : mapOldTypesToRelease(className, cn);
-            if (!changed) return null;
+    protected boolean patch(ClassNode cn, String className) {
+        boolean isProfile = "net/minecraft/launcher/profile/Profile".equals(className);
+        boolean isReleaseType = "net/minecraft/launcher/versions/ReleaseType".equals(className);
 
-            ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS);
-            cn.accept(cw);
-            return cw.toByteArray();
+        boolean changed = isProfile ? defaultOldVersionsOn(className, cn)
+                : isReleaseType ? underscoreReleaseTypeNames(className, cn)
+                : mapOldTypesToRelease(className, cn);
 
-        } catch (Throwable t) {
-            Loki.log.error("Failed to transform " + className + "!", t);
-            return null;
-        }
+        return changed;
     }
 
     // Default old_alpha/old_beta to enabled

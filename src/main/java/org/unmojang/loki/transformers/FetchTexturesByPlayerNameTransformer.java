@@ -1,99 +1,81 @@
 package org.unmojang.loki.transformers;
 
-import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.*;
 import org.unmojang.loki.Loki;
 import org.unmojang.loki.LokiUtil;
 
-import java.lang.instrument.ClassFileTransformer;
-import java.security.ProtectionDomain;
 import java.util.ArrayList;
 import java.util.List;
 
-public class FetchTexturesByPlayerNameTransformer implements ClassFileTransformer {
+public class FetchTexturesByPlayerNameTransformer extends LokiTransformer {
 
-    public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,
-                            ProtectionDomain protectionDomain, byte[] classfileBuffer) {
+    protected boolean matches(String className) {
+        return !Loki.disable_profile_lookup
+                && ("com/mojang/authlib/yggdrasil/YggdrasilMinecraftSessionService".equals(className)
+                || "com/mojang/authlib/services/MinecraftServicesSessionService".equals(className));
+    }
 
-        if (Loki.disable_profile_lookup) return null;
-        if (!"com/mojang/authlib/yggdrasil/YggdrasilMinecraftSessionService".equals(className)
-                && !"com/mojang/authlib/services/MinecraftServicesSessionService".equals(className)) return null;
+    protected boolean patch(ClassNode cn, String className) {
+        boolean changed = false;
+        List<MethodNode> newMethods = new ArrayList<MethodNode>();
 
-        try {
-            ClassNode cn = new ClassNode();
-            ClassReader cr = new ClassReader(classfileBuffer);
-            cr.accept(cn, 0);
+        for (MethodNode mn : cn.methods) {
+            if ("getPackedTextures".equals(mn.name) &&
+                "(Lcom/mojang/authlib/GameProfile;)Lcom/mojang/authlib/properties/Property;".equals(mn.desc)) {
 
-            boolean changed = false;
-            List<MethodNode> newMethods = new ArrayList<MethodNode>();
+                mn.name = "getPackedTextures$original";
 
-            for (MethodNode mn : cn.methods) {
-                if ("getPackedTextures".equals(mn.name) &&
-                    "(Lcom/mojang/authlib/GameProfile;)Lcom/mojang/authlib/properties/Property;".equals(mn.desc)) {
+                MethodNode hooked = new MethodNode(mn.access, "getPackedTextures", mn.desc, mn.signature,
+                        mn.exceptions == null ? null : mn.exceptions.toArray(new String[0]));
+                InsnList insns = new InsnList();
+                insns.add(new VarInsnNode(Opcodes.ALOAD, 0));
+                insns.add(new VarInsnNode(Opcodes.ALOAD, 1));
+                insns.add(new MethodInsnNode(Opcodes.INVOKESTATIC,
+                        "org/unmojang/loki/hooks/Hooks",
+                        "getPackedTextures",
+                        "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;",
+                        false));
+                insns.add(new TypeInsnNode(Opcodes.CHECKCAST, "com/mojang/authlib/properties/Property"));
+                insns.add(new InsnNode(Opcodes.ARETURN));
+                hooked.instructions = insns;
+                hooked.maxLocals = 2;
+                hooked.maxStack = 2;
+                newMethods.add(hooked);
 
-                    mn.name = "getPackedTextures$original";
+                Loki.log.debug("Patching " + LokiUtil.getFqmn(className, "getPackedTextures", mn.desc));
+                changed = true;
 
-                    MethodNode hooked = new MethodNode(mn.access, "getPackedTextures", mn.desc, mn.signature,
-                            mn.exceptions == null ? null : mn.exceptions.toArray(new String[0]));
-                    InsnList insns = new InsnList();
-                    insns.add(new VarInsnNode(Opcodes.ALOAD, 0));
-                    insns.add(new VarInsnNode(Opcodes.ALOAD, 1));
-                    insns.add(new MethodInsnNode(Opcodes.INVOKESTATIC,
-                            "org/unmojang/loki/hooks/Hooks",
-                            "getPackedTextures",
-                            "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;",
-                            false));
-                    insns.add(new TypeInsnNode(Opcodes.CHECKCAST, "com/mojang/authlib/properties/Property"));
-                    insns.add(new InsnNode(Opcodes.ARETURN));
-                    hooked.instructions = insns;
-                    hooked.maxLocals = 2;
-                    hooked.maxStack = 2;
-                    newMethods.add(hooked);
+            } else if ("getTextures".equals(mn.name) &&
+                       "(Lcom/mojang/authlib/GameProfile;Z)Ljava/util/Map;".equals(mn.desc)) {
 
-                    Loki.log.debug("Patching " + LokiUtil.getFqmn(className, "getPackedTextures", mn.desc));
-                    changed = true;
+                mn.name = "getTextures$original";
 
-                } else if ("getTextures".equals(mn.name) &&
-                           "(Lcom/mojang/authlib/GameProfile;Z)Ljava/util/Map;".equals(mn.desc)) {
+                MethodNode hooked = new MethodNode(mn.access, "getTextures", mn.desc, mn.signature,
+                        mn.exceptions == null ? null : mn.exceptions.toArray(new String[0]));
+                InsnList insns = new InsnList();
+                insns.add(new VarInsnNode(Opcodes.ALOAD, 0));
+                insns.add(new VarInsnNode(Opcodes.ALOAD, 1));
+                insns.add(new VarInsnNode(Opcodes.ILOAD, 2));
+                insns.add(new MethodInsnNode(Opcodes.INVOKESTATIC,
+                        "org/unmojang/loki/hooks/Hooks",
+                        "getTextures",
+                        "(Ljava/lang/Object;Ljava/lang/Object;Z)Ljava/lang/Object;",
+                        false));
+                insns.add(new TypeInsnNode(Opcodes.CHECKCAST, "java/util/Map"));
+                insns.add(new InsnNode(Opcodes.ARETURN));
+                hooked.instructions = insns;
+                hooked.maxLocals = 3;
+                hooked.maxStack = 3;
+                newMethods.add(hooked);
 
-                    mn.name = "getTextures$original";
-
-                    MethodNode hooked = new MethodNode(mn.access, "getTextures", mn.desc, mn.signature,
-                            mn.exceptions == null ? null : mn.exceptions.toArray(new String[0]));
-                    InsnList insns = new InsnList();
-                    insns.add(new VarInsnNode(Opcodes.ALOAD, 0));
-                    insns.add(new VarInsnNode(Opcodes.ALOAD, 1));
-                    insns.add(new VarInsnNode(Opcodes.ILOAD, 2));
-                    insns.add(new MethodInsnNode(Opcodes.INVOKESTATIC,
-                            "org/unmojang/loki/hooks/Hooks",
-                            "getTextures",
-                            "(Ljava/lang/Object;Ljava/lang/Object;Z)Ljava/lang/Object;",
-                            false));
-                    insns.add(new TypeInsnNode(Opcodes.CHECKCAST, "java/util/Map"));
-                    insns.add(new InsnNode(Opcodes.ARETURN));
-                    hooked.instructions = insns;
-                    hooked.maxLocals = 3;
-                    hooked.maxStack = 3;
-                    newMethods.add(hooked);
-
-                    Loki.log.debug("Patching " + LokiUtil.getFqmn(className, "getTextures", mn.desc));
-                    changed = true;
-                }
+                Loki.log.debug("Patching " + LokiUtil.getFqmn(className, "getTextures", mn.desc));
+                changed = true;
             }
-
-            if (!changed) return null;
-
-            cn.methods.addAll(newMethods);
-
-            ClassWriter cw = new LoaderAwareClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS, loader);
-            cn.accept(cw);
-            return cw.toByteArray();
-
-        } catch (Throwable t) {
-            Loki.log.error("Failed to transform " + className + "!", t);
-            return null;
         }
+
+        cn.methods.addAll(newMethods);
+
+        return changed;
     }
 }

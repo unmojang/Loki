@@ -1,61 +1,48 @@
 package org.unmojang.loki.transformers;
 
-import java.lang.instrument.ClassFileTransformer;
-import java.security.ProtectionDomain;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.*;
 
-import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
 import org.unmojang.loki.Loki;
 import org.unmojang.loki.LokiUtil;
 
-public class SetURLFactoryTransformer implements ClassFileTransformer {
+public class SetURLFactoryTransformer extends LokiTransformer {
 
-    public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,
-                            ProtectionDomain protectionDomain, byte[] classfileBuffer) {
+    protected boolean matches(String className) {
+        return ("net/minecraftforge/fml/loading/FMLLoader".equals(className) ||
+                "uk/betacraft/legacyfix/LegacyFixLauncher".equals(className)) && LokiUtil.JAVA_MAJOR > 5;
+    }
 
-        if ((!"net/minecraftforge/fml/loading/FMLLoader".equals(className) &&
-                !"uk/betacraft/legacyfix/LegacyFixLauncher".equals(className)) || LokiUtil.JAVA_MAJOR <= 5) return null;
+    protected int writerFlags(String className) {
+        return ClassWriter.COMPUTE_MAXS;
+    }
 
-        try {
-            ClassNode cn = new ClassNode();
-            ClassReader cr = new ClassReader(classfileBuffer);
-            cr.accept(cn, 0);
+    protected boolean patch(ClassNode cn, String className) {
+        boolean changed = false;
+        for (MethodNode mn : cn.methods) {
+            if (mn.instructions == null) continue;
+            for (AbstractInsnNode ain : mn.instructions.toArray()) {
+                if (!(ain instanceof MethodInsnNode)) continue;
+                MethodInsnNode min = (MethodInsnNode) ain;
+                if (min.getOpcode() == Opcodes.INVOKESTATIC
+                        && "java/net/URL".equals(min.owner)
+                        && "setURLStreamHandlerFactory".equals(min.name)
+                        && "(Ljava/net/URLStreamHandlerFactory;)V".equals(min.desc)) {
+                    MethodInsnNode replacement = new MethodInsnNode(
+                            Opcodes.INVOKESTATIC,
+                            "org/unmojang/loki/hooks/Hooks",
+                            "registerExternalFactory",
+                            "(Ljava/net/URLStreamHandlerFactory;)V",
+                            false);
+                    mn.instructions.set(min, replacement);
 
-            boolean changed = false;
-            for (MethodNode mn : cn.methods) {
-                if (mn.instructions == null) continue;
-                for (AbstractInsnNode ain : mn.instructions.toArray()) {
-                    if (!(ain instanceof MethodInsnNode)) continue;
-                    MethodInsnNode min = (MethodInsnNode) ain;
-                    if (min.getOpcode() == Opcodes.INVOKESTATIC
-                            && "java/net/URL".equals(min.owner)
-                            && "setURLStreamHandlerFactory".equals(min.name)
-                            && "(Ljava/net/URLStreamHandlerFactory;)V".equals(min.desc)) {
-                        MethodInsnNode replacement = new MethodInsnNode(
-                                Opcodes.INVOKESTATIC,
-                                "org/unmojang/loki/hooks/Hooks",
-                                "registerExternalFactory",
-                                "(Ljava/net/URLStreamHandlerFactory;)V",
-                                false);
-                        mn.instructions.set(min, replacement);
-
-                        Loki.log.debug("Patching " + LokiUtil.getFqmn(className, mn.name, mn.desc));
-                        changed = true;
-                    }
+                    Loki.log.debug("Patching " + LokiUtil.getFqmn(className, mn.name, mn.desc));
+                    changed = true;
                 }
             }
-
-            if (!changed) return null;
-
-            ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS);
-            cn.accept(cw);
-            return cw.toByteArray();
-
-        } catch (Throwable t) {
-            Loki.log.error("Failed to transform " + className + "!", t);
-            return null;
         }
+
+        return changed;
     }
 }
