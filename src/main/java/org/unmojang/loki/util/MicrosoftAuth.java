@@ -109,36 +109,33 @@ public final class MicrosoftAuth {
 
     private static Json.JSONObject buildSession(String msaToken, String refreshToken) throws Exception {
         // Xbox Live user authentication
-        String xboxBody = "{"
-                + "\"Properties\":{"
-                + "\"AuthMethod\":\"RPS\","
-                + "\"SiteName\":\"user.auth.xboxlive.com\","
-                + "\"RpsTicket\":\"" + msaToken + "\""
-                + "},"
-                + "\"RelyingParty\":\"http://auth.xboxlive.com\","
-                + "\"TokenType\":\"JWT\""
-                + "}";
-        Json.JSONObject xbox = httpJson("POST", "https://user.auth.xboxlive.com/user/authenticate", "application/json", xboxBody.getBytes("UTF-8"), null);
+        Json.JSONObject xboxProps = new Json.JSONObject();
+        xboxProps.put("AuthMethod", "RPS");
+        xboxProps.put("SiteName", "user.auth.xboxlive.com");
+        xboxProps.put("RpsTicket", msaToken);
+        Json.JSONObject xboxBody = new Json.JSONObject();
+        xboxBody.put("Properties", xboxProps);
+        xboxBody.put("RelyingParty", "http://auth.xboxlive.com");
+        xboxBody.put("TokenType", "JWT");
+        Json.JSONObject xbox = httpJson("POST", "https://user.auth.xboxlive.com/user/authenticate", "application/json", xboxBody.toString().getBytes("UTF-8"), null);
         String xboxToken = xbox.getString("Token");
         String uhs = xbox.getJSONObject("DisplayClaims").getJSONArray("xui").getJSONObject(0).getString("uhs");
 
         // XSTS authorization
-        String xstsBody = "{"
-                + "\"Properties\":{"
-                + "\"SandboxId\":\"RETAIL\","
-                + "\"UserTokens\":[\"" + xboxToken + "\"]"
-                + "},"
-                + "\"RelyingParty\":\"rp://api.minecraftservices.com/\","
-                + "\"TokenType\":\"JWT\""
-                + "}";
-        String xstsToken = httpJson("POST", "https://xsts.auth.xboxlive.com/xsts/authorize", "application/json", xstsBody.getBytes("UTF-8"), null).getString("Token");
+        Json.JSONObject xstsProps = new Json.JSONObject();
+        xstsProps.put("SandboxId", "RETAIL");
+        xstsProps.put("UserTokens", new Json.JSONArray().put(xboxToken));
+        Json.JSONObject xstsBody = new Json.JSONObject();
+        xstsBody.put("Properties", xstsProps);
+        xstsBody.put("RelyingParty", "rp://api.minecraftservices.com/");
+        xstsBody.put("TokenType", "JWT");
+        String xstsToken = httpJson("POST", "https://xsts.auth.xboxlive.com/xsts/authorize", "application/json", xstsBody.toString().getBytes("UTF-8"), null).getString("Token");
 
         // Minecraft services launcher login
-        String loginBody = "{"
-                + "\"xtoken\":\"XBL3.0 x=" + uhs + ";" + xstsToken + "\","
-                + "\"platform\":\"PC_LAUNCHER\""
-                + "}";
-        String mcToken = httpJson("POST", "https://api.minecraftservices.com/launcher/login", "application/json", loginBody.getBytes("UTF-8"), null).getString("access_token");
+        Json.JSONObject loginBody = new Json.JSONObject();
+        loginBody.put("xtoken", "XBL3.0 x=" + uhs + ";" + xstsToken);
+        loginBody.put("platform", "PC_LAUNCHER");
+        String mcToken = httpJson("POST", "https://api.minecraftservices.com/launcher/login", "application/json", loginBody.toString().getBytes("UTF-8"), null).getString("access_token");
 
         Json.JSONObject profile = httpJson("GET", "https://api.minecraftservices.com/minecraft/profile", null, null, "Bearer " + mcToken);
         String uuid = profile.getString("id");
