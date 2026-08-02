@@ -149,6 +149,10 @@ public class Ygglib {
                     // https://github.com/ahnewark/MineOnline/blob/4f4f86f9d051e0a6fd7ff0b95b2a05f7437683d7/src/main/java/gg/codie/mineonline/gui/textures/TextureHelper.java#L17
                     in = connection.getInputStream();
                     BufferedImage image = ImageIO.read(in);
+                    if (image == null) {
+                        Loki.log.warn("Skin for " + username + " is not a valid image");
+                        return FakeURLConnection(originalUrl, originalConn, 204, null);
+                    }
                     int s = Math.max(1, image.getWidth() / 64);
                     Graphics2D graphics = image.createGraphics();
                     graphics.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER));
@@ -680,6 +684,10 @@ public class Ygglib {
             try {
                 in = connection.getInputStream();
                 BufferedImage image = ImageIO.read(in);
+                if (image == null) {
+                    Loki.log.warn("Skin for " + username + " is not a valid image");
+                    return FakeURLConnection(originalUrl, originalConn, 204, null);
+                }
                 int headPx = Math.max(1, image.getWidth() / 8);
                 BufferedImage i1 = image.getSubimage(headPx, headPx, headPx, headPx);
                 BufferedImage headWithOverlay = new BufferedImage(headPx, headPx, BufferedImage.TYPE_INT_ARGB);
