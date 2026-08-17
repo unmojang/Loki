@@ -134,6 +134,12 @@ public class UuidBatcher {
             return;
         }
 
+        if (resolved.isEmpty()) {
+            // maybe batch lookup isn't supported here?
+            for (Request request : batch) submitSingle(request);
+            return;
+        }
+
         for (Request req : batch) {
             req.complete(resolved.get(req.username.toLowerCase(Locale.ENGLISH)), null);
             pending.remove(req.username, req);

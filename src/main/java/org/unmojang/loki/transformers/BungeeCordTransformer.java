@@ -55,7 +55,6 @@ public class BungeeCordTransformer extends LokiTransformer {
                 mn.instructions.add(new InsnNode(Opcodes.IRETURN));
                 Loki.log.debug("Patching " + LokiUtil.getFqmn(className, mn.name, mn.desc));
                 changed = true;
-                break;
             }
         }
 
