@@ -1,6 +1,7 @@
 package org.unmojang.loki;
 
 import org.unmojang.loki.hooks.*;
+import org.unmojang.loki.util.Base64;
 import org.unmojang.loki.util.BouncyCastleUtils;
 import org.unmojang.loki.util.HttpUtil;
 import org.unmojang.loki.util.Json;
@@ -264,20 +265,42 @@ public class LokiUtil {
         }
     }
 
+    // See configuration.md for information on prefetched metadata
+    private static String decodePrefetchedMetadata() {
+        String encoded = System.getProperty("authlibinjector.yggdrasil.prefetched");
+        if (encoded == null || encoded.length() == 0) {
+            encoded = System.getProperty("org.to2mbn.authlibinjector.config.prefetched"); // ancient
+        }
+        if (encoded == null || encoded.length() == 0) return null;
+
+        try {
+            return new String(Base64.decode(encoded.trim()), "UTF-8");
+        } catch (Exception e) {
+            Loki.log.warn("Ignoring unreadable prefetched API metadata", e);
+            return null;
+        }
+    }
+
     private static void initServerMetadata(String authlibInjectorApiLocation) {
-        if (Hooks.OFFLINE_MODE) {
+        String prefetched = decodePrefetchedMetadata();
+        if (prefetched == null && Hooks.OFFLINE_MODE) {
             SERVER_NAME = "Offline";
             return;
         }
         try {
-            HttpURLConnection conn = (HttpURLConnection) new URL(authlibInjectorApiLocation).openConnection();
-            conn.setRequestMethod("GET");
-            conn.setConnectTimeout(5000);
-            conn.setReadTimeout(5000);
-            conn.connect();
+            String jsonText = prefetched;
+            if (jsonText != null) {
+                Loki.log.debug("Using prefetched API metadata");
+            } else {
+                HttpURLConnection conn = (HttpURLConnection) new URL(authlibInjectorApiLocation).openConnection();
+                conn.setRequestMethod("GET");
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(5000);
+                conn.connect();
 
-            if (conn.getResponseCode() != 200) return;
-            String jsonText = HttpUtil.readStream(conn.getInputStream());
+                if (conn.getResponseCode() != 200) return;
+                jsonText = HttpUtil.readStream(conn.getInputStream());
+            }
             Json.JSONObject json = new Json.JSONObject(jsonText);
 
             Json.JSONObject meta = json.optJSONObject("meta");

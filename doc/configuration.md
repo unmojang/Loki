@@ -74,6 +74,17 @@ Loki supports JVM arguments to enable or disable some behaviour.
   -DLoki.username_validation=true
   ```
 
+## Prefetched API Metadata
+
+Loki reads the API metadata a launcher already fetched, in either of the properties authlib-injector takes:
+
+```
+-Dauthlibinjector.yggdrasil.prefetched=<base64 of the API metadata>
+-Dorg.to2mbn.authlibinjector.config.prefetched=<the same, under the older name>
+```
+
+It is used in place of fetching the API metadata, so a session can start without waiting on the API server.
+
 ## Changing the Default API Servers
 
 By default, Loki will use Mojang's API servers if none are provided. If you would like, you can change Loki's default API servers by editing `loki.properties` before compiling:
