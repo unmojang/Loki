@@ -281,6 +281,15 @@ public class LokiUtil {
         }
     }
 
+    // Turns one PEM armoured key into the Base64 DER ProfileKeys reads, if it is one
+    private static void appendKey(StringBuilder keys, String pem) {
+        if (pem == null) return;
+        String der = pem.replaceAll("-----[A-Z ]+-----", "").replaceAll("\\s", "");
+        if (der.length() == 0) return;
+        if (keys.length() != 0) keys.append(",");
+        keys.append(der);
+    }
+
     private static void initServerMetadata(String authlibInjectorApiLocation) {
         String prefetched = decodePrefetchedMetadata();
         if (prefetched == null && Hooks.OFFLINE_MODE) {
@@ -319,6 +328,22 @@ public class LokiUtil {
                     SERVER_TEXTURE_DOMAINS.add(skinDomainsArr.getString(i));
                 }
                 Loki.log.debug("Added texture domains: " + SERVER_TEXTURE_DOMAINS);
+            }
+
+            // Signing keys for ProfileKeys, from the document already fetched
+            StringBuilder signatureKeys = new StringBuilder();
+            Json.JSONArray signatureKeysArr = json.optJSONArray("signaturePublickeys");
+            if (signatureKeysArr != null) {
+                for (int i = 0; i < signatureKeysArr.length(); i++) {
+                    appendKey(signatureKeys, signatureKeysArr.getString(i));
+                }
+            }
+            if (signatureKeys.length() == 0) {
+                appendKey(signatureKeys, json.optString("signaturePublickey", ""));
+            }
+            if (signatureKeys.length() != 0) {
+                System.setProperty(ProfileKeys.PROP_SIGNATURE_KEYS, signatureKeys.toString());
+                Loki.log.debug("Added signing keys from authlib-injector metadata");
             }
         } catch (Exception e) {
             Loki.log.error("Failed to get server metadata", e);

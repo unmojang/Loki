@@ -1,6 +1,7 @@
 package org.unmojang.loki.util;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -19,6 +20,16 @@ public final class HttpUtil {
 
     public interface ConnectionFactory {
         HttpURLConnection open(String pathSuffix) throws Exception;
+    }
+
+    public static byte[] readAllBytes(InputStream in) throws IOException {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        byte[] buffer = new byte[4096];
+        int read;
+        while ((read = in.read(buffer)) != -1) {
+            out.write(buffer, 0, read);
+        }
+        return out.toByteArray();
     }
 
     public static String readStream(InputStream in) throws IOException {

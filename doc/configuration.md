@@ -49,11 +49,6 @@ Loki supports JVM arguments to enable or disable some behaviour.
   -DLoki.enable_snooper=true
   ```
 
-- Require valid chat signatures on 1.19+ servers where `enforce-secure-profile=true` is set in `server.properties` [^2]
-  ```
-  -DLoki.enforce_secure_profile=true
-  ```
-
 - Force the applet launcher to re-download the game, for pre-Beta 1.3 applet launchers that lack a "Force Update" option
   ```
   -DLoki.launcher_trigger_update=true
@@ -72,6 +67,11 @@ Loki supports JVM arguments to enable or disable some behaviour.
 - Re-enable the username validation added in 1.18.2 that kicks usernames containing invalid characters
   ```
   -DLoki.username_validation=true
+  ```
+
+- Verify signatures on player certificates [^2]
+  ```
+  -DLoki.verify_signatures=true
   ```
 
 ## Prefetched API Metadata
@@ -115,4 +115,4 @@ ServicesHost: https://drasl.unmojang.org/services
 ```
 
 [^1]: Username-based profile lookups allow for displaying textures on offline mode servers.
-[^2]: This option is **NOT** necessary to ensure the integrity of chat reports made to the API server from clients, and will kick [fallback API server](https://github.com/unmojang/drasl/blob/master/doc/configuration.md) players.
+[^2]: This option is **NOT** necessary to ensure the integrity of chat reports made to the API server from clients. It may not be supported on some API servers, and even if it is supported, it may kick [fallback API server](https://github.com/unmojang/drasl/blob/master/doc/configuration.md) players.

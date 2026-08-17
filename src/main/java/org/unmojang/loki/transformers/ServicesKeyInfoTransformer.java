@@ -21,29 +21,7 @@ public class ServicesKeyInfoTransformer extends LokiTransformer {
         boolean changed = false;
 
         for (MethodNode mn : cn.methods) {
-            if (isKeyInfo && "<init>".equals(mn.name) && "(Ljava/security/PublicKey;)V".equals(mn.desc)) {
-                AbstractInsnNode ret = null;
-                for (AbstractInsnNode insn : mn.instructions.toArray()) {
-                    if (insn.getOpcode() == Opcodes.RETURN) {
-                        ret = insn;
-                    }
-                }
-                if (ret == null) throw new RuntimeException("could not find RETURN");
-
-                InsnList insns = new InsnList();
-                insns.add(new VarInsnNode(Opcodes.ALOAD, 0));
-                insns.add(new MethodInsnNode(
-                        Opcodes.INVOKESTATIC,
-                        "org/unmojang/loki/hooks/Hooks",
-                        "replaceYggdrasilServicesKeyInfoSignature",
-                        "(Ljava/lang/Object;)V",
-                        false
-                ));
-                mn.instructions.insertBefore(ret, insns);
-
-                Loki.log.debug("Patching " + LokiUtil.getFqmn(className, mn.name, mn.desc));
-                changed = true;
-            } else if (isKeyInfo && "validateProperty".equals(mn.name) && "(Lcom/mojang/authlib/properties/Property;)Z".equals(mn.desc)) {
+            if (isKeyInfo && "validateProperty".equals(mn.name) && "(Lcom/mojang/authlib/properties/Property;)Z".equals(mn.desc)) {
                 mn.instructions.clear();
                 mn.tryCatchBlocks.clear();
                 if (mn.localVariables != null) mn.localVariables.clear();
@@ -57,18 +35,18 @@ public class ServicesKeyInfoTransformer extends LokiTransformer {
                 Loki.log.debug("Patching " + LokiUtil.getFqmn(className, mn.name, mn.desc));
                 changed = true;
             } else if (isKeyInfo && "signature".equals(mn.name) && "()Ljava/security/Signature;".equals(mn.desc)) {
-                if (Loki.enforce_secure_profile) continue; // preserve signature
-
                 mn.instructions.clear();
                 mn.tryCatchBlocks.clear();
                 if (mn.localVariables != null) mn.localVariables.clear();
 
+                // Player certificates: every trusted key when verify_signatures is set, else a dummy
                 InsnList insns = new InsnList();
+                insns.add(new VarInsnNode(Opcodes.ALOAD, 0));
                 insns.add(new MethodInsnNode(
                         Opcodes.INVOKESTATIC,
-                        "org/unmojang/loki/hooks/Hooks",
-                        "createDummySignature",
-                        "()Ljava/security/Signature;",
+                        "org/unmojang/loki/hooks/ProfileKeys",
+                        "certificateSignature",
+                        "(Ljava/lang/Object;)Ljava/security/Signature;",
                         false
                 ));
                 insns.add(new InsnNode(Opcodes.ARETURN));

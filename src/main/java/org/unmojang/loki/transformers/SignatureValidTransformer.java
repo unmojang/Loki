@@ -10,7 +10,8 @@ import org.unmojang.loki.LokiUtil;
 public class SignatureValidTransformer extends LokiTransformer {
 
     protected boolean matches(String className) {
-        return "com/mojang/authlib/properties/Property".equals(className);
+        return "com/mojang/authlib/properties/Property".equals(className)
+                || className.endsWith("/data/GameProfile$Property");
     }
 
     protected boolean patch(ClassNode cn, String className) {

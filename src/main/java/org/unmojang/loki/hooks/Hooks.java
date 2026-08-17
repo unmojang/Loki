@@ -1,22 +1,16 @@
 package org.unmojang.loki.hooks;
 
-import org.unmojang.loki.util.Base64;
 import org.unmojang.loki.util.HttpUtil;
 import org.unmojang.loki.util.Json;
 import org.unmojang.loki.util.UuidBatcher;
 import org.unmojang.loki.util.logger.NilLogger;
-import sun.misc.Unsafe;
 
-import java.io.*;
 import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.net.*;
 import java.security.*;
-import java.security.spec.InvalidKeySpecException;
-import java.security.spec.X509EncodedKeySpec;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -128,19 +122,9 @@ public class Hooks {
         }
     }
 
-    private static volatile PublicKey servicesPublicKey;
-
     private static Signature servicesKeySignature() {
-        if (!Boolean.getBoolean("Loki.enforce_secure_profile")) return createDummySignature();
-        try {
-            PublicKey key = servicesPublicKey;
-            if (key == null) servicesPublicKey = key = getPublicKey();
-            Signature signature = Signature.getInstance("SHA1withRSA");
-            signature.initVerify(key);
-            return signature;
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to build services key signature", e);
-        }
+        // Dummy unless Loki.verify_signatures; null owner, as 26.3+ authlib bundles no Mojang key
+        return ProfileKeys.certificateSignature(null);
     }
 
     public static String getDiscoveryJson() {
@@ -284,77 +268,6 @@ public class Hooks {
         return sig;
     }
 
-    private static void replaceStaticField(Class<?> owner, String fieldName, Object value) throws Exception {
-        Field field = owner.getDeclaredField(fieldName);
-        field.setAccessible(true);
-
-        Field unsafeField = Unsafe.class.getDeclaredField("theUnsafe");
-        unsafeField.setAccessible(true);
-        Unsafe unsafe = (Unsafe) unsafeField.get(null);
-
-        Object staticBase = unsafe.staticFieldBase(field);
-        long staticOffset = unsafe.staticFieldOffset(field);
-        unsafe.putObject(staticBase, staticOffset, value);
-    }
-
-    public static void replaceMCAuthlibGameProfileSignature(Class<?> gameProfileClass) {
-        try {
-            log.debug("Replacing Mojang public key in MCAuthlib GameProfile");
-            replaceStaticField(gameProfileClass, "SIGNATURE_KEY", getPublicKey());
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to replace yggdrasil public key!", e);
-        }
-    }
-
-    public static void replaceBungeeCordMojangKey(Class<?> encUtilClass) {
-        try {
-            log.debug("Replacing Mojang public key in BungeeCord");
-            replaceStaticField(encUtilClass, "MOJANG_KEY", getPublicKey());
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to replace yggdrasil public key!", e);
-        }
-    }
-
-    public static void replaceYggdrasilServicesKeyInfoSignature(Object target) {
-        try {
-            log.debug("Replacing Mojang public key in YggdrasilServicesKeyInfo");
-            PublicKey publicKey = getPublicKey();
-
-            Field pubKeyField = target.getClass().getDeclaredField("publicKey");
-            pubKeyField.setAccessible(true);
-            pubKeyField.set(target, publicKey);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to replace yggdrasil public key!", e);
-        }
-    }
-
-    private static PublicKey getPublicKey() throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
-        String baseUrl = System.getProperty("minecraft.api.services.host", "https://api.minecraftservices.com");
-        URL url = new URL(baseUrl + "/publickeys");
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-        conn.setRequestMethod("GET");
-        conn.setDoInput(true);
-        conn.setConnectTimeout(5000);
-        conn.setReadTimeout(5000);
-        if (conn.getResponseCode() != 200) {
-            throw new IOException("publickeys endpoint returned HTTP " + conn.getResponseCode());
-        }
-
-        Json.JSONObject jsonObject = new Json.JSONObject(HttpUtil.readStream(conn.getInputStream()));
-        Json.JSONArray profilePropertyKeys = jsonObject.getJSONArray("profilePropertyKeys");
-        if (profilePropertyKeys == null || profilePropertyKeys.isEmpty()) {
-            throw new IllegalStateException("profilePropertyKeys not found in response");
-        }
-        Object keyElement = profilePropertyKeys.getJSONObject(0).get("publicKey");
-        if (keyElement == null) {
-            throw new IllegalStateException("publicKey not found in response");
-        }
-
-        byte[] keyBytes = Base64.decode(keyElement.toString());
-        X509EncodedKeySpec spec = new X509EncodedKeySpec(keyBytes);
-        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-        return keyFactory.generatePublic(spec);
-    }
 
     public static String getMpPass(Object applet) {
         if (applet == null) return null;
