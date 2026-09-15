@@ -21,7 +21,8 @@ public class Loki {
     public static final boolean verify_signatures = Boolean.getBoolean("Loki.verify_signatures");
 
     public static void premain(String agentArgs, Instrumentation inst) {
-        if (auto_update && LokiUpdater.updateAndSwap(agentArgs, inst)) return;
+        //TODO
+    	//if (auto_update && LokiUpdater.updateAndSwap(agentArgs, inst)) return;
 
         log.info("Hello Loki " + LokiUtil.getAgentVersion() + " World!");
         LokiUtil.earlyInit(agentArgs, inst);

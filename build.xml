@@ -2,8 +2,8 @@
          xmlns:if="ant:if" xmlns:unless="ant:unless">
     <property environment="env"/>
     <property name="group" value="org.unmojang"/>
-    <property name="artifact" value="Loki"/>
-    <property name="version" value="2.6.5"/>
+    <property name="artifact" value="ext1605_skin_fix"/>
+    <property name="version" value="Loki-2.6.5"/>
     <property name="asm.version" value="9.10.1"/>
     <property name="ivy.version" value="2.4.0"/>
 
